@@ -117,9 +117,9 @@ export function KiaraCommercialSettings(){
    <h4>Modelos de cortina e limites comerciais</h4>
    {data.models.map((model,i)=><div className="kiara-pricing-form" key={i}>
     <label>Modelo<input disabled={!admin} value={model} onChange={e=>mutate({...data,models:data.models.map((x,j)=>j===i?e.target.value:x)})}/></label>
-    {admin&&<button type="button" onClick={()=>mutate({...data,models:data.models.filter((_,j)=>i!==j)})}>Remover modelo</button>}
+    {admin&&<button className="kiara-commercial-button kiara-commercial-button--remove" type="button" onClick={()=>mutate({...data,models:data.models.filter((_,j)=>i!==j)})}>Remover modelo</button>}
    </div>)}
-   {admin&&<button type="button" onClick={()=>mutate({...data,models:[...data.models,'']})}>Adicionar modelo</button>}
+   {admin&&<button className="kiara-commercial-button kiara-commercial-button--remove" type="button" onClick={()=>mutate({...data,models:[...data.models,'']})}>Adicionar modelo</button>}
    <div className="kiara-pricing-form">
     <label>Largura máxima no pré-orçamento (m){inputNumber(data.technicalLimits?.maxWidth||0,n=>mutate({...data,technicalLimits:{...data.technicalLimits,maxWidth:n}}))}</label>
     <label>Altura máxima no pré-orçamento (m){inputNumber(data.technicalLimits?.maxHeight||0,n=>mutate({...data,technicalLimits:{...data.technicalLimits,maxHeight:n}}))}</label>
@@ -130,9 +130,9 @@ export function KiaraCommercialSettings(){
     <label>Categoria<input disabled={!admin} value={item.name} onChange={e=>mutate({...data,categories:data.categories.map((x,j)=>j===i?{...x,name:e.target.value}:x)})}/></label>
     <label>Custo histórico por m² (R$){inputNumber(item.costPerM2,n=>mutate({...data,categories:data.categories.map((x,j)=>j===i?{...x,costPerM2:n}:x)}))}</label>
     <label>Registros históricos<input type="number" min="0" disabled={!admin} value={item.records||0} onChange={e=>mutate({...data,categories:data.categories.map((x,j)=>j===i?{...x,records:Number(e.target.value)}:x)})}/></label>
-    {admin&&<button type="button" onClick={()=>mutate({...data,categories:data.categories.filter((_,j)=>i!==j)})}>Remover categoria</button>}
+    {admin&&<button className="kiara-commercial-button kiara-commercial-button--add" type="button" onClick={()=>mutate({...data,categories:data.categories.filter((_,j)=>i!==j)})}>Remover categoria</button>}
    </div>)}
-   {admin&&<button type="button" onClick={()=>mutate({...data,categories:[...data.categories,{name:'',costPerM2:0,records:0}]})}>Adicionar categoria</button>}
+   {admin&&<button className="kiara-commercial-button kiara-commercial-button--remove" type="button" onClick={()=>mutate({...data,categories:[...data.categories,{name:'',costPerM2:0,records:0}]})}>Adicionar categoria</button>}
    <h4>Custos por modelo e posição (sobrepõem a média da categoria)</h4>
    {data.modelCosts.map((item,i)=><div className="kiara-pricing-form" key={i}>
     <label>Categoria<select disabled={!admin} value={item.category} onChange={e=>mutate({...data,modelCosts:data.modelCosts.map((x,j)=>j===i?{...x,category:e.target.value}:x)})}>
@@ -145,29 +145,29 @@ export function KiaraCommercialSettings(){
      <option value="front">Frente/face única</option><option value="lining">Forro</option>
     </select></label>
     <label>Custo por m² (R$){inputNumber(item.costPerM2,n=>mutate({...data,modelCosts:data.modelCosts.map((x,j)=>j===i?{...x,costPerM2:n}:x)}))}</label>
-    {admin&&<button type="button" onClick={()=>mutate({...data,modelCosts:data.modelCosts.filter((_,j)=>i!==j)})}>Remover referência</button>}
+    {admin&&<button className="kiara-commercial-button kiara-commercial-button--add" type="button" onClick={()=>mutate({...data,modelCosts:data.modelCosts.filter((_,j)=>i!==j)})}>Remover referência</button>}
    </div>)}
-   {admin&&<button type="button" onClick={()=>mutate({...data,modelCosts:[...data.modelCosts,{category:data.categories[0]?.name||'',model:'Wave',position:'front',costPerM2:0,records:0}]})}>Adicionar referência por modelo</button>}
+   {admin&&<button className="kiara-commercial-button kiara-commercial-button--remove" type="button" onClick={()=>mutate({...data,modelCosts:[...data.modelCosts,{category:data.categories[0]?.name||'',model:'Wave',position:'front',costPerM2:0,records:0}]})}>Adicionar referência por modelo</button>}
    <h4>Trilhos e valores</h4>
    {data.rails.map((item,i)=><div className="kiara-pricing-form" key={i}>
     <label>Código<input disabled={!admin} value={item.id} onChange={e=>mutate({...data,rails:data.rails.map((x,j)=>j===i?{...x,id:e.target.value}:x)})}/></label>
     <label>Descrição<input disabled={!admin} value={item.label} onChange={e=>mutate({...data,rails:data.rails.map((x,j)=>j===i?{...x,label:e.target.value}:x)})}/></label>
     <label>Custo por metro (R$){inputNumber(item.costPerMeter,n=>mutate({...data,rails:data.rails.map((x,j)=>j===i?{...x,costPerMeter:n}:x)}))}</label>
-    {admin&&<button type="button" onClick={()=>mutate({...data,rails:data.rails.filter((_,j)=>i!==j)})}>Remover trilho</button>}
+    {admin&&<button className="kiara-commercial-button kiara-commercial-button--add" type="button" onClick={()=>mutate({...data,rails:data.rails.filter((_,j)=>i!==j)})}>Remover trilho</button>}
    </div>)}
-   {admin&&<button type="button" onClick={()=>mutate({...data,rails:[...data.rails,{id:'',label:'',costPerMeter:0}]})}>Adicionar trilho</button>}
+   {admin&&<button className="kiara-commercial-button kiara-commercial-button--remove" type="button" onClick={()=>mutate({...data,rails:[...data.rails,{id:'',label:'',costPerMeter:0}]})}>Adicionar trilho</button>}
    <h4>Proporções técnicas por posição e modelo</h4>
    {data.ratios.map((item,i)=><div className="kiara-pricing-form" key={i}>
     <label>Posição<select disabled={!admin} value={item.position} onChange={e=>mutate({...data,ratios:data.ratios.map((x,j)=>j===i?{...x,position:e.target.value}:x)})}><option value="front">Frente</option><option value="lining">Forro</option></select></label>
     <label>Modelo<select disabled={!admin} value={item.model} onChange={e=>mutate({...data,ratios:data.ratios.map((x,j)=>j===i?{...x,model:e.target.value}:x)})}>{['Wave','Prega Macho','Franzida'].map(v=><option key={v}>{v}</option>)}</select></label>
     <label>Proporção{inputNumber(item.ratio,n=>mutate({...data,ratios:data.ratios.map((x,j)=>j===i?{...x,ratio:n}:x)}))}</label>
-    {admin&&<button type="button" onClick={()=>mutate({...data,ratios:data.ratios.filter((_,j)=>i!==j)})}>Remover proporção</button>}
+    {admin&&<button className="kiara-commercial-button kiara-commercial-button--add" type="button" onClick={()=>mutate({...data,ratios:data.ratios.filter((_,j)=>i!==j)})}>Remover proporção</button>}
    </div>)}
    {admin&&<button type="button" onClick={()=>mutate({...data,ratios:[...data.ratios,{position:'front',model:'Wave',ratio:0}]})}>Adicionar proporção</button>}
    <p><small>As proporções documentam o padrão de confecção; custos por m² já incluem a confecção e não são multiplicados novamente.</small></p>
    <label>Fonte e observações<textarea disabled={!admin} value={data.source||''} onChange={e=>mutate({...data,source:e.target.value})} rows={3}/></label>
-   {admin&&<div className="kiara-management-actions"><button type="button" disabled={busy||!dirty} onClick={()=>void save()}>Salvar rascunho</button>
-    <button type="button" disabled={busy||dirty||stored?.status==='approved'||!stored} onClick={()=>void approve()}>Aprovar revisão comercial</button>
+   {admin&&<div className="kiara-management-actions"><button className="kiara-commercial-button kiara-commercial-button--primary" type="button" disabled={busy||!dirty} onClick={()=>void save()}>Salvar rascunho</button>
+    <button className="kiara-commercial-button kiara-commercial-button--primary" type="button" disabled={busy||dirty||stored?.status==='approved'||!stored} onClick={()=>void approve()}>Aprovar revisão comercial</button>
    </div>}
    <h4>Histórico de revisões</h4>
    {history.length?<ul>{history.map(h=><li key={h.revision}>Revisão {h.revision}: {h.status==='approved'?'aprovada':'rascunho'} — {new Date(h.changed_at).toLocaleString('pt-BR')}</li>)}</ul>:<p>Sem revisões registradas.</p>}
