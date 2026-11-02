@@ -34,3 +34,10 @@
 .kiara-lab-error,.kiara-lab-notice{border-radius:9px;padding:10px;font-size:12px}
 .kiara-lab-error{background:#fff0ef;color:#9a3136}.kiara-lab-notice{background:#edf6ed;color:#306d41}
 @media(max-width:1050px){.kiara-lab-grid,.kiara-lab-history{grid-template-columns:1fr}}
+
+/* Discussões pendentes: ação de executar visível na própria lista. */
+.kiara-lab-run-entry{border:1px solid #e6eaf2;border-radius:10px;padding:9px;display:flex;flex-direction:column;gap:8px;background:#fff}
+.kiara-lab-run-entry.active{background:#f4f0ff;border-color:#b5a3f1}
+.kiara-lab-run-list .kiara-lab-run-select{border:0;background:transparent;padding:0;display:flex;flex-direction:column;gap:5px;width:100%;text-align:left;box-shadow:none}
+.kiara-lab-run-list .kiara-lab-run-start,.kiara-lab-history .kiara-lab-panel>button{width:max-content;max-width:100%;padding:9px 12px;border:0;border-radius:9px;background:#6251d8;color:#fff;font-weight:750;font-size:11px;cursor:pointer}
+.kiara-lab-run-list .kiara-lab-run-start:disabled{opacity:.55;cursor:not-allowed}
