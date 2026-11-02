@@ -1,5 +1,5 @@
 name: Publicar painel independente KIARA (GitHub Pages)
-# Versão de homologação: perfil autenticado no rodapé, busca ampla e filtros sem duplicidade.
+# Versão de homologação: menus Resumo, Qualificação, Orçamento e Notas no painel de Conversas.
 
 on:
   workflow_dispatch:
