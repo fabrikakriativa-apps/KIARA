@@ -29,6 +29,51 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
   const [promotionBusy,setPromotionBusy]=useState(false)
   const [promotionFeedback,setPromotionFeedback]=useState('')
   const [opportunityPhase,setOpportunityPhase]=useState('')
+  const [detailTab,setDetailTab]=useState<'summary'|'qualification'|'budget'|'notes'>('summary')
+  const [contactBudgets,setContactBudgets]=useState<{id:string;status:string;created_at:string;customer_message:string;structured_budget:unknown}[]>([])
+  const [contactNotes,setContactNotes]=useState<{id:string;body:string;created_at:string}[]>([])
+  const [noteDraft,setNoteDraft]=useState('')
+  const [noteBusy,setNoteBusy]=useState(false)
+  const [detailError,setDetailError]=useState('')
+  const [detailsRevision,setDetailsRevision]=useState(0)
+  useEffect(()=>{
+    setDetailTab('summary')
+    setNoteDraft('')
+    setContactNotes([])
+    setContactBudgets([])
+    setDetailError('')
+  },[selectedId])
+  useEffect(()=>{
+    if(!access||!supabase||!selectedId)return
+    let live=true
+    const client=supabase
+    void Promise.all([
+      client.from('kiara_budget_drafts').select('id,status,created_at,customer_message,structured_budget').eq('organization_id',access.organizationId).eq('conversation_id',selectedId).order('created_at',{ascending:false}).limit(50),
+      client.from('kiara_conversation_notes').select('id,body,created_at').eq('organization_id',access.organizationId).eq('conversation_id',selectedId).order('created_at',{ascending:false}).limit(100)
+    ]).then(([budgets,notes])=>{
+      if(!live)return
+      if(budgets.error||notes.error){setDetailError('Não foi possível carregar todos os detalhes.');return}
+      setContactBudgets((budgets.data||[]) as typeof contactBudgets)
+      setContactNotes((notes.data||[]) as typeof contactNotes)
+      setDetailError('')
+    })
+    return()=>{live=false}
+  },[selectedId,access?.organizationId,detailsRevision])
+  async function saveContactNote(){
+    if(!supabase||!access||!selectedId||!noteDraft.trim()||noteBusy)return
+    setNoteBusy(true);setDetailError('')
+    const {error}=await supabase.from('kiara_conversation_notes').insert({
+      organization_id:access.organizationId,
+      conversation_id:selectedId,
+      body:noteDraft.trim().slice(0,3000),
+      created_by:access.userId
+    })
+    setNoteBusy(false)
+    if(error){setDetailError('Não foi possível salvar a nota.');return}
+    setNoteDraft('')
+    setDetailsRevision(v=>v+1)
+  }
+
   const [refresh, setRefresh] = useState(0)
   const [conversationLimit,setConversationLimit]=useState(100)
   const [messageLimit,setMessageLimit]=useState(100)
@@ -340,9 +385,17 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
         </div>
       </aside>
       <aside className="kiara-conversation-details" aria-label="Detalhes e ações do atendimento">
-        <div className="kiara-details-header"><h2>Resumo do contato</h2><span>{selected ? labels[selected.status] : 'Nenhum selecionado'}</span></div>
-        <div className="kiara-details-scroll">
-          <section className="kiara-details-section">
+        <div className="kiara-detail-tabs" role="tablist" aria-label="Detalhes da conversa">
+          {([
+            ['summary','Resumo'],['qualification','Qualificação'],['budget','Orçamento'],['notes','Notas']
+          ] as const).map(([key,label])=><button type="button" key={key} role="tab"
+            id={'kiara-tab-'+key} aria-selected={detailTab===key} aria-controls="kiara-detail-panel"
+            className={detailTab===key?'active':''} onClick={()=>setDetailTab(key)}>{label}</button>)}
+        </div>
+        <div className="kiara-details-scroll" role="tabpanel" id="kiara-detail-panel" aria-labelledby={'kiara-tab-'+detailTab}>
+          {detailError&&<p role="alert" className="kiara-data-error">{detailError}</p>}
+          {detailTab==='summary'&&<>
+            <section className="kiara-details-section">
             <h3>Informações do contato</h3>
             <dl>
               <div><dt>Nome</dt><dd>{selected?.name||'Não informado'}</dd></div>
@@ -352,14 +405,8 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
               <div><dt>Região</dt><dd>{selected?.region||'Não informada'}</dd></div>
             </dl>
           </section>
-          <section className="kiara-details-section">
-            <h3>Qualificação comercial</h3>
-            <dl>
-              <div><dt>Prospecção</dt><dd>{selected?.leadOpportunityId ? 'Oportunidade vinculada' : 'Ainda não vinculada'}</dd></div>
-              {selected?.leadOpportunityId&&<div><dt>Fase comercial</dt><dd>{opportunityPhase||'Não informada'}</dd></div>}
-            </dl>
-          </section>
-          <section className="kiara-details-section kiara-details-response">
+          
+            <section className="kiara-details-section kiara-details-response">
             <h3>Tempo de resposta</h3>
             <div className="kiara-time-card">
           <span><Clock3 size={16}/> Tempo médio de resposta do lead</span>
@@ -371,6 +418,38 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
           <small>{pendingMs !== null ? 'Contagem desde a última mensagem enviada pela Kiara ou pela equipe.' : 'O cliente não tem uma resposta pendente à última mensagem da loja.'}</small>
         </div>
           </section>
+
+          </>}
+          {detailTab==='qualification'&&<>
+            <section className="kiara-details-section">
+            <h3>Qualificação comercial</h3>
+            <dl>
+              <div><dt>Prospecção</dt><dd>{selected?.leadOpportunityId ? 'Oportunidade vinculada' : 'Ainda não vinculada'}</dd></div>
+              {selected?.leadOpportunityId&&<div><dt>Fase comercial</dt><dd>{opportunityPhase||'Não informada'}</dd></div>}
+            </dl>
+          </section>
+          
+            <section className="kiara-details-section"><h3>Dados coletados</h3><p>Consulte as necessidades, ambientes, modelos e medidas informados no histórico da conversa. Campos não identificados permanecem sem preenchimento até a validação.</p></section>
+          </>}
+          {detailTab==='budget'&&<section className="kiara-details-section">
+            <h3>Orçamentos da conversa</h3>
+            {!selected?<p>Selecione uma conversa para consultar os orçamentos.</p>:contactBudgets.length===0?<p>Nenhum orçamento estruturado registrado para este contato.</p>:contactBudgets.map(b=><article className="kiara-detail-budget" key={b.id}>
+              <strong>{b.status==='pending_review'?'Aguardando aprovação':b.status==='sent'?'Enviado':b.status==='approved'?'Aprovado':b.status==='rejected'?'Rejeitado':b.status}</strong>
+              <small>{new Date(b.created_at).toLocaleString('pt-BR')}</small>
+              <p>{b.customer_message}</p>
+            </article>)}
+            <p>As aprovações e revisões permanecem na área Regras de orçamento.</p>
+          </section>}
+          {detailTab==='notes'&&<section className="kiara-details-section kiara-private-notes">
+            <h3>Notas internas</h3>
+            <p>As notas são privadas da equipe e não são enviadas ao cliente nem utilizadas como instruções da Kiara.</p>
+            <label htmlFor="kiara-note-input">Nova nota</label>
+            <textarea id="kiara-note-input" rows={3} maxLength={3000} value={noteDraft} disabled={!selected||noteBusy}
+              placeholder="Registre informações importantes sobre este atendimento…"
+              onChange={e=>setNoteDraft(e.target.value)}/>
+            <button type="button" onClick={()=>void saveContactNote()} disabled={!selected||!noteDraft.trim()||noteBusy}>{noteBusy?'Salvando…':'Salvar nota'}</button>
+            {contactNotes.length===0?<p>Nenhuma nota registrada.</p>:contactNotes.map(n=><article key={n.id} className="kiara-private-note"><small>{new Date(n.created_at).toLocaleString('pt-BR')}</small><p>{n.body}</p></article>)}
+          </section>}
         </div>
         <div className="kiara-details-actions">
           <h3>Ações</h3>
