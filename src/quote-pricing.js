@@ -17,7 +17,7 @@ const PER_MODEL=Object.freeze({
 });
 export const RATIOS=Object.freeze({
  'front|Prega Macho':{ratio:3,records:75},
- 'front|Wave':{ratio:2.2,records:78,variants:[2.2,2.5]},
+ 'front|Wave':{ratio:2.5,records:17,variants:[2.2,2.5],note:'Padrão observado em todas as 17 amostras de 2026; histórico anterior frequentemente usa 2,2'},
  'front|Franzida':{ratio:1.5,records:24},
  'lining|Franzida':{ratio:1.5,records:10},
  'lining|Prega Macho':{ratio:3,records:2}
