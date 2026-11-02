@@ -87,7 +87,7 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
     setHoldReady(false);setReplyHeld(false)
     if(!selectedId || !kiaraCoachConfigured || !access || !['admin','comercial'].includes(access.role)) return
     let cancelled=false
-    void readKiaraHold(selectedId).then(result=>{if(!cancelled){setReplyHeld(result.held);setHoldReady(result.writable!==false);setHoldFeedback(result.writable===false?'Consulta autenticada em homologação: o comando Segurar/Liberar está bloqueado até a liberação de produção.':'')}})
+    void readKiaraHold(selectedId).then(result=>{if(!cancelled){setReplyHeld(result.held);setHoldReady(result.writable!==false);setHoldFeedback('')}})
       .catch(()=>{if(!cancelled)setHoldFeedback('Segurar resposta ainda não está habilitado no servidor.')})
     return ()=>{cancelled=true}
   },[selectedId,access?.organizationId,access?.role,refresh])
