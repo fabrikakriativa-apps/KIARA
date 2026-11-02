@@ -1,5 +1,5 @@
 name: Publicar painel independente KIARA (GitHub Pages)
-# Versão de homologação: central de Configurações com oito áreas conforme referência.
+# Versão de homologação: laboratório multiagente, debates manuais, fila diária e aprovação de conhecimento.
 
 on:
   workflow_dispatch:
