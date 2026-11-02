@@ -229,7 +229,7 @@ async function syncInbound(env, route, value, message) {
     timestamp, name, referral: message.referral || null
   });
   await saveMessage(env, row.id, message.id, 'incoming', 'customer',
-    message.type === 'text' ? message.text?.body : null, timestamp, message.type);
+    message.type === 'text' ? message.text?.body : message.type==='interactive' ? message.interactive?.button_reply?.title : null, timestamp, message.type);
 }
 async function syncHumanEcho(env, route, echo) {
   if (!syncActive(env)) return;
@@ -750,8 +750,115 @@ async function handleAudioJob(env,route,job) {
   }
 }
 
+
+/* Roteiro de campanhas: sempre opt-in e restrito ao contato de teste.
+   Nunca decide que um contato é de anúncio só porque escreveu sobre um produto. */
+const adsRoutingEnabled = env => env.KIARA_ADS_ROUTING_ENABLED === 'true';
+const greeting = 'Olá! 👋 Seja bem-vindo(a) à Fábrika Kriativa!\n\nSou a Kiara, assistente de atendimento. 😊\n\nPara te ajudar da melhor forma, me conta como prefere começar:\n\n*Orçamento rápido*\nJá sabe o que procura? Vamos reunir algumas informações para preparar uma estimativa inicial.\n\n*Atendimento personalizado*\nPrecisa de ajuda para escolher? Podemos conversar sobre modelos, tecidos e acabamentos para encontrar a melhor composição para seu ambiente.\n\nÉ só escolher uma das opções abaixo. 😊';
+const routeStateKey=(route,sender)=>route.source+':ad-route:'+digits(sender);
+const adReferralValid=ref=>ref&&ref.source_type==='ad'&&/^[0-9]{5,40}$/.test(String(ref.source_id||''));
+const humanRequested=text=>/(?:falar|conversar|atender|atendimento|preciso|quero|prefiro|chamar|transferir).{0,48}(?:pessoa|humano|humana|atendente|consultor|consultora|equipe|algu[eé]m da loja)|(?:^|\s)consultivo(?:\s|$)/i.test(text);
+const outsideScope=text=>/\b(?:sofa|sofá|estofad[oa]s?|cabeceira|pap[eé]is? de parede|cadeira|poltrona|reforma|conserto|manuten[cç][aã]o|tapete|colch[aã]o)\b/i.test(text);
+function choiceFrom(message){
+  if(message.type==='interactive' && message.interactive?.type==='button_reply'){
+    const id=message.interactive.button_reply?.id;
+    if(id==='kiara_choice_quick')return 'quick';
+    if(id==='kiara_choice_personalized')return 'personalized';
+  }
+  if(message.type==='text'){
+    const t=String(message.text?.body||'').trim().toLowerCase();
+    if(/^(?:1|or[cç]amento r[aá]pido)$/.test(t))return 'quick';
+    if(/^(?:2|atendimento personalizado|personalizado)$/.test(t))return 'personalized';
+  }
+  return null;
+}
+const choiceLabel=choice=>choice==='quick'?'Orçamento rápido':'Atendimento personalizado';
+const firstQuestion=choice=>choice==='quick'
+  ?'Perfeito! 😊 Vamos começar. Você procura cortina ou persiana, e para qual ambiente?'
+  :'Claro! 😊 Me conta um pouco sobre seu ambiente: você está pensando em cortina ou persiana, ou ainda está decidindo?';
+const flowPrompt=choice=>choice==='quick'
+ ? 'ROTEIRO ATIVO: ORÇAMENTO RÁPIDO. O cliente escolheu saber valores. Sem questionário e sem inventar preço, obtenha progressivamente produto (cortina/persiana), ambiente, largura e altura aproximadas, fotos opcionais e composição relevante (frente e forro, privacidade ou blackout, modelo, acionamento). Faça UMA pergunta útil por vez. Quando houver dados suficientes, resuma por ambiente e diga que a equipe preparará o valor para validação humana; nunca declare que gerou ou enviou orçamento. Se pedir pessoa, surgir serviço diferente ou dúvida técnica importante, responda exatamente <<ENCAMINHAR_HUMANO>>.'
+ : 'ROTEIRO ATIVO: ATENDIMENTO PERSONALIZADO. O cliente quer orientação na escolha, não só o preço. Converse de forma acolhedora, compreenda ambiente, objetivo de luz/privacidade, estética, preferências e necessidade antes de pedir medidas; uma pergunta por vez. Sugira possibilidades gerais somente quando comprovadas na base aprovada. Depois, organize uma proposta de composição de cortina ou persiana para avaliação da equipe e orçamento sujeito a aprovação. Não prometa preço, visita ou data. Se pedir pessoa, surgir serviço diferente ou dúvida técnica importante, responda exatamente <<ENCAMINHAR_HUMANO>>.';
+async function sendChoiceButtons(route,to){
+  const response=await fetch('https://graph.facebook.com/'+GRAPH_VERSION+'/'+route.phoneId+'/messages',{
+    method:'POST',
+    headers:{Authorization:'Bearer '+route.token,'Content-Type':'application/json'},
+    body:JSON.stringify({messaging_product:'whatsapp',recipient_type:'individual',to,
+      type:'interactive',interactive:{type:'button',body:{text:greeting},action:{buttons:[
+       {type:'reply',reply:{id:'kiara_choice_quick',title:'Orçamento rápido'}},
+       {type:'reply',reply:{id:'kiara_choice_personalized',title:'Personalizado'}}
+      ]}}})
+  });
+  if(!response.ok)throw new Error('WhatsApp interactive greeting unavailable');
+  return (await response.json()).messages?.[0]?.id||null;
+}
+async function loadRouteState(env,route,sender){
+  return env.CONVERSAS.get(routeStateKey(route,sender),'json');
+}
+async function saveRouteState(env,route,sender,state){
+  await env.CONVERSAS.put(routeStateKey(route,sender),JSON.stringify(state),{expirationTtl:MEMORY_TTL});
+}
+async function humanRoute(env,route,sender,id,reason){
+  await handoffAudio(env,route,sender,id,reason);
+  await saveRouteState(env,route,sender,{status:'human',source:'human',reason});
+}
+async function processAdRouting(env,route,message){
+  if(!adsRoutingEnabled(env))return {handled:false};
+  if(!message.id||!digits(message.from))return {handled:true};
+  const sender=digits(message.from);
+  if(sender!==digits(route.allowed))return {handled:true};
+  const state=await loadRouteState(env,route,sender);
+  const replyType=message.type==='interactive'&&message.interactive?.type==='button_reply';
+  const text=replyType?String(message.interactive.button_reply.title||''):message.type==='text'?String(message.text?.body||''):'';
+  if(state?.status==='human')return {handled:true};
+  if(humanRequested(text)||outsideScope(text)){
+    await humanRoute(env,route,sender,message.id,'Atendimento humano solicitado ou assunto fora do escopo');
+    return {handled:true};
+  }
+  if(!state){
+    if(!adReferralValid(message.referral)){
+      await humanRoute(env,route,sender,message.id,'Contato sem origem confirmada de anúncio');
+      return {handled:true};
+    }
+    await saveRouteState(env,route,sender,{status:'intro_pending',source:'ad',adId:String(message.referral.source_id)});
+    await env.KIARA_QUEUE.send({kind:'routing_intro',source:route.source,sender,messageId:message.id},{delaySeconds:0});
+    return {handled:true};
+  }
+  if(state.status==='intro_pending'||state.status==='awaiting_choice'){
+    const choice=choiceFrom(message);
+    if(choice){
+      await saveRouteState(env,route,sender,{...state,status:'selected',choice});
+      await env.KIARA_QUEUE.send({kind:'routing_selected',source:route.source,sender,messageId:message.id,choice},{delaySeconds:0});
+    }
+    return {handled:true};
+  }
+  return {handled:false,choice:state.choice};
+}
+async function consumeAdGreeting(env,route,job){
+  if(!(await isAuthorizedToSend(env,route,job.sender)))return;
+  const state=await loadRouteState(env,route,job.sender);
+  if(state?.status!=='intro_pending')return;
+  if(await env.CONVERSAS.get(keys(route.source,job.sender).paused))return;
+  const id=await sendChoiceButtons(route,job.sender);
+  await saveRouteState(env,route,job.sender,{...state,status:'awaiting_choice'});
+  await bestEffortSync(()=>syncKiaraReply(env,route,job.sender,id,greeting),'routing greeting');
+}
+async function consumeAdSelection(env,route,job){
+  if(!(await isAuthorizedToSend(env,route,job.sender)))return;
+  const state=await loadRouteState(env,route,job.sender);
+  if(state?.status!=='selected'||state.choice!==job.choice)return;
+  if(await env.CONVERSAS.get(keys(route.source,job.sender).paused))return;
+  const question=firstQuestion(job.choice);
+  const id=await sendMessage(route,job.sender,question);
+  await bestEffortSync(()=>syncKiaraReply(env,route,job.sender,id,question),'routing first question');
+}
+
 async function receiveMessage(env, route, message, value) {
   await bestEffortSync(() => syncInbound(env, route, value, message), "incoming");
+  if(adsRoutingEnabled(env)){
+    const result=await processAdRouting(env,route,message);
+    if(result.handled)return;
+  }
   if(!message.id || !['text','audio'].includes(message.type))return;
   const sender=digits(message.from);
   const allowed=digits(route.allowed);
@@ -885,6 +992,8 @@ async function consumeMessage(env, job) {
   if (!route) return;
   const sender = digits(job.sender);
   if (!sender || sender !== digits(route.allowed)) return;
+  if(adsRoutingEnabled(env) && job.kind==='routing_intro')return consumeAdGreeting(env,route,job);
+  if(adsRoutingEnabled(env) && job.kind==='routing_selected')return consumeAdSelection(env,route,job);
   if(job.kind==='audio'){
     if(audioMode(env)==='off')return;
     return handleAudioJob(env,route,job);
@@ -956,7 +1065,14 @@ async function consumeMessage(env, job) {
         { role: 'user', content: inputText }
       ];
   const guidance = await getGuidance(env, route, sender);
-  const answer = await generateReply(env, nextHistory, guidance);
+  const routing=adsRoutingEnabled(env)?await loadRouteState(env,route,sender):null;
+  if(adsRoutingEnabled(env)&&(!routing||routing.status!=='selected'))return;
+  const instructions=guidance+(routing?.status==='selected'?'\n\n'+flowPrompt(routing.choice):'');
+  const answer = await generateReply(env, nextHistory, instructions);
+  if(routing?.status==='selected' && answer.includes('<<ENCAMINHAR_HUMANO>>')){
+    await humanRoute(env,route,sender,targetId,'A Kiara solicitou análise humana');
+    return;
+  }
 
   // Verificação final: se chegou outra mensagem durante a geração,
   // esta resposta antiga não deve ser enviada.
