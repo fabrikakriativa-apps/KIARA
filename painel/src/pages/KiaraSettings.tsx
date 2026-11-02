@@ -3,6 +3,7 @@ import {ArrowLeft,ArrowRight,BookOpen,BrainCircuit,Bot,Calculator,CheckCircle2,C
 import {useAccess} from '../components/AuthorizedAccess'
 import {supabase} from '../lib/supabase'
 import {kiaraControlConfigured,readKiaraControl} from '../lib/kiaraControl'
+import {KiaraCommercialSettings} from './KiaraCommercialSettings'
 import type {KiaraSection} from './KiaraOverview'
 import './KiaraSettings.css'
 
@@ -19,7 +20,7 @@ const items:Item[]=[
  {id:'security',title:'Segurança',description:'Controle de envio, limites, logs e backup.',icon:ShieldCheck},
 ]
 const navigation:Partial<Record<Section,KiaraSection>>={
- rules:'guidance',knowledge:'guidance',budgets:'budgets',learning:'guidance'
+ rules:'guidance',knowledge:'guidance',learning:'guidance'
 }
 export function KiaraSettings({onNavigate}:{onNavigate:(section:KiaraSection)=>void}){
  const access=useAccess()
@@ -64,6 +65,7 @@ export function KiaraSettings({onNavigate}:{onNavigate:(section:KiaraSection)=>v
   </div>:<div className="kiara-settings-detail">
    <button type="button" className="kiara-settings-back" onClick={()=>setSelected(null)}><ArrowLeft size={16}/> Todas as configurações</button>
    <div className="kiara-settings-detail-title">{selectedItem&&<selectedItem.icon size={23}/>}<h2>{selectedItem?.title}</h2></div>
+   {selected==='budgets'&&<KiaraCommercialSettings/>}
    {selected==='ai'&&<div className="kiara-settings-info">
     <h3>Estado atual do atendimento</h3>
     <p>{aiState==='checking'?'Consultando o estado da Kiara…':aiState==='active'?'Kiara ativa, conforme a consulta autenticada ao servidor.':aiState==='paused'?'Kiara pausada, conforme a consulta autenticada ao servidor.':'Controle operacional indisponível ou ainda não configurado.'}</p>
