@@ -47,3 +47,5 @@ jobs:
             except Exception as e:
               print(title,': erro de conexão',type(e).__name__)
           PY
+
+# Revalidar após confirmar na interface as permissões Cloudflare Pages Edit.
