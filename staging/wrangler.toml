@@ -1,0 +1,6 @@
+# Exclusivamente homologação. Não altere para o nome de produção.
+name = "fabrika-atendimento-ia-homologacao"
+main = "./health.js"
+compatibility_date = "2026-11-02"
+workers_dev = true
+# Intencionalmente sem routes, kv_namespaces, queues, service bindings ou secrets.
