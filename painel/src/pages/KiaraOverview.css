@@ -156,3 +156,145 @@
  }
  .kiara-visual-v2 .kiara-conversations-toolbar .kiara-name-line h2{font-size:19px!important}
 }
+
+/* Visão geral: apresentação sem indicadores repetidos. */
+.kiara-overview-hero-row{grid-template-columns:1fr}
+.kiara-overview-hero{
+ display:grid!important;
+ grid-template-columns:clamp(220px,24%,310px) minmax(0,1fr)!important;
+ column-gap:24px!important;
+ align-items:center;
+ padding:0 30px 0 0!important;
+ min-height:245px;
+}
+.kiara-overview-hero .kiara-overview-avatar{
+ width:100%!important;
+ min-height:245px!important;
+ height:100%!important;
+ max-height:310px!important;
+ align-self:stretch!important;
+ border-radius:18px 0 0 18px!important;
+ object-fit:cover!important;
+ object-position:center center!important;
+}
+.kiara-overview-hero .kiara-overview-hero-copy{
+ align-self:center;
+ align-items:flex-start;
+ padding:24px 0!important;
+ gap:15px!important;
+}
+.kiara-overview-hero .kiara-overview-hero-copy>p{
+ max-width:700px!important;
+ font-size:clamp(13px,1.1vw,15px);
+ line-height:1.6;
+}
+.kiara-overview-hero .kiara-overview-name h2{font-size:clamp(26px,2vw,33px)}
+@media(max-width:760px){
+ .kiara-overview-hero{
+  grid-template-columns:clamp(115px,32%,180px) minmax(0,1fr)!important;
+  column-gap:12px!important;
+  padding-right:12px!important;
+  min-height:165px;
+ }
+ .kiara-overview-hero .kiara-overview-avatar{min-height:175px!important;height:100%!important;max-height:none!important}
+ .kiara-overview-hero .kiara-overview-hero-copy{padding:12px 0!important;gap:8px!important}
+ .kiara-overview-hero .kiara-overview-name h2{font-size:22px}
+ .kiara-overview-hero .kiara-overview-hero-buttons{flex-wrap:wrap}
+}
+@media(max-width:420px){
+ .kiara-overview-hero{grid-template-columns:105px minmax(0,1fr)!important}
+ .kiara-overview-hero .kiara-overview-avatar{min-height:155px!important}
+}
+
+/* Conversas: identidade e quatro filtros na mesma faixa. */
+.kiara-visual-v2 .kiara-conversations-toolbar{
+ display:grid;
+ grid-template-columns:minmax(0,0.95fr) minmax(0,1.05fr);
+ gap:10px;
+ align-items:stretch;
+ margin-bottom:12px;
+}
+.kiara-visual-v2 .kiara-conversations-toolbar .kiara-control-card{
+ display:grid;
+ grid-template-columns:100px minmax(0,1fr);
+ grid-template-rows:auto auto;
+ column-gap:11px;
+ row-gap:4px;
+ align-content:center;
+ min-height:125px;
+ padding:9px 11px;
+ width:100%;
+ min-width:0;
+ max-width:none;
+ border-radius:16px;
+}
+.kiara-visual-v2 .kiara-conversations-toolbar .kiara-avatar{
+ grid-row:1/3;
+ grid-column:1;
+ width:100px;height:105px;align-self:center;
+ display:block;
+}
+.kiara-visual-v2 .kiara-conversations-toolbar .kiara-control-copy{
+ grid-row:1;grid-column:2;align-self:end;min-width:0;
+}
+.kiara-visual-v2 .kiara-conversations-toolbar .kiara-control-copy>p{
+ font-size:11px;line-height:1.35;max-width:480px;
+}
+.kiara-visual-v2 .kiara-conversations-toolbar .kiara-name-line h2{font-size:19px!important}
+.kiara-visual-v2 .kiara-conversations-toolbar .kiara-hero-actions{
+ grid-row:2;grid-column:2;align-self:start;
+ justify-content:flex-start;gap:5px;flex-wrap:nowrap;
+}
+.kiara-visual-v2 .kiara-conversations-toolbar .kiara-hero-actions button{
+ padding:8px 7px;font-size:10px;gap:4px;white-space:nowrap;
+}
+.kiara-visual-v2 .kiara-conversations-toolbar .kiara-hero-actions svg{width:13px;height:13px}
+.kiara-conversation-shortcuts{
+ display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+ gap:6px;min-width:0;
+ padding:9px;background:#f7f8fc;
+ border:1px solid #e2e8f3;border-radius:16px;
+}
+.kiara-shortcut-card{
+ position:relative;
+ display:flex;align-items:flex-start;gap:6px;min-width:0;
+ padding:12px 7px;
+ border:1px solid #e8eaf3;border-radius:11px;
+ background:#fff;text-align:left;cursor:pointer;
+}
+.kiara-shortcut-card:hover,.kiara-shortcut-card:focus-visible,.kiara-shortcut-card.selected{
+ border-color:#b8a6f8;
+ box-shadow:0 1px 8px #6754a215;
+}
+.kiara-shortcut-card:disabled{cursor:not-allowed;opacity:.6}
+.kiara-shortcut-icon{
+ display:flex;align-items:center;justify-content:center;
+ border-radius:8px;min-width:30px;width:30px;height:30px;
+}
+.kiara-shortcut-card.green .kiara-shortcut-icon{color:#20aa64;background:#e4faed}
+.kiara-shortcut-card.amber .kiara-shortcut-icon{color:#e39a11;background:#fff2d9}
+.kiara-shortcut-card.blue .kiara-shortcut-icon{color:#397ce2;background:#eaf1ff}
+.kiara-shortcut-card.orange .kiara-shortcut-icon{color:#d6712c;background:#fff0e5}
+.kiara-shortcut-copy{min-width:0;display:flex;flex-direction:column;gap:3px;flex:1}
+.kiara-shortcut-copy strong{font-size:10px;line-height:1.22;color:#263653;overflow-wrap:anywhere}
+.kiara-shortcut-copy b{font-size:21px;line-height:1.1;color:#15243c}
+.kiara-shortcut-copy small{font-size:9px;line-height:1.3;color:#75839a}
+.kiara-shortcut-arrow{position:absolute;right:3px;top:4px;color:#b7c0ce}
+@media(max-width:1450px){
+ .kiara-visual-v2 .kiara-conversations-toolbar{grid-template-columns:1fr}
+ .kiara-conversation-shortcuts{min-height:90px}
+}
+@media(min-width:1451px) and (max-width:1690px){
+ .kiara-visual-v2 .kiara-conversations-toolbar{grid-template-columns:minmax(0,1fr) minmax(0,1.12fr)}
+ .kiara-visual-v2 .kiara-conversations-toolbar .kiara-hero-actions button{font-size:9px;padding:7px 5px}
+ .kiara-shortcut-icon{width:25px;min-width:25px;height:25px}
+ .kiara-shortcut-card{padding:10px 5px;gap:4px}
+ .kiara-shortcut-copy strong{font-size:9px}
+ .kiara-shortcut-copy small{font-size:8px}
+}
+@media(max-width:700px){
+ .kiara-conversation-shortcuts{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .kiara-visual-v2 .kiara-conversations-toolbar .kiara-control-card{grid-template-columns:75px minmax(0,1fr)}
+ .kiara-visual-v2 .kiara-conversations-toolbar .kiara-avatar{width:75px;height:95px}
+ .kiara-visual-v2 .kiara-conversations-toolbar .kiara-hero-actions{grid-column:1/-1;grid-row:3;flex-wrap:wrap}
+}
