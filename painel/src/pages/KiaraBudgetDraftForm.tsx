@@ -16,8 +16,8 @@ export function KiaraBudgetDraftForm({onCreated}:{onCreated:()=>void}){
   return()=>{live=false}
  },[access?.organizationId,open])
  const set=(name:keyof typeof initial,value:string)=>setForm(f=>({...f,[name]:value}))
- const submit=async(e:React.FormEvent)=>{
-  e.preventDefault()
+ const submit=async(event:React.FormEvent)=>{
+  event.preventDefault()
   if(!supabase||!access||saving)return
   const rawPrice=form.price.trim().replace(/\s/g,'')
   const normalizedPrice=rawPrice.includes(',')?rawPrice.replace(/\./g,'').replace(',','.'):rawPrice.replace(/\.(?=\d{3}(?:\.|$))/g,'')
