@@ -1,5 +1,5 @@
 name: Publicar painel independente KIARA (GitHub Pages)
-# Versão de homologação: avatar ampliado sem duplicidade e cards filtráveis no cabeçalho de Conversas.
+# Versão de homologação: proporções de Visão geral conforme referência, sem mudanças em Conversas.
 
 on:
   workflow_dispatch:
