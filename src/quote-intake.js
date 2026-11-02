@@ -8,9 +8,9 @@ export const QUOTE_PRODUCTS = Object.freeze({
       {id:'prega_macho',label:'Prega macho'},
       {id:'franzida',label:'Franzida'}
     ],
-    essential:['ambiente','modelo','largura','altura','tecido_frontal','forro_preferencia'],
+    essential:['ambiente','modelo','largura','altura','forro_preferencia','tecido_frontal'],
     conditional:{
-      forro:'Perguntar se deseja forro e qual o objetivo (privacidade, escurecimento).',
+      forro:'Perguntar em linguagem simples se deseja somente um tecido ou tecido da frente mais outro atrás (forro). Não usar o termo faces com o cliente.',
       suporte:'Somente trilho suíço ou varão trilho, fixados no teto ou parede.',
       acionamento:'Perguntar se deseja motorização apenas quando pertinente.'
     }
@@ -54,9 +54,9 @@ export function quoteNextQuestion(product,values={},mode='quick'){
   : 'Você já sabe o modelo ou gostaria de escolher pelo estilo?';
  if(missing.includes('largura')||missing.includes('altura'))return
   'Você sabe aproximadamente a largura e a altura do espaço?';
+ if(missing.includes('forro_preferencia'))return 'Você prefere a cortina com apenas um tecido ou com dois tecidos: um na frente e outro atrás (forro)? Se não souber, posso te orientar.';
  if(missing.includes('tecido_frontal'))return
-  'Você já escolheu o tecido da frente ou gostaria de orientação?';
- if(missing.includes('forro_preferencia'))return 'Você gostaria de usar forro nessa cortina? A ideia é mais privacidade ou escurecimento?';
+  'Você já tem preferência de tecido ou gostaria de orientação?';
  if(missing.includes('material_confirmado'))return 'Você já tem preferência de tecido ou material para essa persiana?';
  if(missing.includes('controle_luz'))return
   'Para esse ambiente, o mais importante é privacidade, filtrar a luz ou escurecer?';
@@ -66,7 +66,11 @@ export function quoteIntakePrompt(){
  return 'MATRIZ DE COLETA PARA PRÉ-ORÇAMENTO: somente cortinas e persianas. '+
   'A composição altera o preço, portanto NÃO crie estimativa com modelo indefinido. '+
   'Campos essenciais: produto, ambiente, modelo, largura e altura aproximadas; '+
-  'cortina exige identificação de tecido frontal e indicação de necessidade de forro; '+
+  'cortina exige identificar se o cliente deseja somente um tecido ou dois tecidos (frente e forro), e o tipo de tecido; '+
+  'Nunca perguntar quantidade de faces, proporção de tecido, fator de franzimento ou tipo técnico de trilho ao cliente. '+
+  'Trate faces/camadas como composição interna: uma camada de tecido ou duas camadas (frente e forro). '+
+  'Não confundir número de camadas com quantidade de janelas, peças ou aberturas. '+
+  'Se o cliente mencionar voil com blackout, registrar duas camadas sem repetir a pergunta. '+
   'persiana exige finalidade de controle de luz e material/tecido quando aplicável. '+
   'Para cortinas, somente trilho suíço ou varão trilho, instalados no teto ou parede. Não oferecer ilhós. ' +
   'Acionamento, acabamento e instalação são condicionais ao modelo. '+
