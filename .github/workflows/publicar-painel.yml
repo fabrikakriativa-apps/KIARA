@@ -1,5 +1,5 @@
 name: Publicar painel independente KIARA (GitHub Pages)
-# Versão de homologação: espelhamento paginado, observações humanas para aprendizado e revisão manual de orçamentos.
+# Versão de homologação: dashboard operacional separado, cards navegáveis com filtros e alertas de orçamentos.
 
 on:
   workflow_dispatch:
