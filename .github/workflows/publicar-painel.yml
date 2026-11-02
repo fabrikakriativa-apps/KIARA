@@ -1,5 +1,5 @@
 name: Publicar painel independente KIARA (GitHub Pages)
-# Versão de homologação: botão Enviar para revisão visível nas orientações gerais da Kiara.
+# Versão de homologação: base de conhecimento com busca paginada, edicao, desativacao e regras do administrador aprovadas ao salvar.
 
 on:
   workflow_dispatch:
