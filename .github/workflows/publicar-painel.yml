@@ -1,5 +1,5 @@
 name: Publicar painel independente KIARA (GitHub Pages)
-# Versão de homologação: vínculo Kiara ⇄ Prospecção e consulta de fases comerciais.
+# Versão de homologação: espelhamento paginado, aprendizado supervisionado e revisão manual de orçamentos.
 
 on:
   workflow_dispatch:
