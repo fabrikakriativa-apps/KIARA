@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 
-const source=readFileSync(new URL('../src/worker.js', import.meta.url),'utf8').replace("import { quoteIntakePrompt } from './quote-intake.js';",readFileSync(new URL('../src/quote-intake.js',import.meta.url),'utf8').replaceAll('export ',''));
+const source=readFileSync(new URL('../src/worker.js', import.meta.url),'utf8').replace("import { quoteIntakePrompt } from './quote-intake.js';",readFileSync(new URL('../src/quote-intake.js',import.meta.url),'utf8').replaceAll('export ','')).replace("import { simulateCurtainQuote } from './quote-pricing.js';",readFileSync(new URL('../src/quote-pricing.js',import.meta.url),'utf8').replaceAll('export ',''));
 const testable=source.replace('export default {','export const __test={consumeMessage,coachingRequest,readHold,getGuidance,pendingCustomerBatch};\nexport default {');
 if(testable===source)throw Error('Worker entrypoint not found');
 const {__test}=await import('data:text/javascript;base64,'+Buffer.from(testable).toString('base64'));
