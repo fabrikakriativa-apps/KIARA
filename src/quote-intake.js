@@ -9,7 +9,7 @@ export const QUOTE_PRODUCTS = Object.freeze({
       {id:'franzida',label:'Franzida'},
       {id:'ilhos',label:'Ilhós'}
     ],
-    essential:['ambiente','modelo','largura','altura','tecido_frontal'],
+    essential:['ambiente','modelo','largura','altura','tecido_frontal','forro_preferencia'],
     conditional:{
       forro:'Perguntar se deseja forro e qual o objetivo (privacidade, escurecimento).',
       trilho:'Confirmar trilho ou varão quando afetar a composição.',
@@ -25,7 +25,7 @@ export const QUOTE_PRODUCTS = Object.freeze({
       {id:'horizontal',label:'Horizontal'},
       {id:'vertical',label:'Vertical'}
     ],
-    essential:['ambiente','modelo','largura','altura','controle_luz'],
+    essential:['ambiente','modelo','largura','altura','controle_luz','material_confirmado'],
     conditional:{
       tecido:'Identificar tecido ou grau de abertura quando isso muda o preço.',
       blackout:'Não presumir blackout apenas porque o cliente quer menos luz.',
@@ -57,6 +57,8 @@ export function quoteNextQuestion(product,values={},mode='quick'){
   'Você sabe aproximadamente a largura e a altura do espaço?';
  if(missing.includes('tecido_frontal'))return
   'Você já escolheu o tecido da frente ou gostaria de orientação?';
+ if(missing.includes('forro_preferencia'))return 'Você gostaria de usar forro nessa cortina? A ideia é mais privacidade ou escurecimento?';
+ if(missing.includes('material_confirmado'))return 'Você já tem preferência de tecido ou material para essa persiana?';
  if(missing.includes('controle_luz'))return
   'Para esse ambiente, o mais importante é privacidade, filtrar a luz ou escurecer?';
  return null;
