@@ -17,7 +17,7 @@ const labels: Record<KiaraConversation['status'], string> = {
 }
 const dateOnly = (iso: string) => iso.slice(0, 10)
 
-export function KiaraAttendance() {
+export function KiaraAttendance({initialStatus='all',initialConversationId=null}:{initialStatus?:string;initialConversationId?:string|null}) {
   // V1: interface segura, sem simular dados como se viessem do WhatsApp.
   // As conversas serão carregadas pelo serviço autenticado da Kiara na próxima etapa.
   const access = useAccess()
@@ -109,7 +109,7 @@ export function KiaraAttendance() {
         }))
         if (!cancelled) {
           setConversations(previous => mapped.map(item => ({...item, messages: previous.find(old => old.id === item.id)?.messages ?? []})))
-          setSelectedId(current => current && mapped.some(item=>item.id===current) ? current : mapped.find(item=>item.id===new URLSearchParams(window.location.search).get('conversationId'))?.id??mapped[0]?.id??null)
+          setSelectedId(current => current && mapped.some(item=>item.id===current) ? current : mapped.find(item=>item.id===(initialConversationId||new URLSearchParams(window.location.search).get('conversationId')))?.id??mapped.find(item=>initialStatus==='all'||item.status===initialStatus)?.id??null)
           setError('')
         }
       } catch {
@@ -140,7 +140,7 @@ export function KiaraAttendance() {
     return ()=>{cancelled=true}
   },[selectedId,access?.organizationId,refresh,messageLimit])
   const [search, setSearch] = useState('')
-  const [status, setStatus] = useState('all')
+  const [status, setStatus] = useState(initialStatus)
   const [period,setPeriod] = useState<'all'|'7d'|'30d'>('all')
   const [showAdvancedFilters,setShowAdvancedFilters] = useState(false)
   const [campaignFilter, setCampaignFilter] = useState('all')
@@ -181,6 +181,9 @@ export function KiaraAttendance() {
       && (!from || dateOnly(item.lastInteractionAt) >= from)
       && (!to || dateOnly(item.lastInteractionAt) <= to)
   }), [conversations, search, status, campaignFilter, regionFilter, from, to])
+  useEffect(()=>{
+    if(!filtered.some(item=>item.id===selectedId))setSelectedId(filtered[0]?.id??null)
+  },[filtered,selectedId])
   const count = (key: KiaraConversation['status']) => conversations.filter(item => item.status === key).length
   const stats = selected ? leadResponseStats(selected.messages) : null
   const pendingMs = selected ? leadAwaitingResponseMs(selected.messages, nowMs) : null
@@ -191,8 +194,8 @@ export function KiaraAttendance() {
     <header className="kiara-page-head">
       <div className="kiara-title-group">
         <span className="kiara-title-spark"><Sparkles size={27}/></span>
-        <div><h1>Atendimento IA</h1>
-          <p>Gerencie os atendimentos da Kiara, acompanhe os leads e assuma conversas quando necessário.</p></div>
+        <div><h1>Conversas</h1>
+          <p>Consulte o histórico, filtre os atendimentos e intervenha quando necessário.</p></div>
       </div>
       <div className="kiara-head-actions">
         <label className="kiara-head-search"><Search size={18}/><input aria-label="Buscar contato, campanha ou região" placeholder="Buscar contato, campanha, região..." value={search} onChange={event=>setSearch(event.target.value)}/></label>
@@ -201,14 +204,8 @@ export function KiaraAttendance() {
       </div>
     </header>
 
-    <div className="kiara-kpis" aria-label="Indicadores dos atendimentos sincronizados">
-      <div className="kiara-kpi"><span className="kiara-kpi-icon green"><MessageCircleMore/></span><div><small>IA atendendo</small><strong>{count('ai')}</strong><span className="kiara-kpi-caption">conversas em atendimento</span></div></div>
-      <div className="kiara-kpi"><span className="kiara-kpi-icon amber"><UserRound/></span><div><small>Aguardando humano</small><strong>{count('waiting_human')}</strong><span className="kiara-kpi-caption">precisam de atenção</span></div></div>
-      <div className="kiara-kpi"><span className="kiara-kpi-icon blue"><Headset/></span><div><small>Assumidas</small><strong>{count('human')}</strong><span className="kiara-kpi-caption">atendimentos humanos</span></div></div>
-      <div className="kiara-kpi"><span className="kiara-kpi-icon gray"><Clock3/></span><div><small>Sem interação</small><strong>{count('no_interaction')}</strong><span className="kiara-kpi-caption">sem atividade registrada</span></div></div>
-    </div>
-
-    <div className="kiara-top-row">
+    {status!=='all'&&<div className="kiara-conversation-filter-chip"><Filter size={16}/> Exibindo somente: <strong>{labels[status as KiaraConversation['status']]||status}</strong><button type="button" onClick={()=>setStatus('all')}>Limpar filtro</button></div>}
+    <div className="kiara-conversations-toolbar">
       <div className="kiara-control-card">
         <div className="kiara-avatar" aria-label="Espaço reservado para o avatar oficial da Kiara"><span className="kiara-avatar-pending"><Sparkles size={44}/><strong>Kiara</strong></span></div>
         <div className="kiara-control-copy">
@@ -221,16 +218,6 @@ export function KiaraAttendance() {
             {controlReady && !kiaraEnabled && <button type="button" className="kiara-hero-return" disabled={controlBusy || access?.role!=='admin'} onClick={()=>void runCommand('resume_all')}><RefreshCcw size={18}/> Reativar</button>}
           </div>
           {controlFeedback&&<small role="status">{controlFeedback}</small>}
-        </div>
-      </div>
-      <div className="kiara-funnel-card">
-        <h2><Filter size={20}/> Funil de atendimento <small>(conversas sincronizadas)</small></h2>
-        <div className="kiara-funnel-steps">
-          <div className="kiara-funnel-contact"><span><MessageCircleMore size={18}/> Primeiro contato</span><strong>{conversations.length}</strong><small>100% do histórico exibido</small></div>
-          <span className="kiara-funnel-arrow"><ChevronRight size={25}/></span>
-          <div className="kiara-funnel-ai"><span><Bot size={18}/> IA atendendo</span><strong>{count('ai')}</strong><small>{conversations.length?Math.round(count('ai')/conversations.length*100):0}% dos contatos</small></div>
-          <span className="kiara-funnel-arrow"><ChevronRight size={25}/></span>
-          <div className="kiara-funnel-human"><span><Headset size={18}/> Atendimento humano</span><strong>{count('human')}</strong><small>{conversations.length?Math.round(count('human')/conversations.length*100):0}% dos contatos</small></div>
         </div>
       </div>
     </div>
