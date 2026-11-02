@@ -1,6 +1,7 @@
 import {useEffect,useState} from 'react'
 import {supabase} from '../lib/supabase'
 import {useAccess} from '../components/AuthorizedAccess'
+import {KiaraApprovedSimulation} from './KiaraApprovedSimulation'
 
 type Category={name:string;costPerM2:number;records?:number;active?:boolean}
 type ModelCost={category:string;model:string;position:string;costPerM2:number;records?:number;active?:boolean}
@@ -46,6 +47,7 @@ export function KiaraCommercialSettings(){
  const [stored,setStored]=useState<Stored|null>(null)
  const [history,setHistory]=useState<{revision:number;status:string;changed_at:string}[]>([])
  const [busy,setBusy]=useState(false),[dirty,setDirty]=useState(false)
+ const [showTest,setShowTest]=useState(false)
  const [notice,setNotice]=useState(''),[refresh,setRefresh]=useState(0)
  const admin=access?.role==='admin'
  useEffect(()=>{
@@ -169,6 +171,13 @@ export function KiaraCommercialSettings(){
    {admin&&<div className="kiara-management-actions"><button className="kiara-commercial-button kiara-commercial-button--primary" type="button" disabled={busy||!dirty} onClick={()=>void save()}>Salvar rascunho</button>
     <button className="kiara-commercial-button kiara-commercial-button--primary" type="button" disabled={busy||dirty||stored?.status==='approved'||!stored} onClick={()=>void approve()}>Aprovar revisão comercial</button>
    </div>}
+   {admin&&<section className="kiara-commercial-test-section">
+    <h4>Homologação de preços</h4>
+    <p>Teste os parâmetros já salvos, mesmo em rascunho. Valores experimentais não são aprovados ou enviados a clientes.</p>
+    {dirty&&<p role="status">Existem alterações não salvas. O teste usa a última revisão salva no Supabase, não os campos alterados nesta tela.</p>}
+    <button className="kiara-commercial-button kiara-commercial-button--add" type="button" onClick={()=>setShowTest(x=>!x)}>{showTest?'Fechar teste':'Testar precificação'}</button>
+    {showTest&&<KiaraApprovedSimulation draftMode/>}
+   </section>}
    <h4>Histórico de revisões</h4>
    {history.length?<ul>{history.map(h=><li key={h.revision}>Revisão {h.revision}: {h.status==='approved'?'aprovada':'rascunho'} — {new Date(h.changed_at).toLocaleString('pt-BR')}</li>)}</ul>:<p>Sem revisões registradas.</p>}
   </>}
