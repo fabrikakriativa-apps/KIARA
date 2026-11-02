@@ -230,8 +230,7 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
           <p>Consulte o histórico, filtre os atendimentos e intervenha quando necessário.</p></div>
       </div>
       <div className="kiara-head-actions">
-        <label className="kiara-head-search"><Search size={18}/><input aria-label="Buscar contato, campanha ou região" placeholder="Buscar contato, campanha, região..." value={search} onChange={event=>setSearch(event.target.value)}/></label>
-        <button type="button" className="kiara-filter-jump" onClick={()=>setShowAdvancedFilters(v=>!v)}><Filter size={18}/> Filtros</button>
+        <label className="kiara-head-search"><Search size={18}/><input aria-label="Buscar contato, campanha ou região" placeholder="Buscar contato, campanha ou região..." value={search} onChange={event=>setSearch(event.target.value)}/></label>
         <button type="button" className="kiara-top-refresh" onClick={()=>setRefresh(value=>value+1)} aria-label="Atualizar dados" title="Atualizar dados"><RefreshCcw size={18}/></button>
       </div>
     </header>
