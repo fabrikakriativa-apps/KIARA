@@ -25,3 +25,18 @@
 .kiara-pricing-form button{align-self:end}
 .kiara-pricing-estimate{background:#eff6f3;padding:12px;border-radius:9px}
 @media(max-width:640px){.kiara-pricing-form{grid-template-columns:1fr}.kiara-pricing-line{align-items:flex-start;flex-wrap:wrap}}
+
+/* Orçamentos e Aprendizados: cabeçalhos e margens compactos. */
+.kiara-management{
+ max-width:none;
+ padding:16px clamp(14px,1.6vw,24px) 22px;
+ gap:11px;
+}
+.kiara-management h1{font-size:clamp(23px,2vw,29px);line-height:1.15}
+.kiara-management>p{line-height:1.4;font-size:12px;margin:0}
+.kiara-management-card{padding:14px;gap:9px}
+.kiara-management-card h2{font-size:16px}
+@media(max-width:760px){
+ .kiara-management{padding:13px 12px 20px;gap:10px}
+ .kiara-management-card{padding:12px}
+}
