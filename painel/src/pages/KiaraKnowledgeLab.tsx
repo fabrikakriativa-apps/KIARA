@@ -13,7 +13,6 @@ const date=(v:string)=>new Date(v).toLocaleString('pt-BR',{timeZone:'America/Sao
 export function KiaraKnowledgeLab(){
  const access=useAccess()
  const [runs,setRuns]=useState<Run[]>([])
- const [proposals,setProposals]=useState<Proposal[]>([])
  const [settings,setSettings]=useState<Settings>(defaults)
  const [topic,setTopic]=useState('')
  const [selected,setSelected]=useState('')
@@ -37,13 +36,12 @@ export function KiaraKnowledgeLab(){
   const client=supabase
   void Promise.all([
    client.from('kiara_lab_runs').select('id,kind,topic,status,created_at,result,error_message,input_tokens,output_tokens').eq('organization_id',access.organizationId).order('created_at',{ascending:false}).limit(50),
-   client.from('kiara_lab_proposals').select('id,run_id,title,proposed_instruction,rationale,status,created_at,published_at,published_guidance_id').eq('organization_id',access.organizationId).order('created_at',{ascending:false}).limit(100),
    client.from('kiara_lab_settings').select('daily_enabled,daily_hour_brt,max_conversations_per_run,max_runs_per_day').eq('organization_id',access.organizationId).maybeSingle()
-  ]).then(([a,b,c])=>{
+  ]).then(([a,c])=>{
    if(!alive)return
-   if(a.error||b.error||c.error){setError('Não foi possível consultar todo o laboratório.');return}
+   if(a.error||c.error){setError('Não foi possível consultar todo o laboratório.');return}
    const fetched=(a.data||[]) as Run[]
-   setRuns(fetched);setProposals((b.data||[]) as Proposal[])
+   setRuns(fetched)
    if(c.data)setSettings(c.data as Settings)
    setSelected(old=>old&&fetched.some(x=>x.id===old)?old:(fetched[0]?.id||''))
   })
