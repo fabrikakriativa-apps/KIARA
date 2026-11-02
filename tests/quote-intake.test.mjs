@@ -8,6 +8,14 @@ test('cortina requires model, measures, front fabric and lining decision',()=>{
  assert.match(quoteNextQuestion('cortina',values),/forro/i);
  assert.equal(quoteNextQuestion('cortina',{...values,forro_preferencia:'sem forro'}),null);
 });
+test('customer wording about fabric layers avoids internal faces, ratios and rail details',()=>{
+ const prompt=quoteIntakePrompt();
+ const question=quoteNextQuestion('cortina',{ambiente:'Sala',modelo:'wave',largura:'3',altura:'2.5'});
+ assert.match(question,/apenas um tecido ou com dois tecidos/);
+ assert.match(prompt,/Nunca perguntar quantidade de faces/);
+ assert.match(prompt,/proporção de tecido/);
+ assert.match(prompt,/trilho/);
+});
 test('blind needs material and light control before quote',()=>{
  const values={ambiente:'Quarto',modelo:'rolo',largura:'1.5',altura:'2',controle_luz:'blackout'};
  assert.deepEqual(quoteMissing('persiana',values),['material_confirmado']);
