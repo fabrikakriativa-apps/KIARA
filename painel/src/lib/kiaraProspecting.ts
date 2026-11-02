@@ -19,4 +19,4 @@ export async function sendKiaraToProspecting(organizationId:string,conversationI
  return result
 }
 
-export const prospectingUrl=()=> 'https://fabrikakriativa-apps.github.io/SISTEMA/#/prospeccao'
+export const prospectingUrl=(id?:string|null)=> 'https://fabrikakriativa-apps.github.io/SISTEMA/#/prospeccao'+(id?'/'+encodeURIComponent(id):'')
