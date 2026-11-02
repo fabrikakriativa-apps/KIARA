@@ -1150,6 +1150,13 @@ async function pricingSimulationRequest(request,env){
  if(!rows.some(x=>x.role==='admin'||x.role==='comercial'))
   return reply({error:'Not authorized'},403);
  let payload;try{payload=await request.json()}catch{return reply({error:'Invalid JSON'},400)}
+ // Configuração aprovada é requisito para cálculo e para interpretar categorias.
+ const records=await dbRequest(env,'kiara_commercial_config','GET',
+  '?select=revision,settings'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
+  '&product=eq.cortina&status=eq.approved&limit=1');
+ if(!records?.length)return reply({ready:false,customerPriceAllowed:false,
+  errors:['Precificação de cortinas não aprovada nas Configurações']},422);
+ const activePricing=records[0].settings;
  let intake=payload?.input;
  let extracted=null;
  if(payload?.conversationId){
@@ -1170,21 +1177,17 @@ async function pricingSimulationRequest(request,env){
    .map(m=>({role:m.direction==='incoming'?'user':'assistant',content:m.text_body}));
   if(!timeline.length)return reply({error:'Conversation has no text to extract'},422);
   const raw=await generateReply(env,timeline,
-   '\\n\\nEXTRAÇÃO INTERNA PARA ORÇAMENTO (não é resposta ao cliente): '+extractConversationInstructions());
+   '\\n\\nEXTRAÇÃO INTERNA PARA ORÇAMENTO (não é resposta ao cliente): '+extractConversationInstructions(activePricing));
   let parsed;
   try{parsed=JSON.parse(raw.trim())}
   catch{return reply({error:'Conversation could not be reliably structured',customerPriceAllowed:false},422)}
-  extracted=normalizeCurtainIntake(parsed);
+  extracted=normalizeCurtainIntake(parsed,activePricing);
   if(!extracted.ready)return reply({...extracted,customerPriceAllowed:false},422);
   intake=extracted.intake;
  }
  // O painel não envia custos, instalação, motorização nem margem.
  // Usar exclusivamente revisão comercial aprovada no banco da organização.
- const records=await dbRequest(env,'kiara_commercial_config','GET',
-  '?select=revision,settings'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
-  '&product=eq.cortina&status=eq.approved&limit=1');
- if(!records?.length)return reply({ready:false,customerPriceAllowed:false,
-  errors:['Precificação de cortinas não aprovada nas Configurações']},422);
+
  const {railType,rails}=payload?.config||{};
  const result=simulateCurtainQuote(intake,{
   railType,rails,pricing:records[0].settings,revision:records[0].revision
