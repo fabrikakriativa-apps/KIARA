@@ -77,3 +77,176 @@
  .kiara-management .kiara-coaching{padding:13px}
  .kiara-management .kiara-coach-form > button.kiara-coach-submit{width:100%}
 }
+
+/* Knowledge library: searchable, compact and scalable. */
+.kiara-management .kiara-coach-library{
+ max-height:none;
+ overflow:visible;
+ padding-top:12px;
+}
+.kiara-management .kiara-knowledge-tools{
+ display:grid;
+ grid-template-columns:minmax(0,1fr) minmax(135px,190px);
+ gap:10px;
+ align-items:center;
+ margin:10px 0 6px;
+}
+.kiara-management .kiara-knowledge-search{
+ display:flex;
+ align-items:center;
+ gap:9px;
+ background:#fff;
+ border:1px solid #dbe3f1;
+ border-radius:10px;
+ padding:0 11px;
+ min-height:39px;
+ color:#6b7794;
+ min-width:0;
+}
+.kiara-management .kiara-knowledge-search input{
+ width:100%;
+ min-width:0;
+ border:0;
+ outline:0;
+ background:transparent;
+ font-size:12px;
+ color:#293653;
+}
+.kiara-management .kiara-knowledge-tools select{
+ width:100%;
+ height:39px;
+ padding:7px 10px;
+ border:1px solid #dbe3f1;
+ border-radius:10px;
+ background:#fff;
+ color:#44536c;
+ font-size:12px;
+}
+.kiara-management .kiara-knowledge-results{
+ font-size:11px;
+ color:#8792a7;
+ margin:6px 0 12px;
+}
+.kiara-management .kiara-coach-library article.kiara-knowledge-entry,
+.kiara-management .kiara-lab-proposal.kiara-lab-proposal-compact{
+ padding:0;
+ margin:0;
+ border:0;
+ border-bottom:1px solid #e9edf5;
+ border-radius:0;
+ box-shadow:none;
+ background:transparent;
+}
+.kiara-management .kiara-knowledge-entry-heading{
+ display:grid;
+ grid-template-columns:auto minmax(0,1fr) auto auto;
+ align-items:center;
+ gap:12px;
+ width:100%;
+ min-height:57px;
+ padding:11px 7px;
+ border:0;
+ border-radius:8px;
+ background:transparent;
+ text-align:left;
+ color:#293956;
+ cursor:pointer;
+}
+.kiara-management .kiara-knowledge-entry-heading:hover{
+ background:#f5f3fd;
+}
+.kiara-management .kiara-knowledge-entry-heading:focus-visible{
+ outline:2px solid #8767e3;
+ outline-offset:-2px;
+}
+.kiara-management .kiara-knowledge-preview{
+ min-width:0;
+ display:-webkit-box;
+ -webkit-box-orient:vertical;
+ -webkit-line-clamp:2;
+ overflow:hidden;
+ line-height:1.4;
+ font-size:12px;
+ font-weight:650;
+}
+.kiara-management .kiara-knowledge-entry-heading small{
+ margin:0;
+ white-space:nowrap;
+ font-size:10px;
+ color:#8490a4;
+}
+.kiara-management .kiara-knowledge-expanded{
+ padding:12px 16px 16px;
+ background:#fafbff;
+ border-radius:8px;
+ margin-bottom:8px;
+ display:flex;
+ flex-direction:column;
+ gap:10px;
+}
+.kiara-management .kiara-knowledge-expanded p{
+ margin:0;
+ font-size:12px;
+ white-space:pre-wrap;
+ overflow-wrap:anywhere;
+ line-height:1.6;
+ color:#43526c;
+}
+.kiara-management .kiara-knowledge-expanded textarea{
+ width:100%;
+ min-height:95px;
+ border:1px solid #dbe3f1;
+ border-radius:9px;
+ padding:10px;
+ background:#fff;
+ font-size:12px;
+ color:#273651;
+}
+.kiara-management .kiara-knowledge-expanded .kiara-coach-review{
+ display:flex;
+ gap:8px;
+ flex-wrap:wrap;
+}
+.kiara-management .kiara-knowledge-expanded .kiara-coach-review button,
+.kiara-management .kiara-knowledge-expanded>div>button{
+ display:inline-flex;
+ gap:6px;
+ align-items:center;
+ padding:8px 12px;
+ border:1px solid #dce3f1;
+ background:#fff;
+ color:#4d5b88;
+ border-radius:9px;
+ font-size:11px;
+ font-weight:700;
+}
+.kiara-management .kiara-knowledge-expanded button:disabled{opacity:.5}
+.kiara-management .kiara-knowledge-more{
+ margin:12px 0 3px;
+ padding:10px 15px;
+ border:1px solid #d7dff3;
+ background:#f8f7ff;
+ border-radius:9px;
+ font-size:12px;
+ font-weight:700;
+ color:#6550bf;
+ cursor:pointer;
+}
+.kiara-management .kiara-lab-proposals-panel{padding:15px}
+.kiara-management .kiara-coach-state{
+ display:inline-block;
+ white-space:nowrap;
+ font-size:10px;
+ padding:4px 8px;
+ border-radius:99px;
+ background:#fff2df;
+ color:#946222;
+}
+.kiara-management .kiara-coach-state.approved{background:#e6f4e8;color:#237b43}
+.kiara-management .kiara-coach-state.archived{background:#eef0f3;color:#6f7a8d}
+@media(max-width:650px){
+ .kiara-management .kiara-knowledge-tools{grid-template-columns:1fr}
+ .kiara-management .kiara-knowledge-entry-heading{grid-template-columns:auto 1fr auto;gap:7px}
+ .kiara-management .kiara-knowledge-entry-heading small{display:none}
+ .kiara-management .kiara-knowledge-expanded{padding:10px}
+}
