@@ -1,0 +1,37 @@
+name: Verificar credenciais Cloudflare (sem publicar)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirmar os dois segredos
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -n "$CF_TOKEN" || { echo "::error::CLOUDFLARE_API_TOKEN ausente"; exit 1; }
+          test -n "$CF_ACCOUNT" || { echo "::error::CLOUDFLARE_ACCOUNT_ID ausente"; exit 1; }
+          echo "Os dois segredos estão disponíveis para o workflow."
+      - name: Verificar token sem publicar
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request
+          url='https://api.cloudflare.com/client/v4/user/tokens/verify'
+          req=urllib.request.Request(url,headers={'Authorization':'Bearer '+os.environ['CF_TOKEN'],'Accept':'application/json'})
+          try:
+              with urllib.request.urlopen(req, timeout=20) as response:
+                  payload=json.load(response)
+          except Exception as e:
+              raise SystemExit('Falha na validação do token. Confirme o token cadastrado e suas permissões.') from None
+          if not payload.get('success') or payload.get('result',{}).get('status')!='active':
+              raise SystemExit('Token não está ativo.')
+          print('Token Cloudflare ativo. Nenhum deploy executado.')
+          PY
