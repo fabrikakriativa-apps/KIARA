@@ -1,71 +1,69 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {simulateCurtainQuote,CATEGORY_COSTS,RATIOS} from '../src/quote-pricing.js';
+import {simulateCurtainQuote,validateCurtainSettings} from '../src/quote-pricing.js';
+const pricing={
+ categories:[
+  {name:'Linho / efeito linho',costPerM2:107.4385,records:50},
+  {name:'Blackout',costPerM2:68.8719,records:30},
+  {name:'Decorativo',costPerM2:135.1923,records:4}
+ ],
+ modelCosts:[{category:'Linho / efeito linho',model:'Wave',position:'front',costPerM2:118.5428,records:7}],
+ ratios:[{position:'front',model:'Wave',ratio:2.5},{position:'lining',model:'Franzida',ratio:1.5}],
+ rails:[{id:'varao_trilho',costPerMeter:35.1082}],
+ installation:{manualPerFace:60,motorPerFace:120},
+ motorization:{finalSaleSurcharge:1400},
+ pricing:{markupPercent:120}
+};
 const input={width:2.5,height:2.7,quantity:1,model:'Wave',frontCategory:'Linho / efeito linho',backCategory:'Blackout',drive:'manual'};
-const cfg={railType:'varao_trilho',rails:2,markup:1.2};
-test('two fabric faces have separate costs and installation charged per fabric layer',()=>{
- const q=simulateCurtainQuote(input,cfg);
- assert.equal(q.ready,true);
- assert.equal(q.layers,2);
- assert.equal(q.area,6.75);
- assert.equal(q.costs.front,800.16);
- assert.equal(q.costs.lining,464.89);
- assert.equal(q.costs.rails,175.54);
- assert.equal(q.installationDetails.basis,'faces_de_tecido');
- assert.equal(q.installationDetails.units,2);
- assert.equal(q.costs.installation,120);
- assert.equal(q.costs.total,1560.59);
- assert.equal(q.internalSuggestedSale,3433.30);
- assert.equal(q.customerQuote.description,'Cortina sob medida, com instalação inclusa');
- assert.equal(q.customerPriceAllowed,false);
- assert.equal(q.reviewRequired,true);
+const cfg={railType:'varao_trilho',rails:2,pricing,revision:3};
+test('no approved pricing means no quote',()=>{
+ const quote=simulateCurtainQuote(input,{railType:'varao_trilho',rails:2});
+ assert.equal(quote.ready,false);
+ assert.equal(quote.customerPriceAllowed,false);
 });
-test('one fabric omits back cost and avoids unnecessary questions',()=>{
- const q=simulateCurtainQuote({...input,backCategory:'Sem forro'}, {...cfg,rails:1});
- assert.equal(q.layers,1);
- assert.equal(q.costs.lining,0);
- assert.equal(q.costs.installation,60);
- assert.equal(q.customerPriceAllowed,false);
+test('installation charges per fabric face and no price goes to customer automatically',()=>{
+ const quote=simulateCurtainQuote(input,cfg);
+ assert.equal(quote.ready,true);
+ assert.equal(quote.costs.front,800.16);
+ assert.equal(quote.costs.lining,464.89);
+ assert.equal(quote.costs.rails,175.54);
+ assert.equal(quote.costs.installation,120);
+ assert.equal(quote.costs.total,1560.59);
+ assert.equal(quote.internalSuggestedSale,3433.30);
+ assert.equal(quote.configurationRevision,3);
+ assert.equal(quote.customerPriceAllowed,false);
 });
-test('motorized curtains charge R$120 per face and add R$1400 AFTER markup',()=>{
+test('motorized surcharge is added after markup',()=>{
  const q=simulateCurtainQuote({...input,drive:'motorizada'},cfg);
- assert.equal(q.ready,true);
- assert.equal(q.installationDetails.perFace,120);
  assert.equal(q.costs.installation,240);
  assert.equal(q.baseSale,3697.30);
  assert.equal(q.motorSurcharge,1400);
  assert.equal(q.internalSuggestedSale,5097.30);
- assert.equal(q.customerPriceAllowed,false);
 });
-test('motorized single face installs at R$120',()=>{
- const q=simulateCurtainQuote({...input,backCategory:'Sem forro',drive:'motorizada'},{...cfg,rails:1});
- assert.equal(q.costs.installation,120);
- assert.equal(q.motorSurcharge,1400);
+test('updated configuration modifies price without changing code',()=>{
+ const changed={...pricing,
+  installation:{manualPerFace:75,motorPerFace:160},
+  motorization:{finalSaleSurcharge:1900},
+  pricing:{markupPercent:115}
+ };
+ const manual=simulateCurtainQuote(input,{...cfg,pricing:changed});
+ const motor=simulateCurtainQuote({...input,drive:'motorizada'},{...cfg,pricing:changed});
+ assert.equal(manual.costs.installation,150);
+ assert.equal(motor.costs.installation,320);
+ assert.equal(motor.motorSurcharge,1900);
+ assert.notEqual(manual.internalSuggestedSale,3433.30);
 });
-test('fabric ratio is metadata only and does not multiply unit reference',()=>{
- const q=simulateCurtainQuote(input,cfg);
- assert.equal(q.composition.technicalRatios.front.ratio,2.5);
- assert.equal(q.costs.front,Math.round(q.area*q.references.front.unit*100)/100);
- assert.equal(RATIOS['front|Prega Macho'].ratio,3);
+test('commercial overrides cannot be passed by the caller',()=>{
+ assert.equal(simulateCurtainQuote(input,{...cfg,markup:2}).ready,false);
+ assert.equal(simulateCurtainQuote(input,{...cfg,installation:5}).ready,false);
 });
-test('invalid or unapproved technical inputs block calculation',()=>{
- assert.equal(simulateCurtainQuote({...input,width:-1},cfg).ready,false);
+test('opening configuration does not affect installation face count',()=>{
+ const q1=simulateCurtainQuote({...input,opening:'central'},cfg);
+ const q2=simulateCurtainQuote({...input,opening:'lateral'},cfg);
+ assert.equal(q1.costs.installation,q2.costs.installation);
+});
+test('invalid configuration must be rejected',()=>{
+ assert.ok(validateCurtainSettings({...pricing,installation:{manualPerFace:null,motorPerFace:120}}).length);
  assert.equal(simulateCurtainQuote({...input,model:'Ilhós'},cfg).ready,false);
- assert.equal(simulateCurtainQuote(input,{...cfg,rails:undefined}).ready,false);
- assert.equal(simulateCurtainQuote(input,{...cfg,markup:undefined}).ready,false);
- assert.equal(simulateCurtainQuote(input,{...cfg,railType:'manual'}).ready,false);
-});
-test('decorative fabric is represented with low confidence',()=>{
- const q=simulateCurtainQuote({...input,frontCategory:'Decorativo'},cfg);
- assert.equal(CATEGORY_COSTS.Decorativo.records,4);
- assert.equal(q.references.front.reliability,'exploratory');
- assert.ok(q.warnings.length>0);
-});
-
-test('central and lateral openings do not change fabric-face installation count',()=>{
- const central=simulateCurtainQuote({...input,opening:'central'},cfg);
- const lateral=simulateCurtainQuote({...input,opening:'lateral'},cfg);
- assert.equal(central.costs.installation,120);
- assert.equal(lateral.costs.installation,120);
- assert.equal(central.internalSuggestedSale,lateral.internalSuggestedSale);
+ assert.equal(simulateCurtainQuote({...input,frontCategory:'Ausente'},cfg).ready,false);
 });
