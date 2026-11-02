@@ -732,10 +732,15 @@ async function handleAudioJob(env,route,job) {
       await env.CONVERSAS.put(key,JSON.stringify(transcript),{expirationTtl:MEMORY_TTL});
     }
     await updateAudioTranscript(env,route,recipient,job.messageId,transcript.text);
+    // Homologation review mode deliberately does not spend tokens on triage.
+    // It never sends a customer reply.
+    if(audioMode(env)==='review'){
+      await handoffAudio(env,route,recipient,job.messageId,'Homologação: áudio reservado para revisão humana');
+      return;
+    }
     const assessment=await assessAudio(env,transcript);
-    if(audioMode(env)==='review'||assessment.human){
-      await handoffAudio(env,route,recipient,job.messageId,
-        audioMode(env)==='review'?'Homologação: áudio reservado para revisão humana':assessment.reason);
+    if(assessment.human){
+      await handoffAudio(env,route,recipient,job.messageId,assessment.reason);
       return;
     }
     return consumeMessage(env,{...job,kind:'text',input:'[Áudio transcrito] '+transcript.text});
@@ -758,6 +763,11 @@ async function receiveMessage(env, route, message, value) {
   if(audio&&!/^[0-9]{4,40}$/.test(String(message.audio?.id||''))){
     await handoffAudio(env,route,sender,message.id,'Áudio sem identificador válido');
     return;
+  }
+  if(audio&&audioMode(env)==='review'){
+    // Place the conversation under human control before the async transcription.
+    // Prevents other queued text answers while an audio is awaiting review.
+    await handoffAudio(env,route,sender,message.id,'Áudio recebido para revisão humana');
   }
   const receivedKey =
     `${route.source}:received:${message.id}`;
