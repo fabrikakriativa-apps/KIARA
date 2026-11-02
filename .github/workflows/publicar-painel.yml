@@ -1,5 +1,5 @@
 name: Publicar painel independente KIARA (GitHub Pages)
-# Versão de homologação: avatar ampliado, ações alinhadas horizontalmente e atalhos compactos.
+# Versão de homologação: restaurar layout anterior e aplicar somente botões compactos e fonte discreta.
 
 on:
   workflow_dispatch:
