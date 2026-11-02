@@ -17,7 +17,6 @@ export function KiaraConversationPricing(){
  const [selected,setSelected]=useState('')
  const [railType,setRailType]=useState('varao_trilho')
  const [rails,setRails]=useState('1')
- const [markup,setMarkup]=useState('')
  const [loading,setLoading]=useState(false)
  const [result,setResult]=useState<PriceResult|null>(null)
  const [feedback,setFeedback]=useState('')
@@ -39,10 +38,6 @@ export function KiaraConversationPricing(){
  async function simulate(e:React.FormEvent){
   e.preventDefault()
   if(!supabase||!endpoint||!selected||loading)return
-  const pct=Number(markup.replace(',','.'))
-  if(!Number.isFinite(pct)||pct<0||pct>500){
-   setFeedback('Informe o acréscimo comercial de 0% a 500%.');return
-  }
   setLoading(true);setResult(null);setFeedback('')
   try{
    const {data:{session}}=await supabase.auth.getSession()
@@ -51,7 +46,7 @@ export function KiaraConversationPricing(){
     method:'POST',
     headers:{Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},
     body:JSON.stringify({conversationId:selected,config:{
-     railType,rails:Number(rails),markup:pct/100
+     railType,rails:Number(rails)
     }})
    })
    const json=await response.json() as PriceResult & {error?:string}
@@ -63,7 +58,7 @@ export function KiaraConversationPricing(){
  }
  return <section className="kiara-management-card">
   <h2>Simulação interna a partir da conversa</h2>
-  <p>A Kiara identifica medidas e composição do cliente. O trilho e o acréscimo comercial são definidos internamente. Nenhum valor é enviado pelo WhatsApp.</p>
+  <p>A Kiara identifica medidas e composição do cliente. O trilho é definido internamente; todos os preços e acréscimos são lidos das Configurações aprovadas. Nenhum valor é enviado pelo WhatsApp.</p>
   {!endpoint?<p role="status">Integração indisponível até configurar o endereço de homologação do simulador.</p>:
   <form className="kiara-pricing-form" onSubmit={e=>void simulate(e)}>
    <label>Conversa do cliente<select required value={selected} onChange={e=>{setSelected(e.target.value);setResult(null)}}>
@@ -76,7 +71,6 @@ export function KiaraConversationPricing(){
    <label>Quantidade de trilhos na composição<select value={rails} onChange={e=>setRails(e.target.value)}>
     <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
    </select></label>
-   <label>Acréscimo comercial aprovado (%)<input required value={markup} onChange={e=>setMarkup(e.target.value)} placeholder="Informe a política comercial"/></label>
    <button disabled={loading||!selected} type="submit">{loading?'Analisando...':'Gerar simulação interna'}</button>
   </form>}
   {feedback&&<p role="status">{feedback}</p>}
