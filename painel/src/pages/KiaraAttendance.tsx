@@ -75,7 +75,7 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
     setStatus(next)
     setConversationLimit(100)
   }
-    const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [nowMs, setNowMs] = useState(() => Date.now())
   const [messagesLoading, setMessagesLoading] = useState(false)
@@ -254,7 +254,6 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
             {controlReady && !kiaraEnabled && <button type="button" className="kiara-hero-return" disabled={controlBusy || access?.role!=='admin'} onClick={()=>void runCommand('resume_all')}><RefreshCcw size={18}/> Reativar</button>}
           </div>
       </div>
-    </div>
       <div className="kiara-conversation-shortcuts" aria-label="Indicadores e filtros rápidos">
         <button type="button" className={'kiara-shortcut-card green'+(status==='ai'?' selected':'')} onClick={()=>openStatusCard('ai')} aria-pressed={status==='ai'}>
           <span className="kiara-shortcut-icon"><MessageCircleMore size={17}/></span><span className="kiara-shortcut-copy"><strong>IA atendendo</strong><b>{statusCounts.ai}</b><small>Conversas com a Kiara</small></span><ChevronRight size={13} className="kiara-shortcut-arrow"/>
