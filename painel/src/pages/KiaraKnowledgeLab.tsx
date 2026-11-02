@@ -1,5 +1,5 @@
 import {useEffect,useState} from 'react'
-import {BrainCircuit,CalendarClock,CheckCircle2,Clock3,MessageSquareText,RefreshCcw,ShieldCheck,XCircle} from 'lucide-react'
+import {BrainCircuit,CalendarClock,CheckCircle2,Clock3,MessageSquareText,RefreshCcw,ShieldCheck,XCircle,Search,ChevronDown} from 'lucide-react'
 import {supabase} from '../lib/supabase'
 import {useAccess} from '../components/AuthorizedAccess'
 import {KiaraObservations} from './KiaraObservations'
@@ -23,6 +23,10 @@ export function KiaraKnowledgeLab(){
  const [reload,setReload]=useState(0)
  const [labTab,setLabTab]=useState<'debates'|'corrections'>('debates')
  const [correctionsCount,setCorrectionsCount]=useState(0)
+ const [proposalQuery,setProposalQuery]=useState('')
+ const [proposalStatus,setProposalStatus]=useState('all')
+ const [proposalLimit,setProposalLimit]=useState(10)
+ const [expandedProposal,setExpandedProposal]=useState<string|null>(null)
  useEffect(()=>{
   if(!supabase||!access)return
   let alive=true
@@ -157,19 +161,39 @@ export function KiaraKnowledgeLab(){
     </>}
    </section>
   </div>
-  <section className="kiara-lab-panel"><h3>Conhecimentos propostos para aprovação</h3>
-   {proposals.length===0?<p>Ainda não existem sugestões geradas pelos agentes.</p>:proposals.map(p=><article className="kiara-lab-proposal" key={p.id}>
-    <strong>{p.title}</strong><span>{p.status==='pending_review'?'Aguardando aprovação':p.status==='approved'?'Aprovada':'Rejeitada'}</span>
-    <p>{p.proposed_instruction}</p>{p.rationale&&<small>{p.rationale}</small>}
-    {p.published_guidance_id&&<small>Publicada na base operacional em {p.published_at?date(p.published_at):'data não registrada'}</small>}
-    {p.status==='approved'&&access?.role==='admin'&&<div>
-     {!p.published_guidance_id?<button type="button" disabled={busy} onClick={()=>void publishProposal(p,'publish')}><CheckCircle2 size={15}/> Publicar na Kiara</button>:<button type="button" disabled={busy} onClick={()=>void publishProposal(p,'revoke')}><XCircle size={15}/> Desativar regra</button>}
-    </div>}
-    {p.status==='pending_review'&&access?.role==='admin'&&<div>
-     <button type="button" disabled={busy} onClick={()=>void review(p,'approved')}><CheckCircle2 size={15}/> Aprovar</button>
-     <button type="button" disabled={busy} onClick={()=>void review(p,'rejected')}><XCircle size={15}/> Rejeitar</button>
-    </div>}
-   </article>)}
+  <section className="kiara-lab-panel kiara-lab-proposals-panel"><h3>Conhecimentos sugeridos pelos agentes</h3>
+   <div className="kiara-knowledge-tools">
+    <label className="kiara-knowledge-search"><Search size={16}/><input type="search" placeholder="Buscar conhecimentos sugeridos…" aria-label="Buscar sugestões dos agentes" value={proposalQuery} onChange={e=>{setProposalQuery(e.target.value);setProposalLimit(10)}}/></label>
+    <select aria-label="Filtrar sugestões por status" value={proposalStatus} onChange={e=>{setProposalStatus(e.target.value);setProposalLimit(10)}}>
+     <option value="all">Todas</option><option value="pending_review">Pendentes</option><option value="approved">Aprovadas</option><option value="rejected">Rejeitadas</option>
+    </select>
+   </div>
+   {(()=>{
+    const matching=proposals.filter(p=>(proposalStatus==='all'||p.status===proposalStatus)&&
+      (p.title+' '+p.proposed_instruction+' '+(p.rationale||'')).toLocaleLowerCase('pt-BR').includes(proposalQuery.toLocaleLowerCase('pt-BR').trim()))
+    return <>
+     <p className="kiara-knowledge-results">{matching.length} sugestão{matching.length===1?'':'ões'} encontrada{matching.length===1?'':'s'} · {proposals.filter(p=>p.status==='pending_review').length} pendente(s)</p>
+     {matching.length===0?<p>Nenhuma sugestão encontrada.</p>:matching.slice(0,proposalLimit).map(p=><article className="kiara-lab-proposal kiara-lab-proposal-compact" key={p.id}>
+      <button type="button" className="kiara-knowledge-entry-heading" aria-expanded={expandedProposal===p.id} onClick={()=>setExpandedProposal(x=>x===p.id?null:p.id)}>
+       <span className={'kiara-coach-state '+(p.status==='approved'?'approved':p.status==='rejected'?'archived':'pending_review')}>{p.status==='pending_review'?'Pendente':p.published_guidance_id?'Publicada':p.status==='approved'?'Aprovada':'Rejeitada'}</span>
+       <span className="kiara-knowledge-preview">{p.title}</span>
+       <small>{date(p.created_at)}</small><ChevronDown size={16}/>
+      </button>
+      {expandedProposal===p.id&&<div className="kiara-knowledge-expanded">
+       <p>{p.proposed_instruction}</p>{p.rationale&&<small>{p.rationale}</small>}
+       {p.published_guidance_id&&<small>Publicada na base operacional em {p.published_at?date(p.published_at):'data não registrada'}</small>}
+       {p.status==='approved'&&access?.role==='admin'&&<div>
+        {!p.published_guidance_id?<button type="button" disabled={busy} onClick={()=>void publishProposal(p,'publish')}><CheckCircle2 size={15}/> Publicar na Kiara</button>:<button type="button" disabled={busy} onClick={()=>void publishProposal(p,'revoke')}><XCircle size={15}/> Desativar regra</button>}
+       </div>}
+       {p.status==='pending_review'&&access?.role==='admin'&&<div>
+        <button type="button" disabled={busy} onClick={()=>void review(p,'approved')}><CheckCircle2 size={15}/> Aprovar</button>
+        <button type="button" disabled={busy} onClick={()=>void review(p,'rejected')}><XCircle size={15}/> Rejeitar</button>
+       </div>}
+      </div>}
+     </article>)}
+     {matching.length>proposalLimit&&<button className="kiara-knowledge-more" type="button" onClick={()=>setProposalLimit(v=>v+10)}>Mostrar mais {Math.min(10,matching.length-proposalLimit)}</button>}
+    </>
+   })()}
   </section>
   </>}
  </section>
