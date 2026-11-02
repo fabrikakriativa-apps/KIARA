@@ -8,13 +8,13 @@ type Guidance = {
  id:string; instruction:string; scope:'global'|'conversation'; kind:'instruction'|'correction';
  status:'recorded'|'pending_review'|'approved'|'archived'; created_at:string; message_id:string|null
 }
-type Props = { conversationId:string|null; selectedMessage:KiaraMessage|null; clearSelectedMessage:()=>void }
+type Props = { conversationId:string|null; selectedMessage:KiaraMessage|null; clearSelectedMessage:()=>void; globalOnly?:boolean }
 
-export function KiaraCoaching({conversationId, selectedMessage, clearSelectedMessage}:Props) {
+export function KiaraCoaching({conversationId, selectedMessage, clearSelectedMessage, globalOnly=false}:Props) {
  const access=useAccess()
  const [tab,setTab]=useState<'guide'|'library'>('guide')
  const [text,setText]=useState('')
- const [scope,setScope]=useState<'conversation'|'global'>('conversation')
+ const [scope,setScope]=useState<'conversation'|'global'>(globalOnly?'global':'conversation')
  const [saved,setSaved]=useState<Guidance[]>([])
  const [busy,setBusy]=useState(false)
  const [feedback,setFeedback]=useState('')
