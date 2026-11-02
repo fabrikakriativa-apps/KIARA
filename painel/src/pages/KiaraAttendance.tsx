@@ -220,18 +220,19 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
     {status!=='all'&&<div className="kiara-conversation-filter-chip"><Filter size={16}/> Exibindo somente: <strong>{labels[status as KiaraConversation['status']]||status}</strong><button type="button" onClick={()=>setStatus('all')}>Limpar filtro</button></div>}
     <div className="kiara-conversations-toolbar">
       <div className="kiara-control-card">
-        <div className="kiara-avatar" aria-label="Espaço reservado para o avatar oficial da Kiara"><span className="kiara-avatar-pending"><Sparkles size={44}/><strong>Kiara</strong></span></div>
+        <div className="kiara-avatar" aria-label="Avatar oficial da Kiara"><img src={import.meta.env.BASE_URL+'kiara-avatar.webp'} alt="Kiara, atendente virtual da Fábrika Kriativa" /></div>
         <div className="kiara-control-copy">
           <div className="kiara-name-line"><h2><Sparkles size={20}/> Kiara</h2><span className={controlReady && kiaraEnabled?'kiara-live-pill':'kiara-preview-badge'}><span className="kiara-pill-dot"/> {controlReady ? (kiaraEnabled ? 'Kiara ativa' : 'Kiara pausada') : 'Controle em homologação'}</span></div>
           <p>Sua atendente digital acolhe, qualifica e direciona os leads da Fábrika Kriativa.</p>
+
+          {controlFeedback&&<small role="status">{controlFeedback}</small>}
+        </div>
           <div className="kiara-hero-actions">
             <button type="button" className="kiara-hero-pause" disabled={!controlReady || controlBusy || !kiaraEnabled} onClick={()=>void runCommand('pause_all')}><PauseCircle size={18}/> Pausar Kiara</button>
             <button type="button" className="kiara-hero-assume" disabled={!selected || !controlReady || controlBusy || selected.status==='human'} onClick={()=>selected&&void runCommand('assume',selected.id)}><UserRoundCheck size={18}/> Assumir conversa</button>
             <button type="button" className="kiara-hero-return" disabled={!selected || !controlReady || controlBusy || selected.status==='ai'} onClick={()=>selected&&void runCommand('return_to_ai',selected.id)}><RefreshCcw size={18}/> Devolver à Kiara</button>
             {controlReady && !kiaraEnabled && <button type="button" className="kiara-hero-return" disabled={controlBusy || access?.role!=='admin'} onClick={()=>void runCommand('resume_all')}><RefreshCcw size={18}/> Reativar</button>}
           </div>
-          {controlFeedback&&<small role="status">{controlFeedback}</small>}
-        </div>
       </div>
     </div>
 
