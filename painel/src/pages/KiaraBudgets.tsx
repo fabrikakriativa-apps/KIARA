@@ -3,8 +3,8 @@ import {supabase} from '../lib/supabase'
 import {useAccess} from '../components/AuthorizedAccess'
 
 type Draft={id:string;conversation_id:string;structured_budget:Record<string,unknown>;customer_message:string;status:string;created_at:string;review_note:string|null}
-export function KiaraBudgets(){
- const access=useAccess(),[drafts,setDrafts]=useState<Draft[]>([]),[mode,setMode]=useState('manual'),[busy,setBusy]=useState(false),[error,setError]=useState(''),[refresh,setRefresh]=useState(0),[note,setNote]=useState<Record<string,string>>({})
+export function KiaraBudgets({initialFilter='all'}:{initialFilter?:'all'|'pending_review'}){
+ const access=useAccess(),[filter,setFilter]=useState<'all'|'pending_review'>(initialFilter),[drafts,setDrafts]=useState<Draft[]>([]),[mode,setMode]=useState('manual'),[busy,setBusy]=useState(false),[error,setError]=useState(''),[refresh,setRefresh]=useState(0),[note,setNote]=useState<Record<string,string>>({})
  useEffect(()=>{if(!supabase||!access)return;let live=true;const client=supabase;void (async()=>{
   const [settings,queue]=await Promise.all([
    client.from('kiara_budget_settings').select('approval_mode').eq('organization_id',access.organizationId).maybeSingle(),
@@ -30,8 +30,8 @@ export function KiaraBudgets(){
  }
  return <section className="kiara-management"><h1>Orçamentos para aprovação</h1><p>Todo orçamento estruturado precisa ser conferido antes do envio. Aprovar a proposta não dispara mensagens no WhatsApp nesta etapa de homologação.</p>
  <div className="kiara-management-card"><h2>Modo de envio</h2><label><input type="radio" checked={mode==='manual'} onChange={()=>void setApprovalMode('manual')}/> Exigir minha aprovação</label><label><input type="radio" checked={mode==='automatic'} disabled onChange={()=>{}}/> Envio automático (disponível após homologação)</label><small>O servidor precisa aplicar esse bloqueio antes da ativação em produção. Nenhum envio automático foi liberado por esta tela.</small></div>
- <h2>Fila de revisão</h2>{error&&<p role="alert">{error}</p>}<button onClick={()=>setRefresh(n=>n+1)}>Atualizar fila</button>
- {drafts.length===0?<p>Nenhum orçamento estruturado registrado na fila ainda.</p>:drafts.map(d=><article className="kiara-management-card" key={d.id}><strong>{d.status==='pending_review'?'Aguardando aprovação':d.status}</strong><small>{new Date(d.created_at).toLocaleString('pt-BR')}</small><p><strong>Mensagem proposta ao cliente</strong></p><p style={{whiteSpace:'pre-wrap'}}>{d.customer_message||'Mensagem não preenchida'}</p><details><summary>Dados estruturados</summary><pre style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{JSON.stringify(d.structured_budget,null,2)}</pre></details>
+ <h2>Fila de revisão</h2><label>Exibir <select aria-label="Filtrar orçamentos" value={filter} onChange={e=>setFilter(e.target.value as 'all'|'pending_review')}><option value="pending_review">Aguardando aprovação</option><option value="all">Todos os orçamentos</option></select></label>{error&&<p role="alert">{error}</p>}<button onClick={()=>setRefresh(n=>n+1)}>Atualizar fila</button>
+ {drafts.filter(d=>filter==='all'||d.status===filter).length===0?<p>{filter==='pending_review'?'Nenhum orçamento aguardando aprovação.':'Nenhum orçamento estruturado registrado na fila ainda.'}</p>:drafts.filter(d=>filter==='all'||d.status===filter).map(d=><article className="kiara-management-card" key={d.id}><strong>{d.status==='pending_review'?'Aguardando aprovação':d.status}</strong><small>{new Date(d.created_at).toLocaleString('pt-BR')}</small><p><strong>Mensagem proposta ao cliente</strong></p><p style={{whiteSpace:'pre-wrap'}}>{d.customer_message||'Mensagem não preenchida'}</p><details><summary>Dados estruturados</summary><pre style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{JSON.stringify(d.structured_budget,null,2)}</pre></details>
  {d.status==='pending_review'&&access?.role==='admin'&&<><label>Observação ou motivo da correção<textarea value={note[d.id]||''} onChange={e=>setNote(n=>({...n,[d.id]:e.target.value}))} maxLength={1000}/></label><div className="kiara-management-actions"><button disabled={busy} onClick={()=>void review(d.id,'approved')}>Aprovar orçamento</button><button disabled={busy} onClick={()=>void review(d.id,'rejected')}>Rejeitar para correção</button></div></>}</article>)}
  </section>
 }
