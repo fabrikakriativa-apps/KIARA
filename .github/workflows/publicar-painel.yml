@@ -1,5 +1,5 @@
 name: Publicar painel independente KIARA (GitHub Pages)
-# Versão de homologação: correção de compilação do cadastro de orçamento para aprovação.
+# Versão de homologação: cabeçalho compacto de Conversas com avatar oficial e ações alinhadas.
 
 on:
   workflow_dispatch:
