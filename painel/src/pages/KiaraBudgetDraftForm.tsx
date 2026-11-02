@@ -19,7 +19,8 @@ export function KiaraBudgetDraftForm({onCreated}:{onCreated:()=>void}){
  const submit=async(e:React.FormEvent)=>{
   e.preventDefault()
   if(!supabase||!access||saving)return
-  const normalizedPrice=form.price.trim().replace(/\s/g,'').replace(/\./g,'').replace(',','.')
+  const rawPrice=form.price.trim().replace(/\s/g,'')
+  const normalizedPrice=rawPrice.includes(',')?rawPrice.replace(/\./g,'').replace(',','.'):rawPrice.replace(/\.(?=\d{3}(?:\.|$))/g,'')
   const price=Number(normalizedPrice)
   if(!Number.isFinite(price)||price<=0){setError('Informe um valor positivo para conferência.');return}
   if(!form.conversationId){setError('Selecione a conversa correspondente.');return}
