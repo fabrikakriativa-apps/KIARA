@@ -27,6 +27,10 @@ export function KiaraKnowledgeLab(){
  const [proposalStatus,setProposalStatus]=useState('all')
  const [proposalLimit,setProposalLimit]=useState(10)
  const [expandedProposal,setExpandedProposal]=useState<string|null>(null)
+ const [proposalResults,setProposalResults]=useState<Proposal[]>([])
+ const [proposalTotal,setProposalTotal]=useState(0)
+ const [proposalPending,setProposalPending]=useState(0)
+ const [proposalLoading,setProposalLoading]=useState(false)
  useEffect(()=>{
   if(!supabase||!access)return
   let alive=true
@@ -45,6 +49,35 @@ export function KiaraKnowledgeLab(){
   })
   return()=>{alive=false}
  },[access?.organizationId,reload])
+ useEffect(()=>{
+  if(!access||!supabase||labTab!=='debates')return
+  let alive=true
+  setProposalLoading(true)
+  const handle=window.setTimeout(()=>{
+   if(!access||!supabase)return
+   let query=supabase.from('kiara_lab_proposals')
+    .select('id,run_id,title,proposed_instruction,rationale,status,created_at,published_at,published_guidance_id',{count:'exact'})
+    .eq('organization_id',access.organizationId)
+    .order('created_at',{ascending:false})
+    .range(0,proposalLimit-1)
+   if(proposalStatus!=='all')query=query.eq('status',proposalStatus)
+   const sanitized=proposalQuery.trim().replace(/[(),%*]/g,' ').trim()
+   if(sanitized)query=query.or('title.ilike.%'+sanitized+'%,proposed_instruction.ilike.%'+sanitized+'%')
+   void Promise.all([
+    query,
+    supabase.from('kiara_lab_proposals').select('id',{count:'exact',head:true})
+     .eq('organization_id',access.organizationId).eq('status','pending_review')
+   ]).then(([response,pending])=>{
+    if(!alive)return
+    setProposalLoading(false)
+    if(response.error||pending.error){setError('Não foi possível buscar as sugestões dos agentes.');return}
+    setProposalResults((response.data||[]) as Proposal[])
+    setProposalTotal(response.count||0)
+    setProposalPending(pending.count||0)
+   })
+  },220)
+  return()=>{alive=false;window.clearTimeout(handle)}
+ },[access?.organizationId,labTab,proposalQuery,proposalStatus,proposalLimit,reload])
  async function createDiscussion(event:React.FormEvent){
   event.preventDefault()
   if(!access||!supabase||busy||topic.trim().length<10)return
@@ -169,11 +202,10 @@ export function KiaraKnowledgeLab(){
     </select>
    </div>
    {(()=>{
-    const matching=proposals.filter(p=>(proposalStatus==='all'||p.status===proposalStatus)&&
-      (p.title+' '+p.proposed_instruction+' '+(p.rationale||'')).toLocaleLowerCase('pt-BR').includes(proposalQuery.toLocaleLowerCase('pt-BR').trim()))
+    const matching=proposalResults
     return <>
-     <p className="kiara-knowledge-results">{matching.length} sugestão{matching.length===1?'':'ões'} encontrada{matching.length===1?'':'s'} · {proposals.filter(p=>p.status==='pending_review').length} pendente(s)</p>
-     {matching.length===0?<p>Nenhuma sugestão encontrada.</p>:matching.slice(0,proposalLimit).map(p=><article className="kiara-lab-proposal kiara-lab-proposal-compact" key={p.id}>
+     <p className="kiara-knowledge-results">{proposalTotal} sugestão{proposalTotal===1?'':'ões'} encontrada{proposalTotal===1?'':'s'} · {proposalPending} pendente(s)</p>
+     {proposalLoading?<p>Atualizando resultados…</p>:matching.length===0?<p>Nenhuma sugestão encontrada.</p>:matching.slice(0,proposalLimit).map(p=><article className="kiara-lab-proposal kiara-lab-proposal-compact" key={p.id}>
       <button type="button" className="kiara-knowledge-entry-heading" aria-expanded={expandedProposal===p.id} onClick={()=>setExpandedProposal(x=>x===p.id?null:p.id)}>
        <span className={'kiara-coach-state '+(p.status==='approved'?'approved':p.status==='rejected'?'archived':'pending_review')}>{p.status==='pending_review'?'Pendente':p.published_guidance_id?'Publicada':p.status==='approved'?'Aprovada':'Rejeitada'}</span>
        <span className="kiara-knowledge-preview">{p.title}</span>
@@ -191,7 +223,7 @@ export function KiaraKnowledgeLab(){
        </div>}
       </div>}
      </article>)}
-     {matching.length>proposalLimit&&<button className="kiara-knowledge-more" type="button" onClick={()=>setProposalLimit(v=>v+10)}>Mostrar mais {Math.min(10,matching.length-proposalLimit)}</button>}
+     {proposalTotal>proposalLimit&&<button className="kiara-knowledge-more" type="button" onClick={()=>setProposalLimit(v=>v+10)}>Mostrar mais {Math.min(10,proposalTotal-proposalLimit)}</button>}
     </>
    })()}
   </section>
