@@ -1178,7 +1178,17 @@ async function pricingSimulationRequest(request,env){
   if(!extracted.ready)return reply({...extracted,customerPriceAllowed:false},422);
   intake=extracted.intake;
  }
- const result=simulateCurtainQuote(intake,payload?.config);
+ // O painel não envia custos, instalação, motorização nem margem.
+ // Usar exclusivamente revisão comercial aprovada no banco da organização.
+ const records=await dbRequest(env,'kiara_commercial_config','GET',
+  '?select=revision,settings'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
+  '&product=eq.cortina&status=eq.approved&limit=1');
+ if(!records?.length)return reply({ready:false,customerPriceAllowed:false,
+  errors:['Precificação de cortinas não aprovada nas Configurações']},422);
+ const {railType,rails}=payload?.config||{};
+ const result=simulateCurtainQuote(intake,{
+  railType,rails,pricing:records[0].settings,revision:records[0].revision
+ });
  return reply({...result,...(extracted?{intake:extracted.intake}:{} )},result.ready?200:422);
 }
 
