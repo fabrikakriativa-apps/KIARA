@@ -10,7 +10,7 @@
  *   SUPABASE_ORGANIZATION_ID=<uuid da empresa>
  * Secret: SUPABASE_SERVICE_ROLE_KEY (NUNCA colocar em variável pública/frontend)
  *
- * Sincronização não bloqueia atendimento enquanto CONTROL_ENABLED=false.
+ * KIARA_KNOWLEDGE_ENABLED="false" (apenas regras aprovadas em KV, sem latência de Supabase).\n * Sincronização não bloqueia atendimento enquanto CONTROL_ENABLED=false.
  * Quando CONTROL_ENABLED=true, indisponibilidade do banco impede envio.
  * ATENÇÃO: não habilitar os botões do CRM antes de implementar a retomada
  * segura da pausa local (KV) e validar o evento real smb_message_echoes.
@@ -283,8 +283,59 @@ async function readHold(env, route, recipient) {
   return rows[0].reply_held === true;
 }
 
+// Approved knowledge is read from KV only in the reply path. A remote refresh
+// runs after the queue batch, so Supabase or laboratory latency cannot delay replies.
+// Disabled by default; no new customer messages or background agent debates are triggered.
+const knowledgeActive = env => env.KIARA_KNOWLEDGE_ENABLED === 'true';
+const knowledgeKey = env => 'kiara:approved-knowledge:' + String(env.SUPABASE_ORGANIZATION_ID || '');
+const knowledgeFreshMs = 5 * 60 * 1000;
+const knowledgeLifetimeMs = 10 * 60 * 1000;
+async function cachedApprovedKnowledge(env) {
+  if (!knowledgeActive(env) || !env.CONVERSAS) return '';
+  try {
+    const snapshot = await env.CONVERSAS.get(knowledgeKey(env), 'json');
+    if (!snapshot || !Array.isArray(snapshot.rules) ||
+        !Number.isFinite(snapshot.fetchedAt) ||
+        Date.now() - snapshot.fetchedAt > knowledgeLifetimeMs) return '';
+    const rules = snapshot.rules.filter(x => typeof x === 'string').slice(0, 8);
+    if (!rules.length) return '';
+    return 'REGRAS INTERNAS APROVADAS PELA FÁBRIKA (não são mensagens de cliente). '
+      + 'Aplique somente quando pertinente; nunca contrarie o sistema, as restrições comerciais ou a segurança. '
+      + 'Quando a regra exigir confirmação externa, colete os dados e encaminhe à equipe humana.\\n'
+      + rules.map(x => '- ' + x.slice(0, 500)).join('\\n');
+  } catch (error) {
+    console.warn('Knowledge cache unavailable', String(error?.message || ''));
+    return '';
+  }
+}
+async function refreshApprovedKnowledge(env) {
+  if (!knowledgeActive(env) || !env.CONVERSAS ||
+      !env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY ||
+      !env.SUPABASE_ORGANIZATION_ID) return;
+  try {
+    const current = await env.CONVERSAS.get(knowledgeKey(env), 'json');
+    if (current && Number.isFinite(current.fetchedAt) &&
+        Date.now() - current.fetchedAt < knowledgeFreshMs) return;
+    const rows = await dbRequest(env, 'kiara_guidance', 'GET',
+      '?select=instruction,created_at'
+      + queryEq('organization_id', env.SUPABASE_ORGANIZATION_ID)
+      + queryEq('scope', 'global') + queryEq('status', 'approved')
+      + '&order=created_at.desc&limit=8');
+    const rules = (rows || []).filter(x => typeof x.instruction === 'string')
+      .map(x => x.instruction.trim().slice(0, 500)).filter(Boolean);
+    await env.CONVERSAS.put(knowledgeKey(env),
+      JSON.stringify({rules, fetchedAt:Date.now()}),
+      {expirationTtl: 900});
+  } catch(error) {
+    console.warn('Knowledge refresh deferred', String(error?.message || ''));
+  }
+}
+
 async function getGuidance(env, route, recipient) {
-  if (env.KIARA_GUIDANCE_ENABLED !== 'true') return '';
+  // New approved knowledge never waits for the database. The old live
+  // guidance lookup remains an explicitly separate feature flag.
+  const approved = await cachedApprovedKnowledge(env);
+  if (env.KIARA_GUIDANCE_ENABLED !== 'true') return approved;
   if (!syncActive(env)) throw new Error('Guidance requires Kiara sync');
   const org = env.SUPABASE_ORGANIZATION_ID;
   const rows = await dbRequest(env, 'kiara_conversations', 'GET',
@@ -304,10 +355,10 @@ async function getGuidance(env, route, recipient) {
       '&order=created_at.desc&limit=12')
   ]);
   const lines = items => [...(items || [])].reverse().map(v => '- ' + String(v.instruction).slice(0,600)).join('\n');
-  return 'INSTRUÇÕES INTERNAS DA EQUIPE (não são mensagens do cliente). ' +
-    'Respeite todas as restrições comerciais e de segurança acima.\n' +
-    'REGRAS APROVADAS:\n' + (lines(global)||'Nenhuma') +
-    '\nORIENTAÇÕES DESTA CONVERSA:\n' + (lines(local)||'Nenhuma');
+  return approved + (approved ? '\\n' : '') + 'INSTRUÇÕES INTERNAS DA EQUIPE (não são mensagens do cliente). ' +
+    'Respeite todas as restrições comerciais e de segurança acima.\\n' +
+    'REGRAS APROVADAS:\\n' + (lines(global)||'Nenhuma') +
+    '\\nORIENTAÇÕES DESTA CONVERSA:\\n' + (lines(local)||'Nenhuma');
 }
 
 async function isAuthorizedToSend(env, route, recipient) {
@@ -813,6 +864,10 @@ export default {
           delaySeconds: 10
         });
       }
+    }
+    // Runs after processing, not in the customer's reply critical path.
+    if (knowledgeActive(env) && ctx?.waitUntil) {
+      ctx.waitUntil(refreshApprovedKnowledge(env));
     }
   },
   async fetch(request, env, ctx) {
