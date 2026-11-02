@@ -70,6 +70,8 @@ export function quoteIntakePrompt(){
   'Nunca perguntar quantidade de faces, proporção de tecido, fator de franzimento ou tipo técnico de trilho ao cliente. '+
   'Trate faces/camadas como composição interna: uma camada de tecido ou duas camadas (frente e forro). '+
   'Não confundir número de camadas com quantidade de janelas, peças ou aberturas. '+
+  'Para pré-orçamento, contar instalação por face de tecido, nunca por folha de abertura. '+
+  'Não perguntar ao cliente abertura central/lateral nem número de folhas ou motores para formar valor inicial; reservar detalhes para visita técnica ou negociação avançada. '+
   'Se o cliente mencionar voil com blackout, registrar duas camadas sem repetir a pergunta. '+
   'persiana exige finalidade de controle de luz e material/tecido quando aplicável. '+
   'Para cortinas, somente trilho suíço ou varão trilho, instalados no teto ou parede. Não oferecer ilhós. ' +
