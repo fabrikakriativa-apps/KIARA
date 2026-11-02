@@ -1,5 +1,5 @@
 name: Publicar painel independente KIARA (GitHub Pages)
-# Versão de homologação: referências comerciais com preço de venda e simulador interno, sem disparo ao cliente.
+# Versão de homologação: avatar ampliado sem duplicidade e cards filtráveis no cabeçalho de Conversas.
 
 on:
   workflow_dispatch:
