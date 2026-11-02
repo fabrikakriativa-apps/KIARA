@@ -1,0 +1,45 @@
+name: Verificar acesso Cloudflare sem publicar
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verificar-conta:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validar conta e permissão de leitura dos Workers
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request, urllib.error
+          account = os.environ.get('CF_ACCOUNT','')
+          token = os.environ.get('CF_TOKEN','')
+          if not account or not token:
+              raise SystemExit('Segredo de Cloudflare ausente. Confira as duas entradas em Repository secrets.')
+          if not account.isalnum():
+              raise SystemExit('Formato de Account ID inválido: copie apenas o valor do Account ID, sem URL.')
+          url = f'https://api.cloudflare.com/client/v4/accounts/{account}/workers/scripts'
+          req = urllib.request.Request(url,headers={'Authorization':f'Bearer {token}','Accept':'application/json'})
+          try:
+              with urllib.request.urlopen(req,timeout=20) as res:
+                  payload=json.load(res)
+          except urllib.error.HTTPError as exc:
+              print(f'Cloudflare respondeu HTTP {exc.code}; não foi feito deploy.')
+              if exc.code==403:
+                  raise SystemExit('Conta reconhecida ou permissão insuficiente: confira Account ID e escopo do token.')
+              raise SystemExit('Consulta falhou; confira Account ID e permissões do token.')
+          except Exception:
+              raise SystemExit('Não foi possível consultar o Cloudflare. Nenhuma alteração realizada.')
+          if not payload.get('success'):
+              raise SystemExit('A consulta da conta não foi autorizada. Não foi realizado deploy.')
+          results = payload.get('result') or []
+          names = [r.get('id') for r in results if isinstance(r,dict)]
+          print('Consulta da conta autenticada e autorizada. Nenhum deploy foi feito.')
+          print('Worker de produção identificado:', 'SIM' if 'fabrika-atendimento-ia' in names else 'NÃO (pode haver filtro de visibilidade)')
+          print('Worker de homologação identificado:', 'SIM' if 'fabrika-atendimento-ia-homologacao' in names else 'NÃO')
+          PY
