@@ -1,5 +1,5 @@
 name: Publicar painel independente KIARA (GitHub Pages)
-# Versão de homologação: correções humanas integradas ao laboratório e prompts otimizados.
+# Versão de homologação: orientações gerais exclusivas na área de aprendizados, sem opção de conversa.
 
 on:
   workflow_dispatch:
