@@ -11,6 +11,7 @@ test('two fabric faces have separate costs and installation charged per fabric l
  assert.equal(q.costs.front,800.16);
  assert.equal(q.costs.lining,464.89);
  assert.equal(q.costs.rails,175.54);
+ assert.equal(q.installationDetails.basis,'faces_de_tecido');
  assert.equal(q.installationDetails.units,2);
  assert.equal(q.costs.installation,120);
  assert.equal(q.costs.total,1560.59);
@@ -59,4 +60,12 @@ test('decorative fabric is represented with low confidence',()=>{
  assert.equal(CATEGORY_COSTS.Decorativo.records,4);
  assert.equal(q.references.front.reliability,'exploratory');
  assert.ok(q.warnings.length>0);
+});
+
+test('central and lateral openings do not change fabric-face installation count',()=>{
+ const central=simulateCurtainQuote({...input,opening:'central'},cfg);
+ const lateral=simulateCurtainQuote({...input,opening:'lateral'},cfg);
+ assert.equal(central.costs.installation,120);
+ assert.equal(lateral.costs.installation,120);
+ assert.equal(central.internalSuggestedSale,lateral.internalSuggestedSale);
 });
