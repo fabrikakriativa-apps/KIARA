@@ -28,7 +28,7 @@ export const RAIL_REFERENCE=Object.freeze({
 });
 // Regra comercial da Fábrika: instalado é obrigatório e incluso no preço final.
 export const CURTAIN_INSTALLATION_PER_FACE=Object.freeze({manual:60,motorizada:120});
-export const CURTAIN_MOTOR_SALE_SURCHARGE=800;
+export const CURTAIN_MOTOR_SALE_SURCHARGE=1400;
 const round=x=>Math.round((x+Number.EPSILON)*100)/100;
 const allowedFront=new Set(['Wave','Prega Macho','Franzida']);
 const allowedBack=new Set(['Blackout','Forro convencional',null,'Sem forro']);
