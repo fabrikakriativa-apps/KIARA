@@ -41,3 +41,21 @@
 .kiara-lab-run-list .kiara-lab-run-select{border:0;background:transparent;padding:0;display:flex;flex-direction:column;gap:5px;width:100%;text-align:left;box-shadow:none}
 .kiara-lab-run-list .kiara-lab-run-start,.kiara-lab-history .kiara-lab-panel>button{width:max-content;max-width:100%;padding:9px 12px;border:0;border-radius:9px;background:#6251d8;color:#fff;font-weight:750;font-size:11px;cursor:pointer}
 .kiara-lab-run-list .kiara-lab-run-start:disabled{opacity:.55;cursor:not-allowed}
+
+/* Navegação do laboratório: correções humanas em aba compacta. */
+.kiara-lab-tabs{display:flex;align-items:center;gap:6px;border-bottom:1px solid #e4e9f2;padding-bottom:0;margin-top:2px}
+.kiara-lab-tabs button{border:0;border-bottom:3px solid transparent;background:transparent;padding:11px 13px 10px;color:#65728e;font-size:12px;font-weight:750;cursor:pointer}
+.kiara-lab-tabs button.active{color:#634bd4;border-bottom-color:#7156e2}
+.kiara-lab-tabs button span{display:inline-grid;place-items:center;min-width:19px;height:19px;padding:0 5px;margin-left:4px;background:#ede9fc;color:#6c53c4;border-radius:15px;font-size:10px}
+.kiara-lab-corrections-panel[hidden]{display:none}
+.kiara-observations-embedded{border:1px solid #e2e8f3;background:white;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:8px}
+.kiara-observations-embedded>h3{font-size:14px;margin:0}
+.kiara-observations-embedded>p{font-size:12px;line-height:1.45;color:#6b7890;margin:0}
+.kiara-observations-empty{padding:10px 0;color:#8792a8!important}
+.kiara-observations-entry{border-top:1px solid #e8edf5;padding:12px 0;display:flex;flex-direction:column;gap:7px}
+.kiara-observations-entry p{margin:0;font-size:12px;line-height:1.45;color:#35445d}
+.kiara-observations-entry textarea{min-height:68px}
+.kiara-observations-actions{display:flex;gap:8px;flex-wrap:wrap}
+.kiara-observations-actions button{padding:9px 12px;border:1px solid #dce3ed;border-radius:9px;background:#fafbff;font-size:11px;font-weight:700;cursor:pointer;color:#4a5d87}
+.kiara-observations-actions button:disabled{opacity:.55;cursor:not-allowed}
+@media(max-width:600px){.kiara-lab-tabs button{font-size:11px;padding:10px 8px}.kiara-observations-embedded{padding:12px}}
