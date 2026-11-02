@@ -127,7 +127,7 @@ export function KiaraKnowledgeLab(){
     <label>Horário (Brasília)<select value={settings.daily_hour_brt} disabled={access?.role!=='admin'} onChange={e=>setSettings(x=>({...x,daily_hour_brt:Number(e.target.value)}))}>{[6,7,8,9,10,12,18,20].map(h=><option key={h} value={h}>{String(h).padStart(2,'0')}:00</option>)}</select></label>
     <label>Conversas por análise<select value={settings.max_conversations_per_run} disabled={access?.role!=='admin'} onChange={e=>setSettings(x=>({...x,max_conversations_per_run:Number(e.target.value)}))}>{[5,10,20,30,40].map(n=><option key={n} value={n}>{n}</option>)}</select></label>
     <button type="button" disabled={busy||access?.role!=='admin'} onClick={()=>void saveSettings()}>Salvar preferências</button>
-    <small><ShieldCheck size={14}/> Agendador diário conectado e protegido. Para executar, a chave OPENAI_API_KEY precisa estar salva nas Edge Function Secrets do Supabase. Nenhum orçamento é enviado automaticamente.</small>
+    <small><ShieldCheck size={14}/> Agendador diário protegido. As credenciais do modelo são gerenciadas exclusivamente no servidor; nenhum orçamento é enviado automaticamente.</small>
    </section>
   </div>
   {error&&<p className="kiara-lab-error" role="alert">{error}</p>}
