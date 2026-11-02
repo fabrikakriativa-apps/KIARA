@@ -11,9 +11,14 @@ KIARA_CONTROL_ENABLED = "false"
 KIARA_SYNC_ALL_CONTACTS = "false"
 KIARA_AUDIO_MODE = "off" # off | review (sempre humano) | reply (somente caso claro)
 KIARA_AUDIO_REVIEW_MODEL = "gpt-4.1-mini"
+KIARA_ADS_ROUTING_ENABLED = "false" # Recepção de anúncios com botões, teste restrito; não habilitar em produção
 RESPONSE_DELAY_SECONDS = "15"
 
 # Configurar KV, Queue e demais variáveis usando recursos isolados de teste.
+# A origem é confirmada pelo referral.source_type=ad e source_id (Meta).
+# Contatos sem anúncio confirmado, pedidos fora de cortinas/persianas e pedidos humanos são encaminhados.
+# O primeiro atendimento oferece botões Orçamento rápido e Personalizado; escolha preservada no KV.
+# Não activar a todos os contatos antes de testes completos com WhatsApp real e CRM.
 # Ativar audio somente depois de conferir permissao de download de midia da API WhatsApp.
 # Em caso de duvida, falha, fonte insegura ou transcricao pouco confiavel, pausa e encaminha para humano.
 # Nunca colocar segredos META_*, EASY_*, OPENAI_API_KEY ou SUPABASE_SERVICE_ROLE_KEY no GitHub.
