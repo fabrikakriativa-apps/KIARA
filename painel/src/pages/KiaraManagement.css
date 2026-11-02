@@ -10,3 +10,18 @@
 .kiara-draft-form textarea{min-width:0;width:100%;resize:vertical}
 .kiara-draft-form>small,.kiara-draft-form>p{grid-column:1/-1}
 @media(max-width:660px){.kiara-draft-form{grid-template-columns:1fr}.kiara-draft-form label{grid-column:1/-1}}
+
+.kiara-pricing{gap:12px}
+.kiara-pricing h3{margin:10px 0 3px;font-size:15px}
+.kiara-pricing>p{font-size:13px;color:#64748b;line-height:1.5}
+.kiara-pricing-line{display:flex;align-items:center;gap:12px;justify-content:space-between;border:1px solid #e4eaf3;border-radius:10px;padding:10px 12px}
+.kiara-pricing-line>div{display:flex;flex-direction:column;min-width:0;gap:3px}
+.kiara-pricing-line small{font-size:11px;color:#71809a}
+.kiara-pricing-line>span{font-size:11px;color:#61728b;white-space:nowrap}
+.kiara-pricing-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:15px;border:1px solid #e2e8f3;border-radius:12px}
+.kiara-pricing-form>h3,.kiara-pricing-form>.kiara-pricing-estimate{grid-column:1/-1}
+.kiara-pricing-form label{display:flex;flex-direction:column;align-items:stretch;gap:5px;font-size:12px;font-weight:650}
+.kiara-pricing-form input,.kiara-pricing-form select{padding:10px;border:1px solid #d9e1ed;border-radius:8px;background:#fff;color:#243045;font-size:13px;min-width:0;width:100%}
+.kiara-pricing-form button{align-self:end}
+.kiara-pricing-estimate{background:#eff6f3;padding:12px;border-radius:9px}
+@media(max-width:640px){.kiara-pricing-form{grid-template-columns:1fr}.kiara-pricing-line{align-items:flex-start;flex-wrap:wrap}}
