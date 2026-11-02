@@ -322,3 +322,23 @@
  .kiara-visual-v2 .kiara-conversation-details{grid-column:1;height:auto}
  .kiara-details-scroll{display:block}
 }
+
+/* Busca principal ampla; filtros permanecem exclusivamente na lista de conversas. */
+.kiara-visual-v2 .kiara-head-actions{
+ flex:1 1 auto;
+ min-width:220px;
+ max-width:660px;
+ justify-content:flex-end;
+}
+.kiara-visual-v2 .kiara-head-search{
+ flex:1 1 auto;
+ width:auto;
+ max-width:580px;
+ min-width:170px;
+}
+.kiara-visual-v2 .kiara-head-search input{width:100%;min-width:0}
+.kiara-visual-v2 .kiara-top-refresh{flex:0 0 41px}
+@media(max-width:760px){
+ .kiara-visual-v2 .kiara-head-actions{width:100%;max-width:none;min-width:0}
+ .kiara-visual-v2 .kiara-head-search{width:auto;max-width:none}
+}
