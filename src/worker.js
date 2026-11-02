@@ -1172,7 +1172,7 @@ async function pricingSimulationRequest(request,env){
   const raw=await generateReply(env,timeline,
    '\\n\\nEXTRAÇÃO INTERNA PARA ORÇAMENTO (não é resposta ao cliente): '+extractConversationInstructions());
   let parsed;
-  try{parsed=JSON.parse(raw.replace(/^\\`\\`\\`(?:json)?\\s*/i,'').replace(/\\s*\\`\\`\\`$/,''))}
+  try{parsed=JSON.parse(raw.trim())}
   catch{return reply({error:'Conversation could not be reliably structured',customerPriceAllowed:false},422)}
   extracted=normalizeCurtainIntake(parsed);
   if(!extracted.ready)return reply({...extracted,customerPriceAllowed:false},422);
