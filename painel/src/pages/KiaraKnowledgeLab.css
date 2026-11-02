@@ -1,0 +1,36 @@
+.kiara-lab{display:flex;flex-direction:column;gap:12px}
+.kiara-lab-title{display:flex;gap:11px;align-items:center;color:#6c4ed3}
+.kiara-lab-title>div{flex:1}
+.kiara-lab-title h2{margin:0 0 4px;font-size:20px;color:#26344f}
+.kiara-lab-title p{margin:0;font-size:12px;color:#6b7890;line-height:1.4}
+.kiara-lab-title>button{border:1px solid #dce3f0;background:white;padding:8px;border-radius:9px;color:#5b6c8a;cursor:pointer}
+.kiara-lab-grid{display:grid;grid-template-columns:1.15fr 1fr;gap:12px}
+.kiara-lab-history{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.kiara-lab-panel{padding:15px;border:1px solid #e0e7f2;border-radius:14px;background:#fff;min-width:0}
+.kiara-lab-panel h3{display:flex;gap:7px;align-items:center;margin:0 0 8px;font-size:14px}
+.kiara-lab-panel>p{font-size:12px;color:#6a7891;line-height:1.5;margin:5px 0 12px}
+.kiara-lab-panel textarea{display:block;width:100%;resize:vertical;border:1px solid #d8e1f0;border-radius:10px;font-size:12px;padding:10px;color:#27354e}
+.kiara-lab-panel label:not(.kiara-lab-checkbox){display:flex;flex-direction:column;gap:5px;font-size:12px;margin:10px 0}
+.kiara-lab-panel select{padding:8px;border:1px solid #dce3ee;border-radius:9px;background:#fff;font-size:12px}
+.kiara-lab-panel button{cursor:pointer}
+.kiara-lab-panel>button,.kiara-lab-panel form>button,.kiara-lab-grid form>button{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:9px;background:#5f56d7;color:#fff;font-weight:750;font-size:12px;padding:10px 13px;margin-top:8px}
+.kiara-lab-panel button:disabled{opacity:.55;cursor:not-allowed}
+.kiara-lab-panel small{display:flex;gap:6px;align-items:center;color:#8994a8;font-size:10px;margin-top:8px;line-height:1.45}
+.kiara-lab-checkbox{display:flex;gap:8px;align-items:center;font-size:12px;font-weight:750}
+.kiara-lab-run-list{max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
+.kiara-lab-run-list button{display:flex;flex-direction:column;gap:4px;text-align:left;padding:10px;border-radius:9px;border:1px solid #e6eaf2;background:#fff}
+.kiara-lab-run-list button.active{background:#f4f0ff;border-color:#b5a3f1}
+.kiara-lab-run-list strong{font-size:12px;color:#31405a}
+.kiara-lab-run-list span{font-size:10px;color:#8490a5}
+.kiara-lab-history article{border-top:1px solid #edf0f5;padding:10px 0}
+.kiara-lab-history article strong{font-size:12px}
+.kiara-lab-history article p{font-size:12px;white-space:pre-wrap;line-height:1.55;color:#4b5871}
+.kiara-lab-proposal{border-top:1px solid #edf0f6;padding:12px 0}
+.kiara-lab-proposal strong{font-size:13px;color:#2c3954}
+.kiara-lab-proposal span{margin-left:10px;font-size:10px;color:#6b54b8}
+.kiara-lab-proposal p{font-size:12px;line-height:1.5;white-space:pre-wrap}
+.kiara-lab-proposal div{display:flex;gap:7px}
+.kiara-lab-proposal button{display:inline-flex;gap:5px;align-items:center;border:1px solid #dfe6f0;border-radius:9px;padding:8px 11px;background:white;color:#465b84;font-size:11px}
+.kiara-lab-error,.kiara-lab-notice{border-radius:9px;padding:10px;font-size:12px}
+.kiara-lab-error{background:#fff0ef;color:#9a3136}.kiara-lab-notice{background:#edf6ed;color:#306d41}
+@media(max-width:1050px){.kiara-lab-grid,.kiara-lab-history{grid-template-columns:1fr}}
