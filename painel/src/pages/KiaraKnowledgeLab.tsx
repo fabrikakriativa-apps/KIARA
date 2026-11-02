@@ -2,6 +2,7 @@ import {useEffect,useState} from 'react'
 import {BrainCircuit,CalendarClock,CheckCircle2,Clock3,MessageSquareText,RefreshCcw,ShieldCheck,XCircle} from 'lucide-react'
 import {supabase} from '../lib/supabase'
 import {useAccess} from '../components/AuthorizedAccess'
+import {KiaraObservations} from './KiaraObservations'
 import './KiaraKnowledgeLab.css'
 
 type Run={id:string;kind:'manual'|'daily';topic:string;status:string;created_at:string;result:{commercial?:string;technical?:string;curator?:string}|null;error_message:string|null;input_tokens:number;output_tokens:number}
@@ -20,6 +21,8 @@ export function KiaraKnowledgeLab(){
  const [error,setError]=useState('')
  const [notice,setNotice]=useState('')
  const [reload,setReload]=useState(0)
+ const [labTab,setLabTab]=useState<'debates'|'corrections'>('debates')
+ const [correctionsCount,setCorrectionsCount]=useState(0)
  useEffect(()=>{
   if(!supabase||!access)return
   let alive=true
@@ -93,6 +96,12 @@ export function KiaraKnowledgeLab(){
  const active=runs.find(x=>x.id===selected)
  return <section className="kiara-lab">
   <header className="kiara-lab-title"><BrainCircuit size={24}/><div><h2>Laboratório de Conhecimento</h2><p>Kiara, especialista comercial, especialista técnico e curadoria. Toda nova regra exige sua aprovação.</p></div><button type="button" aria-label="Atualizar laboratório" onClick={()=>setReload(n=>n+1)}><RefreshCcw size={17}/></button></header>
+  <nav className="kiara-lab-tabs" aria-label="Áreas do Laboratório">
+   <button type="button" className={labTab==='debates'?'active':''} aria-current={labTab==='debates'?'page':undefined} onClick={()=>setLabTab('debates')}>Debates e análises</button>
+   <button type="button" className={labTab==='corrections'?'active':''} aria-current={labTab==='corrections'?'page':undefined} onClick={()=>setLabTab('corrections')}>Correções humanas <span>{correctionsCount}</span></button>
+  </nav>
+  <div className="kiara-lab-corrections-panel" hidden={labTab!=='corrections'}><KiaraObservations onCountChange={setCorrectionsCount}/></div>
+  {labTab==='debates'&&<>
   <div className="kiara-lab-grid">
    <form className="kiara-lab-panel" onSubmit={e=>void createDiscussion(e)}>
     <h3><MessageSquareText size={18}/> Iniciar discussão manual</h3>
@@ -148,5 +157,6 @@ export function KiaraKnowledgeLab(){
     </div>}
    </article>)}
   </section>
+  </>}
  </section>
 }
