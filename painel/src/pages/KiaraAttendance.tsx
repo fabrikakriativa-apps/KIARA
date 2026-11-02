@@ -8,6 +8,7 @@ import { formatLeadResponseTime, leadResponseStats, leadAwaitingResponseMs, lead
 import { KiaraCoaching } from './KiaraCoaching'
 import { kiaraCoachConfigured, readKiaraHold, setKiaraHold } from '../lib/kiaraCoachingControl'
 import {sendKiaraToProspecting,prospectingUrl} from '../lib/kiaraProspecting'
+import type {ReportMode,Period} from './KiaraOverview'
 import './KiaraAttendance.css'
 import './KiaraVisual.css'
 
@@ -17,7 +18,8 @@ const labels: Record<KiaraConversation['status'], string> = {
 }
 const dateOnly = (iso: string) => iso.slice(0, 10)
 
-export function KiaraAttendance({initialStatus='all',initialConversationId=null}:{initialStatus?:string;initialConversationId?:string|null}) {
+export function KiaraAttendance({initialStatus='all',initialConversationId=null,reportMode=null,reportPeriod=null}:{initialStatus?:string;initialConversationId?:string|null;reportMode?:ReportMode|null;reportPeriod?:Period|null}) {
+  const [activeReportMode,setActiveReportMode]=useState<ReportMode|null>(reportMode)
   // V1: interface segura, sem simular dados como se viessem do WhatsApp.
   // As conversas serão carregadas pelo serviço autenticado da Kiara na próxima etapa.
   const access = useAccess()
@@ -96,10 +98,20 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null}
     const load = async () => {
       setLoading(true)
       try {
-        const { data, error: fetchError } = await supabase!.from('kiara_conversations')
+        let scopedIds:string[]|null=null
+        if(activeReportMode&&reportPeriod){
+          const {data:ids,error:idError}=await supabase!.rpc('kiara_dashboard_conversation_ids',{
+            p_org_id:access.organizationId,p_start:reportPeriod.start,p_end:reportPeriod.end,
+            p_kind:activeReportMode,p_limit:1000
+          })
+          if(idError)throw idError
+          scopedIds=(ids||[]).map((x:{conversation_id:string})=>x.conversation_id)
+        }
+        let query=supabase!.from('kiara_conversations')
           .select('id,contact_name,contact_phone,status,origin,campaign,region,last_interaction_at,created_at,lead_opportunity_id')
-          .eq('organization_id', access.organizationId)
-          .order('last_interaction_at', { ascending: false }).range(0,conversationLimit-1)
+          .eq('organization_id',access.organizationId)
+        if(scopedIds!==null)query=query.in('id',scopedIds.length?scopedIds:['00000000-0000-0000-0000-000000000000'])
+        const {data,error:fetchError}=await query.order('last_interaction_at',{ascending:false}).range(0,conversationLimit-1)
         if (fetchError) throw fetchError
         const mapped: KiaraConversation[] = (data ?? []).map(row => ({
           id: row.id, name: row.contact_name, phone: row.contact_phone||'',leadOpportunityId:row.lead_opportunity_id,
@@ -118,7 +130,7 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null}
     }
     void load()
     return () => { cancelled = true }
-  }, [access?.organizationId, access?.role, refresh,conversationLimit])
+  }, [access?.organizationId, access?.role, refresh,conversationLimit,activeReportMode,reportPeriod?.start,reportPeriod?.end])
   useEffect(() => {
     if (!selectedId || !access || !supabase) return
     let cancelled = false
@@ -204,6 +216,7 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null}
       </div>
     </header>
 
+    {activeReportMode&&<div className="kiara-conversation-filter-chip"><Filter size={16}/> Indicador: <strong>{activeReportMode==='started'?'Conversas iniciadas':activeReportMode==='ad_unanswered'?'Sem interação após anúncio':'Atendimento humano'}</strong><button type="button" onClick={()=>{setActiveReportMode(null);setConversationLimit(100)}}>Ver todas as conversas</button></div>}
     {status!=='all'&&<div className="kiara-conversation-filter-chip"><Filter size={16}/> Exibindo somente: <strong>{labels[status as KiaraConversation['status']]||status}</strong><button type="button" onClick={()=>setStatus('all')}>Limpar filtro</button></div>}
     <div className="kiara-conversations-toolbar">
       <div className="kiara-control-card">
