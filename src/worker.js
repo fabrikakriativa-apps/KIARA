@@ -515,17 +515,15 @@ async function handleHumanEcho(env, route, value) {
   ];
   for (const echo of echoes) {
     const recipient = digits(echo.to);
-    if (
-      !recipient ||
-      recipient !== digits(route.allowed)
-    ) {
-      continue;
-    }
+    if (!recipient) continue;
+    // Espelha todos os ecos quando KIARA_SYNC_ALL_CONTACTS=true, mas mantém
+    // intervenção e pausa limitadas ao contato autorizado da homologação.
+    await bestEffortSync(() => syncHumanEcho(env, route, echo), 'human echo');
+    if (recipient !== digits(route.allowed)) continue;
     const conversation = keys(
       route.source,
       recipient
     );
-    await bestEffortSync(() => syncHumanEcho(env, route, echo), 'human echo');
     await env.CONVERSAS.put(
       conversation.paused,
       "1",
