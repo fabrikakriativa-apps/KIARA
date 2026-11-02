@@ -1,0 +1,6 @@
+# Homologação isolada: o código real é importado, mas integrações externas são bloqueadas.
+name = "fabrika-atendimento-ia-homologacao"
+main = "./worker.js"
+compatibility_date = "2026-11-02"
+workers_dev = true
+# Sem webhook, rota customizada, KV, fila, service binding ou variável sensível.
