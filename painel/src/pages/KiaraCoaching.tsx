@@ -38,20 +38,20 @@ export function KiaraCoaching({conversationId, selectedMessage, clearSelectedMes
   if(!supabase || !access || !canRead || busy) return
   const instruction=text.trim()
   if(instruction.length<5 || instruction.length>2000){setFeedback('Escreva uma orientação entre 5 e 2.000 caracteres.');return}
-  if(scope==='conversation' && !conversationId){setFeedback('Selecione uma conversa.');return}
+  if(!globalOnly && scope==='conversation' && !conversationId){setFeedback('Selecione uma conversa.');return}
   setBusy(true);setFeedback('')
   const {error}=await supabase.from('kiara_guidance').insert({
    organization_id:access.organizationId,
-   conversation_id:scope==='conversation'?conversationId:null,
-   message_id:scope==='conversation' && selectedMessage?.sender==='kiara'?selectedMessage.id:null,
-   scope,kind:selectedMessage?'correction':'instruction',
-   instruction,status:scope==='global'?'pending_review':'recorded',
+   conversation_id:!globalOnly&&scope==='conversation'?conversationId:null,
+   message_id:!globalOnly&&scope==='conversation' && selectedMessage?.sender==='kiara'?selectedMessage.id:null,
+   scope:globalOnly?'global':scope,kind:!globalOnly&&selectedMessage?'correction':'instruction',
+   instruction,status:globalOnly||scope==='global'?'pending_review':'recorded',
    created_by:access.userId
   })
   if(error)setFeedback('Não foi possível salvar. Verifique suas permissões e tente novamente.')
   else {
    setText('');clearSelectedMessage();setRefresh(n=>n+1)
-   setFeedback(scope==='global'?'Aprendizado enviado para revisão. Ainda não é usado pela IA.':'Orientação registrada. A aplicação automática ainda não está habilitada.')
+   setFeedback(globalOnly||scope==='global'?'Aprendizado enviado para revisão. Ainda não é usado pela IA.':'Orientação registrada. A aplicação automática ainda não está habilitada.')
   }
   setBusy(false)
  }
