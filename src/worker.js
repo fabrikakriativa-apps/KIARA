@@ -850,6 +850,13 @@ async function consumeMessage(env, job) {
   console.log('Resposta da Kiara enviada pela fila',route.source);
 }
 export default {
+  // Optional Cloudflare Cron Trigger (recommended every five minutes).
+  // Keeps knowledge warm even when there have been no WhatsApp conversations.
+  async scheduled(_event, env, ctx) {
+    if (knowledgeActive(env) && ctx?.waitUntil) {
+      ctx.waitUntil(refreshApprovedKnowledge(env));
+    }
+  },
   async queue(batch, env, ctx) {
     for (const message of batch.messages) {
       try {
