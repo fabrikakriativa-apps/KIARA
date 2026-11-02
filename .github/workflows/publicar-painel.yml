@@ -1,5 +1,5 @@
 name: Publicar painel independente KIARA (GitHub Pages)
-# Versão de homologação: proporção 54/46 do cabeçalho da Visão geral conforme imagem.
+# Versão de homologação: Conversas em três painéis, ações preservadas e rolagem independente.
 
 on:
   workflow_dispatch:
