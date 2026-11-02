@@ -1,5 +1,5 @@
 name: Publicar painel independente KIARA (GitHub Pages)
-# Versão de homologação: restaurar layout anterior e aplicar somente botões compactos e fonte discreta.
+# Versão de homologação: registro estruturado de orçamentos para aprovação, sem envio ao cliente.
 
 on:
   workflow_dispatch:
