@@ -4,6 +4,7 @@ import {useAccess} from '../components/AuthorizedAccess'
 import type {Period} from './KiaraOverview'
 import {KiaraBudgetDraftForm} from './KiaraBudgetDraftForm'
 import {KiaraPricing} from './KiaraPricing'
+import {KiaraConversationPricing} from './KiaraConversationPricing'
 
 type Draft={id:string;conversation_id:string;structured_budget:Record<string,unknown>;customer_message:string;status:string;created_at:string;review_note:string|null;sent_at:string|null}
 export function KiaraBudgets({initialFilter='all',reportPeriod=null}:{initialFilter?:'all'|'pending_review'|'sent';reportPeriod?:Period|null}){
@@ -33,6 +34,7 @@ export function KiaraBudgets({initialFilter='all',reportPeriod=null}:{initialFil
  }
  return <section className="kiara-management"><h1>Orçamentos para aprovação</h1><p>Todo orçamento estruturado precisa ser conferido antes do envio. Aprovar a proposta não dispara mensagens no WhatsApp nesta etapa de homologação.</p>
  <div className="kiara-management-card"><h2>Modo de envio</h2><label><input type="radio" checked={mode==='manual'} onChange={()=>void setApprovalMode('manual')}/> Exigir minha aprovação</label><label><input type="radio" checked={mode==='automatic'} disabled onChange={()=>{}}/> Envio automático (disponível após homologação)</label><small>O servidor precisa aplicar esse bloqueio antes da ativação em produção. Nenhum envio automático foi liberado por esta tela.</small></div>
+ <KiaraConversationPricing/>
  <KiaraPricing/>
  <KiaraBudgetDraftForm onCreated={()=>{setFilter('pending_review');setRefresh(n=>n+1)}}/>
  <h2>Fila de revisão</h2><label>Exibir <select aria-label="Filtrar orçamentos" value={filter} onChange={e=>setFilter(e.target.value as 'all'|'pending_review'|'sent')}><option value="pending_review">Aguardando aprovação</option><option value="sent">Enviados ao cliente</option><option value="all">Todos os orçamentos</option></select></label>{error&&<p role="alert">{error}</p>}<button onClick={()=>setRefresh(n=>n+1)}>Atualizar fila</button>
