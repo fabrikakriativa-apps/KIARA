@@ -2,3 +2,5 @@ Solicitação manual de publicação isolada do painel Kiara em homologação �
 Não altera o Worker nem ativa envio de mensagens.
 
 Nova publicacao apos confirmacao Pages HTTP 200 em 2026-11-02.
+
+Solicitação de publicação da integração de precificação aprovada no simulador interno; sem alterações no Worker e sem habilitar envios.
