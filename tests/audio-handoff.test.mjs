@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
-const source=readFileSync(new URL('../src/worker.js',import.meta.url),'utf8');
+const source=readFileSync(new URL('../src/worker.js',import.meta.url),'utf8').replace("import { quoteIntakePrompt } from './quote-intake.js';",readFileSync(new URL('../src/quote-intake.js',import.meta.url),'utf8').replaceAll('export ',''));
 const instrumented=source.replace('export default {','export const __audio={receiveMessage,consumeMessage,downloadAudio,transcribeAudio,assessAudio,handleAudioJob};\nexport default {');
 if(instrumented===source)throw Error('Worker export not found');
 const {__audio}=await import('data:text/javascript;base64,'+Buffer.from(instrumented).toString('base64'));
