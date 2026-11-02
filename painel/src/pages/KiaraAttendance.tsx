@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Activity, BarChart3, Bot, CalendarDays, ChevronRight, Clock3, ExternalLink, Filter, Hand, Headset, MessageCircle, MessageCircleMore, MoreVertical, PauseCircle, RefreshCcw, Search, Send, ShieldAlert, Sparkles, UserRound, UserRoundCheck } from 'lucide-react'
+import { Activity, BarChart3, Bot, CalendarDays, ChevronRight, Clock3, ClipboardCheck, ExternalLink, Filter, Hand, Headset, MessageCircle, MessageCircleMore, MoreVertical, PauseCircle, RefreshCcw, Search, Send, ShieldAlert, Sparkles, UserRound, UserRoundCheck } from 'lucide-react'
 import type { KiaraConversation, KiaraMessage } from '../lib/kiaraMetrics'
 import { supabase } from '../lib/supabase'
 import { commandKiara, kiaraControlConfigured, readKiaraControl, type KiaraOperatorAction } from '../lib/kiaraControl'
@@ -18,12 +18,13 @@ const labels: Record<KiaraConversation['status'], string> = {
 }
 const dateOnly = (iso: string) => iso.slice(0, 10)
 
-export function KiaraAttendance({initialStatus='all',initialConversationId=null,reportMode=null,reportPeriod=null}:{initialStatus?:string;initialConversationId?:string|null;reportMode?:ReportMode|null;reportPeriod?:Period|null}) {
+export function KiaraAttendance({initialStatus='all',initialConversationId=null,reportMode=null,reportPeriod=null,onNavigateBudgets}:{initialStatus?:string;initialConversationId?:string|null;reportMode?:ReportMode|null;reportPeriod?:Period|null;onNavigateBudgets?:()=>void}) {
   const [activeReportMode,setActiveReportMode]=useState<ReportMode|null>(reportMode)
   // V1: interface segura, sem simular dados como se viessem do WhatsApp.
   // As conversas serão carregadas pelo serviço autenticado da Kiara na próxima etapa.
   const access = useAccess()
   const [conversations, setConversations] = useState<KiaraConversation[]>([])
+  const [statusCounts,setStatusCounts]=useState({ai:0,waiting_human:0,human:0,budgets:0})
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [promotionBusy,setPromotionBusy]=useState(false)
   const [promotionFeedback,setPromotionFeedback]=useState('')
@@ -55,7 +56,26 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
     }catch(err){setHoldFeedback(err instanceof Error?err.message:'Não foi possível confirmar a alteração.')}
     finally{setHoldBusy(false)}
   }
-  const [loading, setLoading] = useState(false)
+  useEffect(()=>{
+    if(!supabase||!access||!['admin','comercial'].includes(access.role))return
+    let cancelled=false
+    const client=supabase,org=access.organizationId
+    void Promise.all([
+      ...(['ai','waiting_human','human'] as const).map(status=>client.from('kiara_conversations').select('id',{count:'exact',head:true}).eq('organization_id',org).eq('status',status)),
+      client.from('kiara_budget_drafts').select('id',{count:'exact',head:true}).eq('organization_id',org).eq('status','pending_review')
+    ]).then(res=>{
+      if(cancelled)return
+      if(res.some(x=>x.error)){setError('Não foi possível atualizar todos os indicadores.');return}
+      setStatusCounts({ai:res[0].count??0,waiting_human:res[1].count??0,human:res[2].count??0,budgets:res[3].count??0})
+    })
+    return()=>{cancelled=true}
+  },[access?.organizationId,access?.role,refresh])
+  const openStatusCard=(next:'ai'|'waiting_human'|'human')=>{
+    setActiveReportMode(null)
+    setStatus(next)
+    setConversationLimit(100)
+  }
+    const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [nowMs, setNowMs] = useState(() => Date.now())
   const [messagesLoading, setMessagesLoading] = useState(false)
@@ -233,6 +253,21 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
             <button type="button" className="kiara-hero-return" disabled={!selected || !controlReady || controlBusy || selected.status==='ai'} onClick={()=>selected&&void runCommand('return_to_ai',selected.id)}><RefreshCcw size={18}/> Devolver à Kiara</button>
             {controlReady && !kiaraEnabled && <button type="button" className="kiara-hero-return" disabled={controlBusy || access?.role!=='admin'} onClick={()=>void runCommand('resume_all')}><RefreshCcw size={18}/> Reativar</button>}
           </div>
+      </div>
+    </div>
+      <div className="kiara-conversation-shortcuts" aria-label="Indicadores e filtros rápidos">
+        <button type="button" className={'kiara-shortcut-card green'+(status==='ai'?' selected':'')} onClick={()=>openStatusCard('ai')} aria-pressed={status==='ai'}>
+          <span className="kiara-shortcut-icon"><MessageCircleMore size={17}/></span><span className="kiara-shortcut-copy"><strong>IA atendendo</strong><b>{statusCounts.ai}</b><small>Conversas com a Kiara</small></span><ChevronRight size={13} className="kiara-shortcut-arrow"/>
+        </button>
+        <button type="button" className={'kiara-shortcut-card amber'+(status==='waiting_human'?' selected':'')} onClick={()=>openStatusCard('waiting_human')} aria-pressed={status==='waiting_human'}>
+          <span className="kiara-shortcut-icon"><UserRound size={17}/></span><span className="kiara-shortcut-copy"><strong>Aguardando humano</strong><b>{statusCounts.waiting_human}</b><small>Precisam de atenção</small></span><ChevronRight size={13} className="kiara-shortcut-arrow"/>
+        </button>
+        <button type="button" className={'kiara-shortcut-card blue'+(status==='human'?' selected':'')} onClick={()=>openStatusCard('human')} aria-pressed={status==='human'}>
+          <span className="kiara-shortcut-icon"><Headset size={17}/></span><span className="kiara-shortcut-copy"><strong>Assumidas</strong><b>{statusCounts.human}</b><small>Atendimento humano</small></span><ChevronRight size={13} className="kiara-shortcut-arrow"/>
+        </button>
+        <button type="button" className="kiara-shortcut-card orange" onClick={onNavigateBudgets} disabled={!onNavigateBudgets} aria-label={'Orçamentos pendentes: '+statusCounts.budgets+'. Abrir aprovação'}>
+          <span className="kiara-shortcut-icon"><ClipboardCheck size={17}/></span><span className="kiara-shortcut-copy"><strong>Orçamentos pendentes</strong><b>{statusCounts.budgets}</b><small>Aguardando sua aprovação</small></span><ChevronRight size={13} className="kiara-shortcut-arrow"/>
+        </button>
       </div>
     </div>
 
