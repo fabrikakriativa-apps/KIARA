@@ -1,6 +1,10 @@
 name: Publicar painel Kiara (homologação isolada)
 on:
   workflow_dispatch:
+  push:
+    branches: [feat/painel-independente]
+    paths:
+      - '.github/kiara-homologacao-deploy-request.txt'
 permissions:
   contents: read
 concurrency:
