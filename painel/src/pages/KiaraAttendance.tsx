@@ -285,7 +285,7 @@ export function KiaraAttendance() {
         {selected&&<div className="kiara-prospect-strip">
           <div><strong>{selected.leadOpportunityId?'Vinculada à Prospecção':'Qualificar como oportunidade'}</strong>
           <small>{selected.leadOpportunityId?(opportunityPhase?'Fase comercial: '+opportunityPhase:'Histórico e oportunidade vinculados pelo Supabase.'):'Após a qualificação, envie o contato ao funil comercial sem duplicar o cadastro.'}</small></div>
-          {selected.leadOpportunityId?<a href={prospectingUrl()} target="_blank" rel="noopener noreferrer">Abrir Prospecção <ExternalLink size={15}/></a>:
+          {selected.leadOpportunityId?<a href={prospectingUrl(selected.leadOpportunityId)} target="_blank" rel="noopener noreferrer">Abrir Prospecção <ExternalLink size={15}/></a>:
             <button type="button" disabled={promotionBusy||!access||!['admin','comercial'].includes(access.role)} onClick={()=>void promote()}>{promotionBusy?'Vinculando…':'Enviar à Prospecção'}</button>}
           {promotionFeedback&&<p role="status">{promotionFeedback}</p>}
         </div>}
