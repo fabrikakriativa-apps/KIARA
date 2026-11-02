@@ -1,3 +1,4 @@
+import { quoteIntakePrompt } from './quote-intake.js';
 /*
  * FÁBRIKA KRIATIVA — KIARA / WORKER INTEGRADO (VERSÃO DE TESTE)
  * Base: Worker enviado em 01/11/2026; preserva espera de 15 s e pausa do atendimento humano.
@@ -1067,7 +1068,7 @@ async function consumeMessage(env, job) {
   const guidance = await getGuidance(env, route, sender);
   const routing=adsRoutingEnabled(env)?await loadRouteState(env,route,sender):null;
   if(adsRoutingEnabled(env)&&(!routing||routing.status!=='selected'))return;
-  const instructions=guidance+(routing?.status==='selected'?'\n\n'+flowPrompt(routing.choice):'');
+  const instructions=guidance+(routing?.status==='selected'?'\n\n'+flowPrompt(routing.choice)+'\n\n'+quoteIntakePrompt():'');
   const answer = await generateReply(env, nextHistory, instructions);
   if(routing?.status==='selected' && answer.includes('<<ENCAMINHAR_HUMANO>>')){
     await humanRoute(env,route,sender,targetId,'A Kiara solicitou análise humana');
