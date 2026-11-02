@@ -60,7 +60,8 @@ export function simulateCurtainQuote(input,config={}){
  const rails=Number(config.rails);
  if(!Number.isInteger(rails)||rails<1||rails>4)errors.push('Número de trilhos requer validação técnica');
  // O custo de instalação é automático por camada/face, não informado pelo cliente.
- // quantity representa conjuntos idênticos; peças de abertura serão definidas depois.
+ // quantity representa vãos/conjuntos idênticos, NÃO folhas de abertura.
+ // Uma face = uma camada de tecido (frente ou forro), independentemente da abertura.
  if(config.installation!==undefined)errors.push('Custo de instalação é automático; não informar valor manual');
  const markup=Number(config.markup);
  if(!Number.isFinite(markup)||markup<0||markup>5)errors.push('Acréscimo comercial não aprovado');
@@ -85,9 +86,9 @@ export function simulateCurtainQuote(input,config={}){
  if(front.reliability!=='model_reference')warnings.push('Frente com custo por categoria, sem amostra suficiente do modelo.');
  if(lining)warnings.push('Forro: pouca amostra na posição posterior; valor exploratório.');
  if(railReference.unverifiedMapping)warnings.push('Confirmar correspondência do trilho suíço com o item do fornecedor.');
- warnings.push('Quantidade de trilhos e peças da abertura deve ser confirmada pela equipe.');
- if(quantity>1)warnings.push('Quantidade significa conjuntos iguais, não número de folhas de abertura ou motores; conferir individualmente.');
- if(drive==='motorizada')warnings.push('Confirmar viabilidade, número de motores e componentes antes de aprovar.');
+ warnings.push('Detalhes de abertura, folhas, trilhos e componentes ficam para visita técnica ou negociação avançada.');
+ if(quantity>1)warnings.push('Quantidade representa conjuntos iguais; instalar por face de tecido, não por folhas de abertura.');
+ if(drive==='motorizada')warnings.push('Viabilidade e quantidade técnica de motores serão confirmadas na visita; o pré-orçamento mantém adicional comercial por conjunto.');
  warnings.push('Valores históricos de 2026; confirmar custo atual e política comercial antes de enviar.');
  return {
   ready:true,customerPriceAllowed:false,reviewRequired:true,
@@ -98,7 +99,7 @@ export function simulateCurtainQuote(input,config={}){
     lining:lining?RATIOS['lining|Franzida']:null
   }},
   references:{front,lining,rail:railReference},
-  installationDetails:{perFace:installationPerFace,units:installationUnits,includedInTotal:true},
+  installationDetails:{basis:'faces_de_tecido',perFace:installationPerFace,units:installationUnits,includedInTotal:true},
   costs:{front:frontCost,lining:liningCost,rails:railCost,installation:install,total:supplierCost},
   markup,baseSale,motorSurcharge,internalSuggestedSale:suggestedSale,
   // Nunca apresentar custos internos como itens separados no orçamento ao cliente.
