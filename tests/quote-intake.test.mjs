@@ -21,9 +21,10 @@ test('unknown product triggers clarification and not fabricated quote',()=>{
 test('visual model choices have stable identifiers and do not include pricing',()=>{
  for(const type of ['cortina','persiana']){
   const models=QUOTE_PRODUCTS[type].models;
-  assert.ok(models.length>=4);
+  assert.ok(models.length>=3);
   assert.equal(new Set(models.map(m=>m.id)).size,models.length);
   assert.ok(models.every(m=>!('price' in m)));
+  if(type==='cortina')assert.ok(models.every(m=>m.id!=='ilhos'));
  }
 });
 test('personalized can differ from rapid without losing required fields',()=>{
