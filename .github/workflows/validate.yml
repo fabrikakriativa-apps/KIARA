@@ -1,0 +1,22 @@
+name: Validar KIARA (sem deploy)
+on:
+  push:
+    branches: [homologacao]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verificar se não há arquivo de deploy de produção
+        run: |
+          test ! -e wrangler.toml
+          test ! -e .dev.vars
+      - name: Verificar versão de teste
+        run: |
+          if [ -f src/worker.js ]; then node --check src/worker.js; fi
