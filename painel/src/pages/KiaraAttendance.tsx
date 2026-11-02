@@ -1,0 +1,297 @@
+import { useEffect, useMemo, useState } from 'react'
+import { Activity, BarChart3, Bot, CalendarDays, ChevronRight, Clock3, ExternalLink, Filter, Hand, Headset, MessageCircle, MessageCircleMore, MoreVertical, PauseCircle, RefreshCcw, Search, Send, ShieldAlert, Sparkles, UserRound, UserRoundCheck } from 'lucide-react'
+import type { KiaraConversation, KiaraMessage } from '../lib/kiaraMetrics'
+import { supabase } from '../lib/supabase'
+import { commandKiara, kiaraControlConfigured, readKiaraControl, type KiaraOperatorAction } from '../lib/kiaraControl'
+import { useAccess } from '../components/AuthorizedAccess'
+import { formatLeadResponseTime, leadResponseStats, leadAwaitingResponseMs, leadLastInboundMs } from '../lib/kiaraMetrics'
+import { KiaraCoaching } from './KiaraCoaching'
+import { kiaraCoachConfigured, readKiaraHold, setKiaraHold } from '../lib/kiaraCoachingControl'
+import './KiaraAttendance.css'
+import './KiaraVisual.css'
+
+const labels: Record<KiaraConversation['status'], string> = {
+  ai: 'Kiara atendendo', waiting_human: 'Aguardando humano',
+  human: 'Atendimento assumido', no_interaction: 'Sem interação',
+}
+const dateOnly = (iso: string) => iso.slice(0, 10)
+
+export function KiaraAttendance() {
+  // V1: interface segura, sem simular dados como se viessem do WhatsApp.
+  // As conversas serão carregadas pelo serviço autenticado da Kiara na próxima etapa.
+  const access = useAccess()
+  const [conversations, setConversations] = useState<KiaraConversation[]>([])
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [refresh, setRefresh] = useState(0)
+  const [coachingMessage, setCoachingMessage] = useState<KiaraMessage|null>(null)
+  const [showCoaching,setShowCoaching] = useState(false)
+  const [holdReady,setHoldReady] = useState(false)
+  const [replyHeld,setReplyHeld] = useState(false)
+  const [holdBusy,setHoldBusy] = useState(false)
+  const [holdFeedback,setHoldFeedback] = useState('')
+  useEffect(()=>{
+    setHoldReady(false);setReplyHeld(false)
+    if(!selectedId || !kiaraCoachConfigured || !access || !['admin','comercial'].includes(access.role)) return
+    let cancelled=false
+    void readKiaraHold(selectedId).then(result=>{if(!cancelled){setReplyHeld(result.held);setHoldReady(result.writable!==false);setHoldFeedback(result.writable===false?'Consulta autenticada em homologação: o comando Segurar/Liberar está bloqueado até a liberação de produção.':'')}})
+      .catch(()=>{if(!cancelled)setHoldFeedback('Segurar resposta ainda não está habilitado no servidor.')})
+    return ()=>{cancelled=true}
+  },[selectedId,access?.organizationId,access?.role,refresh])
+  const toggleHold=async()=>{
+    if(!selectedId || !holdReady || holdBusy) return
+    setHoldBusy(true);setHoldFeedback('')
+    try{
+      const result=await setKiaraHold(selectedId,!replyHeld)
+      setReplyHeld(result.held)
+      setHoldFeedback(result.held?'Kiara aguardando sua orientação.':'Resposta liberada para a fila da Kiara.')
+    }catch(err){setHoldFeedback(err instanceof Error?err.message:'Não foi possível confirmar a alteração.')}
+    finally{setHoldBusy(false)}
+  }
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [nowMs, setNowMs] = useState(() => Date.now())
+  const [messagesLoading, setMessagesLoading] = useState(false)
+  const [messagesError, setMessagesError] = useState('')
+  const [controlReady, setControlReady] = useState(false)
+  const [kiaraEnabled, setKiaraEnabled] = useState(false)
+  const [controlBusy, setControlBusy] = useState(false)
+  const [controlFeedback, setControlFeedback] = useState('')
+  useEffect(() => {
+    if (!kiaraControlConfigured || !access || !['admin','comercial'].includes(access.role)) return
+    let cancelled=false
+    void readKiaraControl().then(result=>{if(!cancelled){setControlReady(true);setKiaraEnabled(result.enabled);setControlFeedback('')}})
+      .catch(()=>{if(!cancelled){setControlReady(false);setControlFeedback('Controle operacional indisponível. Nenhuma ação foi habilitada.')}})
+    return ()=>{cancelled=true}
+  },[access?.organizationId,access?.role,refresh])
+  const runCommand = async (action:KiaraOperatorAction,id?:string) => {
+    if(!controlReady || controlBusy) return
+    if(action==='pause_all' && !window.confirm('Parar todas as respostas automáticas da Kiara, inclusive as que estiverem na fila?')) return
+    if(action==='resume_all' && !window.confirm('Reativar o atendimento automático da Kiara para conversas liberadas?')) return
+    setControlBusy(true);setControlFeedback('')
+    try {
+      await commandKiara(action,id)
+      if(action==='pause_all') setKiaraEnabled(false)
+      if(action==='resume_all') setKiaraEnabled(true)
+      setControlFeedback('Comando confirmado pelo servidor.')
+      setRefresh(value=>value+1)
+    } catch(error){setControlFeedback(error instanceof Error ? error.message : 'Não foi possível confirmar a alteração.')}
+    finally{setControlBusy(false)}
+  }
+  // Atualiza somente enquanto este módulo está montado e a aba visível.
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') { setNowMs(Date.now());setRefresh(value => value + 1) }
+    }, 30_000)
+    return () => window.clearInterval(timer)
+  }, [])
+  useEffect(() => {
+    if (!supabase || !access || !['admin','comercial'].includes(access.role)) return
+    let cancelled = false
+    const load = async () => {
+      setLoading(true)
+      try {
+        const { data, error: fetchError } = await supabase!.from('kiara_conversations')
+          .select('id,contact_name,contact_phone,status,origin,campaign,region,last_interaction_at,created_at')
+          .eq('organization_id', access.organizationId)
+          .order('last_interaction_at', { ascending: false }).limit(100)
+        if (fetchError) throw fetchError
+        const mapped: KiaraConversation[] = (data ?? []).map(row => ({
+          id: row.id, name: row.contact_name, phone: row.contact_phone||'',
+          status: row.status as KiaraConversation['status'], origin: row.origin,
+          campaign: row.campaign, region: row.region, lastInteractionAt: row.last_interaction_at||row.created_at,
+          messages: []
+        }))
+        if (!cancelled) {
+          setConversations(previous => mapped.map(item => ({...item, messages: previous.find(old => old.id === item.id)?.messages ?? []})))
+          setSelectedId(current => current && mapped.some(item=>item.id===current) ? current : mapped[0]?.id ?? null)
+          setError('')
+        }
+      } catch {
+        if (!cancelled) setError('Ainda não foi possível consultar as conversas. A estrutura do banco deve ser revisada e ativada antes da sincronização.')
+      } finally { if (!cancelled) setLoading(false) }
+    }
+    void load()
+    return () => { cancelled = true }
+  }, [access?.organizationId, access?.role, refresh])
+  useEffect(() => {
+    if (!selectedId || !access || !supabase) return
+    let cancelled = false
+    const loadMessages = async () => {
+      setMessagesLoading(true)
+      setMessagesError('')
+      const { data, error: fetchError } = await supabase!.from('kiara_messages')
+        .select('id,direction,sender,occurred_at,text_body')
+        .eq('organization_id',access.organizationId)
+        .eq('conversation_id',selectedId)
+        .order('occurred_at',{ascending:false}).limit(100)
+      if (cancelled) return
+      setMessagesLoading(false)
+      if (fetchError) { setMessagesError('Não foi possível atualizar as mensagens desta conversa.'); return }
+      const messages: KiaraMessage[] = (data??[]).map(row=>({id:row.id,direction:row.direction,sender:row.sender,createdAt:row.occurred_at,text:row.text_body||'[Mensagem não textual]'})).reverse()
+      setConversations(current=>current.map(item=>item.id===selectedId?{...item,messages}:item))
+    }
+    void loadMessages()
+    return ()=>{cancelled=true}
+  },[selectedId,access?.organizationId,refresh])
+  const [search, setSearch] = useState('')
+  const [status, setStatus] = useState('all')
+  const [period,setPeriod] = useState<'all'|'7d'|'30d'>('all')
+  const [showAdvancedFilters,setShowAdvancedFilters] = useState(false)
+  const [campaignFilter, setCampaignFilter] = useState('all')
+  const [regionFilter, setRegionFilter] = useState('all')
+  const campaigns = useMemo(() => [...new Set(conversations.map(item => item.campaign).filter((value): value is string => Boolean(value)))].sort(), [conversations])
+  const regions = useMemo(() => [...new Set(conversations.map(item => item.region).filter((value): value is string => Boolean(value)))].sort(), [conversations])
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
+  const selected = conversations.find(item => item.id === selectedId) ?? null
+  const filtered = useMemo(() => conversations.filter(item => {
+    const query = search.trim().toLocaleLowerCase('pt-BR')
+    return (!query || [item.name, item.phone, item.campaign, item.origin, item.region].some(value => (value || '').toLocaleLowerCase('pt-BR').includes(query)))
+      && (status === 'all' || item.status === status)
+      && (period==='all' || (Number.isFinite(Date.parse(item.lastInteractionAt)) && Date.parse(item.lastInteractionAt)>=nowMs-(period==='7d'?7:30)*86400000))
+      && (campaignFilter === 'all' || item.campaign === campaignFilter)
+      && (regionFilter === 'all' || item.region === regionFilter)
+      && (!from || dateOnly(item.lastInteractionAt) >= from)
+      && (!to || dateOnly(item.lastInteractionAt) <= to)
+  }), [conversations, search, status, campaignFilter, regionFilter, from, to])
+  const count = (key: KiaraConversation['status']) => conversations.filter(item => item.status === key).length
+  const stats = selected ? leadResponseStats(selected.messages) : null
+  const pendingMs = selected ? leadAwaitingResponseMs(selected.messages, nowMs) : null
+  const lastInboundMs = selected ? leadLastInboundMs(selected.messages, nowMs) : null
+  const waLink = selected ? `https://wa.me/${selected.phone.replace(/\D/g, '')}` : ''
+
+  return <section className="kiara-page kiara-visual-v2">
+    <header className="kiara-page-head">
+      <div className="kiara-title-group">
+        <span className="kiara-title-spark"><Sparkles size={27}/></span>
+        <div><h1>Atendimento IA</h1>
+          <p>Gerencie os atendimentos da Kiara, acompanhe os leads e assuma conversas quando necessário.</p></div>
+      </div>
+      <div className="kiara-head-actions">
+        <label className="kiara-head-search"><Search size={18}/><input aria-label="Buscar contato, campanha ou região" placeholder="Buscar contato, campanha, região..." value={search} onChange={event=>setSearch(event.target.value)}/></label>
+        <button type="button" className="kiara-filter-jump" onClick={()=>setShowAdvancedFilters(v=>!v)}><Filter size={18}/> Filtros</button>
+        <button type="button" className="kiara-top-refresh" onClick={()=>setRefresh(value=>value+1)} aria-label="Atualizar dados" title="Atualizar dados"><RefreshCcw size={18}/></button>
+      </div>
+    </header>
+
+    <div className="kiara-kpis" aria-label="Indicadores dos atendimentos sincronizados">
+      <div className="kiara-kpi"><span className="kiara-kpi-icon green"><MessageCircleMore/></span><div><small>IA atendendo</small><strong>{count('ai')}</strong><span className="kiara-kpi-caption">conversas em atendimento</span></div></div>
+      <div className="kiara-kpi"><span className="kiara-kpi-icon amber"><UserRound/></span><div><small>Aguardando humano</small><strong>{count('waiting_human')}</strong><span className="kiara-kpi-caption">precisam de atenção</span></div></div>
+      <div className="kiara-kpi"><span className="kiara-kpi-icon blue"><Headset/></span><div><small>Assumidas</small><strong>{count('human')}</strong><span className="kiara-kpi-caption">atendimentos humanos</span></div></div>
+      <div className="kiara-kpi"><span className="kiara-kpi-icon gray"><Clock3/></span><div><small>Sem interação</small><strong>{count('no_interaction')}</strong><span className="kiara-kpi-caption">sem atividade registrada</span></div></div>
+    </div>
+
+    <div className="kiara-top-row">
+      <div className="kiara-control-card">
+        <div className="kiara-avatar" aria-label="Espaço reservado para o avatar oficial da Kiara"><span className="kiara-avatar-pending"><Sparkles size={44}/><strong>Kiara</strong></span></div>
+        <div className="kiara-control-copy">
+          <div className="kiara-name-line"><h2><Sparkles size={20}/> Kiara</h2><span className={controlReady && kiaraEnabled?'kiara-live-pill':'kiara-preview-badge'}><span className="kiara-pill-dot"/> {controlReady ? (kiaraEnabled ? 'Kiara ativa' : 'Kiara pausada') : 'Controle em homologação'}</span></div>
+          <p>Sua atendente digital acolhe, qualifica e direciona os leads da Fábrika Kriativa.</p>
+          <div className="kiara-hero-actions">
+            <button type="button" className="kiara-hero-pause" disabled={!controlReady || controlBusy || !kiaraEnabled} onClick={()=>void runCommand('pause_all')}><PauseCircle size={18}/> Pausar Kiara</button>
+            <button type="button" className="kiara-hero-assume" disabled={!selected || !controlReady || controlBusy || selected.status==='human'} onClick={()=>selected&&void runCommand('assume',selected.id)}><UserRoundCheck size={18}/> Assumir conversa</button>
+            <button type="button" className="kiara-hero-return" disabled={!selected || !controlReady || controlBusy || selected.status==='ai'} onClick={()=>selected&&void runCommand('return_to_ai',selected.id)}><RefreshCcw size={18}/> Devolver à Kiara</button>
+            {controlReady && !kiaraEnabled && <button type="button" className="kiara-hero-return" disabled={controlBusy || access?.role!=='admin'} onClick={()=>void runCommand('resume_all')}><RefreshCcw size={18}/> Reativar</button>}
+          </div>
+          {controlFeedback&&<small role="status">{controlFeedback}</small>}
+        </div>
+      </div>
+      <div className="kiara-funnel-card">
+        <h2><Filter size={20}/> Funil de atendimento <small>(conversas sincronizadas)</small></h2>
+        <div className="kiara-funnel-steps">
+          <div className="kiara-funnel-contact"><span><MessageCircleMore size={18}/> Primeiro contato</span><strong>{conversations.length}</strong><small>100% do histórico exibido</small></div>
+          <span className="kiara-funnel-arrow"><ChevronRight size={25}/></span>
+          <div className="kiara-funnel-ai"><span><Bot size={18}/> IA atendendo</span><strong>{count('ai')}</strong><small>{conversations.length?Math.round(count('ai')/conversations.length*100):0}% dos contatos</small></div>
+          <span className="kiara-funnel-arrow"><ChevronRight size={25}/></span>
+          <div className="kiara-funnel-human"><span><Headset size={18}/> Atendimento humano</span><strong>{count('human')}</strong><small>{conversations.length?Math.round(count('human')/conversations.length*100):0}% dos contatos</small></div>
+        </div>
+      </div>
+    </div>
+
+    <div className="kiara-workspace">
+      <div className="kiara-list-card">
+        <div className="kiara-list-toolbar">
+          <label className="kiara-toolbar-select"><CalendarDays size={17}/><span>Período</span>
+            <select aria-label="Selecionar período" value={period} onChange={event=>setPeriod(event.target.value as 'all'|'7d'|'30d')}>
+              <option value="all">Todo o histórico</option><option value="7d">Últimos 7 dias</option><option value="30d">Últimos 30 dias</option>
+            </select>
+          </label>
+          <label className="kiara-toolbar-select"><span>Status</span>
+            <select aria-label="Filtrar por status" value={status} onChange={event=>setStatus(event.target.value)}>
+              <option value="all">Todos os status</option>{Object.entries(labels).map(([key,value])=><option key={key} value={key}>{value}</option>)}
+            </select>
+          </label>
+          <button type="button" className="kiara-toolbar-more" aria-expanded={showAdvancedFilters} onClick={()=>setShowAdvancedFilters(v=>!v)}><Filter size={16}/> {showAdvancedFilters?'Ocultar filtros':'Mais filtros'}</button>
+          <span className="kiara-record-count">{filtered.length} conversa{filtered.length===1?'':'s'} encontrada{filtered.length===1?'':'s'}</span>
+        </div>
+        {showAdvancedFilters&&<div id="kiara-filter-area" className="kiara-advanced-filters">
+          <select aria-label="Filtrar por campanha" value={campaignFilter} onChange={event=>setCampaignFilter(event.target.value)}><option value="all">Todas as campanhas</option>{campaigns.map(v=><option key={v} value={v}>{v}</option>)}</select>
+          <select aria-label="Filtrar por região" value={regionFilter} onChange={event=>setRegionFilter(event.target.value)}><option value="all">Todas as regiões</option>{regions.map(v=><option key={v} value={v}>{v}</option>)}</select>
+          <label>De <input type="date" value={from} onChange={event=>setFrom(event.target.value)}/></label>
+          <label>Até <input type="date" min={from||undefined} value={to} onChange={event=>setTo(event.target.value)}/></label>
+          <button type="button" onClick={()=>{setPeriod('all');setStatus('all');setCampaignFilter('all');setRegionFilter('all');setFrom('');setTo('');setSearch('')}}>Limpar filtros</button>
+        </div>}
+        {error&&<p role="alert" className="kiara-data-error">{error}</p>}
+        <div className="kiara-lead-table-header" aria-hidden="true"><span>Contato</span><span>Origem / Campanha</span><span>Região</span><span>Status</span><span>Última interação</span><span/></div>
+        {filtered.length===0?<div className="kiara-empty"><MessageCircle size={34}/><strong>{conversations.length?'Nenhuma conversa corresponde aos filtros':'Nenhum atendimento sincronizado ainda'}</strong><p>{conversations.length?'Experimente outro período ou remova os filtros.':'Os contatos aparecerão aqui à medida que forem sincronizados pelo WhatsApp. Nenhum contato fictício é exibido.'}</p></div>:
+        <div className="kiara-lead-list">{filtered.map(item=><button type="button" key={item.id} className={selected?.id===item.id?'selected':''} onClick={()=>{setSelectedId(item.id);setCoachingMessage(null)}} aria-label={'Abrir conversa de '+(item.name||item.phone)}>
+          <span className="kiara-lead-contact"><span className="kiara-initial">{(item.name||item.phone).slice(0,2).toUpperCase()}</span><span className="kiara-lead-main"><strong>{item.name||item.phone}</strong><small>{item.phone}</small></span></span>
+          <span className="kiara-lead-origin"><strong>{item.campaign||item.origin||'Não identificada'}</strong><small>{item.origin||'Sem origem registrada'}</small></span>
+          <span className="kiara-lead-region">{item.region||'Não informada'}</span>
+          <span className={`kiara-status ${item.status}`}><span className="kiara-status-dot"/>{labels[item.status]}</span>
+          <span className="kiara-lead-date">{new Date(item.lastInteractionAt).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</span>
+          <ChevronRight size={17} className="kiara-lead-chevron"/>
+        </button>)}</div>}
+        <div className="kiara-list-bottom"><span>Atualização automática a cada 30 segundos</span><button type="button" disabled={loading} onClick={()=>setRefresh(v=>v+1)}><RefreshCcw size={15}/> Atualizar</button></div>
+      </div>
+
+      <aside className="kiara-conversation-card">
+        <div className="kiara-conversation-head">
+          <div className="kiara-chat-person">
+            <span className="kiara-chat-person-avatar">{selected?(selected.name||selected.phone).slice(0,2).toUpperCase():<MessageCircle size={19}/>}</span>
+            <div><h2>{selected ? selected.name||selected.phone : 'Selecione uma conversa'}</h2><p>{selected?.phone||'Espelhamento do WhatsApp Business'}</p></div>
+          </div>
+          <div className="kiara-chat-head-actions">
+            {selected&&<a href={waLink} target="_blank" rel="noopener noreferrer" aria-label="Abrir contato no WhatsApp" title="Abrir WhatsApp"><ExternalLink size={18}/></a>}
+            <button type="button" aria-label="Atualizar mensagens" title="Atualizar mensagens" onClick={()=>setRefresh(n=>n+1)}><MoreVertical size={20}/></button>
+          </div>
+        </div>
+        {selected?.campaign&&<div className="kiara-campaign-banner"><span><MessageCircleMore size={18}/> Lead vindo de campanha</span><strong>{selected.campaign}</strong><small>{selected.origin||'Origem não identificada'}{selected.region?' · '+selected.region:''}</small></div>}
+        <div className="kiara-time-card">
+          <span><Clock3 size={16}/> Tempo médio de resposta do lead</span>
+          <strong>{formatLeadResponseTime(stats?.averageMs??null)}</strong>
+          <small>{stats?.samples ? `Calculado com ${stats.samples} resposta(s) do cliente após mensagem da loja (últimas 100 mensagens sincronizadas).` : 'Aparecerá quando houver respostas registradas.'}</small>
+          <div className="kiara-time-divider"/>
+          <span><Clock3 size={16}/> {pendingMs !== null ? 'Aguardando resposta do lead há' : 'Última mensagem do cliente'}</span>
+          <strong>{pendingMs !== null ? formatLeadResponseTime(pendingMs) : lastInboundMs !== null ? `há ${formatLeadResponseTime(lastInboundMs)}` : 'Sem dados'}</strong>
+          <small>{pendingMs !== null ? 'Contagem desde a última mensagem enviada pela Kiara ou pela equipe.' : 'O cliente não tem uma resposta pendente à última mensagem da loja.'}</small>
+        </div>
+        {messagesError && <p className="kiara-data-error" role="alert">{messagesError}</p>}
+        <div className="kiara-chat" aria-label="Histórico da conversa">
+          {messagesLoading && <p className="kiara-chat-loading" role="status">Atualizando mensagens…</p>}
+          {!selected ? <div className="kiara-chat-placeholder"><MessageCircle size={34}/><p>As mensagens recebidas, respostas da Kiara e intervenções humanas aparecerão aqui.</p></div> :
+          selected.messages.length===0 && !messagesLoading ? <div className="kiara-chat-placeholder"><MessageCircle size={26}/><p>Sem mensagens registradas para esta conversa.</p></div> : selected.messages.map(msg=><div key={msg.id} className={`kiara-bubble ${msg.direction}`}><span>{msg.text}</span><small>{msg.sender === 'kiara' ? 'Kiara · ' : msg.sender === 'human' ? 'Equipe · ' : ''}{new Date(msg.createdAt).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</small>{msg.sender==='kiara'&&<button type="button" className="kiara-correct-msg" onClick={()=>{setCoachingMessage(msg);setShowCoaching(true)}}><Sparkles size={13}/> Corrigir resposta</button>}</div>)}
+        </div>
+        <div className="kiara-message-composer" aria-label="Envio de mensagens indisponível na homologação">
+          <span className="kiara-composer-emoticon">☺</span>
+          <input type="text" disabled value="" placeholder="Envio pelo painel disponível após validação" aria-label="Envio de mensagens desativado"/>
+          <button type="button" disabled title="Envio pelo painel não habilitado" aria-label="Enviar mensagem desativado"><Send size={18}/></button>
+        </div>
+        <div className="kiara-coach-toggle"><div className="kiara-coach-control">
+          <button type="button" disabled={!selected || !holdReady || holdBusy} className={replyHeld?'kiara-hold-on':''} onClick={()=>void toggleHold()}>
+            <PauseCircle size={17}/>{replyHeld?'Liberar resposta':'Segurar próxima resposta'}
+          </button>
+          {replyHeld&&<strong className="kiara-hold-warning">Resposta automática suspensa nesta conversa</strong>}
+          {holdFeedback&&<small role="status">{holdFeedback}</small>}
+        </div><button type="button" onClick={()=>setShowCoaching(value=>!value)}><Sparkles size={17}/> {showCoaching?'Fechar orientação':'Orientar Kiara'} <span>Interno</span></button></div>
+        {showCoaching&&<KiaraCoaching conversationId={selectedId} selectedMessage={coachingMessage} clearSelectedMessage={()=>setCoachingMessage(null)}/>}
+        <div className="kiara-chat-actions">
+          <button disabled={!selected || !controlReady || controlBusy || selected.status==='human'} onClick={()=>selected && void runCommand('assume',selected.id)}><Hand size={16}/> Assumir</button>
+          <button disabled={!selected || !controlReady || controlBusy || selected.status==='ai'} onClick={()=>selected && void runCommand('return_to_ai',selected.id)}><RefreshCcw size={16}/> Devolver à Kiara</button>
+        </div>
+        <p className="kiara-security"><ShieldAlert size={16}/> As ações só são liberadas após confirmação da autorização pelo servidor. A proteção contra envios pendentes também precisa ser validada.</p>
+      </aside>
+    </div>
+    <p className="kiara-footnote"><Activity size={15}/> O espelhamento depende de mensagens sincronizadas pelo Worker; a autorização dos comandos também depende da configuração segura do servidor.</p>
+  </section>
+}
