@@ -3,13 +3,14 @@ import assert from 'node:assert/strict';
 import {normalizeCurtainIntake,extractConversationInstructions} from '../src/quote-conversation.js';
 import {simulateCurtainQuote} from '../src/quote-pricing.js';
 const completed={product:'cortina',environment:'Sala',model:'wave',width:3.2,height:2.6,quantity:1,frontCategory:'Voil texturizado',backCategory:'Blackout',drive:'motorizada'};
-const approved={categories:[{name:'Voil texturizado'},{name:'Blackout'}]};
+const approved={models:['Wave','Prega Macho','Franzida'],technicalLimits:{maxWidth:30,maxHeight:10,maxQuantity:20},categories:[{name:'Voil texturizado'},{name:'Blackout'}]};
 test('confirmed conversation fields produce private curtain simulation',()=>{
  const normalized=normalizeCurtainIntake(completed,approved);
  assert.equal(normalized.ready,true);
  const quote=simulateCurtainQuote(normalized.intake,{
   railType:'varao_trilho',rails:2,
   pricing:{
+   models:['Wave','Prega Macho','Franzida'],technicalLimits:{maxWidth:30,maxHeight:10,maxQuantity:20},
    categories:[{name:'Voil texturizado',costPerM2:86.6504},{name:'Blackout',costPerM2:68.8719}],
    modelCosts:[],ratios:[],rails:[{id:'varao_trilho',costPerMeter:35.1082}],
    installation:{manualPerFace:60,motorPerFace:120},
