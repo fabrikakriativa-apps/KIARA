@@ -1,0 +1,49 @@
+name: Diagnosticar Cloudflare sem publicação
+on:
+  push:
+    branches: [feat/painel-independente]
+    paths:
+      - '.github/workflows/diagnosticar-cloudflare.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diagnostics:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validar token e acesso ao Pages sem revelar credenciais
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          python3 - <<'PY'
+          import os,json,urllib.request,urllib.error
+          token=os.environ.get('CF_TOKEN','')
+          account=os.environ.get('CF_ACCOUNT','')
+          print('Credenciais presentes:',bool(token),bool(account))
+          if not token or not account: raise SystemExit(1)
+          endpoints=[
+            ('status do token','https://api.cloudflare.com/client/v4/user/tokens/verify'),
+            ('contas visíveis','https://api.cloudflare.com/client/v4/accounts?per_page=50'),
+            ('projetos Pages da conta cadastrada',f'https://api.cloudflare.com/client/v4/accounts/{account}/pages/projects?per_page=2')
+          ]
+          for title,url in endpoints:
+            req=urllib.request.Request(url,headers={'Authorization':'Bearer '+token,'Accept':'application/json'})
+            try:
+              with urllib.request.urlopen(req,timeout=20) as resp:
+                payload=json.load(resp)
+                print(title,': HTTP',resp.status,'success:',payload.get('success'))
+                if title=='status do token':
+                  print('token_status:',payload.get('result',{}).get('status'))
+                elif title=='contas visíveis':
+                  ids=[x.get('id') for x in payload.get('result',[]) if isinstance(x,dict)]
+                  print('conta configurada aparece entre contas visíveis:',account in ids)
+            except urllib.error.HTTPError as err:
+              try:
+                payload=json.load(err)
+                codes=[e.get('code') for e in payload.get('errors',[]) if isinstance(e,dict)]
+              except Exception:codes=[]
+              print(title,': HTTP',err.code,'códigos:',codes)
+            except Exception as e:
+              print(title,': erro de conexão',type(e).__name__)
+          PY
