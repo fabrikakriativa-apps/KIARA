@@ -13,10 +13,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Verificar se não há arquivo de deploy de produção
+      - name: Bloquear configurações de produção
         run: |
           test ! -e wrangler.toml
           test ! -e .dev.vars
-      - name: Verificar versão de teste
-        run: |
-          if [ -f src/worker.js ]; then node --check src/worker.js; fi
+      - name: Conferir sintaxe
+        run: node --check src/worker.js
+      - name: Testar pausa e orientações
+        run: npm test
