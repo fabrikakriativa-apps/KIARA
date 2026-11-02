@@ -1,3 +1,4 @@
+import './KiaraLearning.css'
 import {KiaraCoaching} from './KiaraCoaching'
 import {KiaraKnowledgeLab} from './KiaraKnowledgeLab'
 export function KiaraLearning(){
