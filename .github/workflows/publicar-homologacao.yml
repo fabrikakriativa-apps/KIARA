@@ -1,0 +1,56 @@
+name: Publicar SOMENTE Worker de homologacao
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kiara-homologacao-smoke
+  cancel-in-progress: false
+
+jobs:
+  publicar-homologacao:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Bloqueio contra publicação de produção
+        run: |
+          test -f staging/wrangler.toml
+          grep -Eq '^name = "fabrika-atendimento-ia-homologacao"$' staging/wrangler.toml
+          grep -Eq '^main = "./health.js"$' staging/wrangler.toml
+          grep -Eq '^workers_dev = true$' staging/wrangler.toml
+          ! grep -Eiq '^\s*(routes?|kv_namespaces|queues|services|account_id)\s*=' staging/wrangler.toml
+          ! grep -Eiq '^\s*\[\[(kv_namespaces|queues|services)' staging/wrangler.toml
+          test -f staging/health.js
+          node --check staging/health.js
+      - name: Confirmar que Worker separado JA existe (somente leitura)
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          python3 - <<'PY'
+          import os,json,urllib.request,urllib.error
+          a=os.environ.get('CF_ACCOUNT',''); t=os.environ.get('CF_TOKEN','')
+          if not (len(a)==32 and all(c in '0123456789abcdef' for c in a.lower())):
+            raise SystemExit('Account ID inválido/ausente')
+          if not t: raise SystemExit('Token ausente')
+          req=urllib.request.Request(f'https://api.cloudflare.com/client/v4/accounts/{a}/workers/scripts',headers={'Authorization':'Bearer '+t,'Accept':'application/json'})
+          try:
+            with urllib.request.urlopen(req,timeout=20) as res: payload=json.load(res)
+          except Exception: raise SystemExit('Não foi possível conferir lista de Workers. Nenhuma publicação realizada.') from None
+          if not payload.get('success'): raise SystemExit('Consulta Cloudflare não autorizada.')
+          ids=[s.get('id') for s in payload.get('result',[]) if isinstance(s,dict)]
+          if 'fabrika-atendimento-ia-homologacao' not in ids:
+            raise SystemExit('Crie PRIMEIRO o Worker fabrika-atendimento-ia-homologacao no Cloudflare. Nenhum deploy executado.')
+          print('Worker isolado já existe; autorizado iniciar atualização do próprio Worker de homologação.')
+          PY
+      - name: Publicar somente staging/health.js
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@4 deploy --config staging/wrangler.toml --keep-vars
