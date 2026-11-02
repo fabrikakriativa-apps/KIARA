@@ -342,3 +342,46 @@
  .kiara-visual-v2 .kiara-head-actions{width:100%;max-width:none;min-width:0}
  .kiara-visual-v2 .kiara-head-search{width:auto;max-width:none}
 }
+
+/* Navegação real de detalhes da conversa: resumo, qualificação, orçamento e notas. */
+.kiara-visual-v2 .kiara-detail-tabs{
+ display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;flex-shrink:0;
+ padding:8px 8px 0;border-bottom:1px solid #e7eaf3;background:#fff;
+}
+.kiara-visual-v2 .kiara-detail-tabs button{
+ min-width:0;padding:11px 3px 10px;border:0;border-bottom:3px solid transparent;
+ background:transparent;color:#64708b;font-size:11px;font-weight:700;
+ cursor:pointer;white-space:nowrap;
+}
+.kiara-visual-v2 .kiara-detail-tabs button.active{
+ color:#674ad5;border-bottom-color:#7954f0;
+}
+.kiara-visual-v2 .kiara-detail-tabs button:focus-visible{
+ outline:2px solid #8260ec;outline-offset:-2px;border-radius:5px;
+}
+.kiara-visual-v2 .kiara-details-scroll{min-height:0;overflow-y:auto}
+.kiara-visual-v2 .kiara-details-section>p{
+ font-size:11px;line-height:1.5;color:#68748c;
+}
+.kiara-detail-budget,.kiara-private-note{
+ border-top:1px solid #e9edf5;padding:10px 0;
+ display:flex;flex-direction:column;gap:6px;
+}
+.kiara-detail-budget strong{font-size:11px;color:#4d4c8a}
+.kiara-detail-budget small,.kiara-private-note small{font-size:10px;color:#8691a4}
+.kiara-detail-budget p,.kiara-private-note p{
+ font-size:11px;color:#39455e;white-space:pre-wrap;overflow-wrap:anywhere;
+ margin:0;line-height:1.45;
+}
+.kiara-private-notes label{display:block;font-size:11px;font-weight:700;margin-bottom:5px}
+.kiara-private-notes textarea{
+ display:block;width:100%;resize:vertical;border:1px solid #d8e0ef;
+ border-radius:9px;padding:9px;background:#fff;color:#26334b;
+ font:inherit;font-size:11px;
+}
+.kiara-private-notes>button{
+ margin:8px 0 12px;border:0;border-radius:9px;
+ padding:9px 12px;background:#5c57db;color:#fff;font-size:11px;font-weight:700;
+ cursor:pointer;
+}
+.kiara-private-notes>button:disabled{opacity:.5;cursor:not-allowed}
