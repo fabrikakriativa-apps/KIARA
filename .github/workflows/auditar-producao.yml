@@ -1,0 +1,48 @@
+name: Auditar bindings da Kiara em producao (somente leitura)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/auditar-producao.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  auditoria:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Consultar somente metadados dos Workers
+        env:
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import os,json,urllib.request,urllib.error
+          base=f"https://api.cloudflare.com/client/v4/accounts/{os.environ['CF_ACCOUNT']}/workers/scripts"
+          auth={'Authorization':'Bearer '+os.environ['CF_TOKEN'],'Accept':'application/json'}
+          def get(path):
+            req=urllib.request.Request(base+'/'+path,headers=auth)
+            with urllib.request.urlopen(req,timeout=30) as res: return json.load(res)
+          for name in ['fabrika-atendimento-ia','fabrika-atendimento-ia-homologacao']:
+            print('Worker:',name)
+            try:
+              x=get(name+'/settings')
+            except urllib.error.HTTPError as e:
+              print('  Settings endpoint HTTP:',e.code)
+              continue
+            if not x.get('success'):
+              print('  Settings not available')
+              continue
+            info=x.get('result') or {}
+            bindings=info.get('bindings') or []
+            print('  Compatibility date:',info.get('compatibility_date') or 'not returned')
+            print('  Bindings names and types only:')
+            for b in bindings:
+              if isinstance(b,dict):
+                print('   -',b.get('name','?'),b.get('type','?'))
+            if name=='fabrika-atendimento-ia':
+              names={b.get('name') for b in bindings if isinstance(b,dict)}
+              print('  CONVERSAS:', 'PRESENT' if 'CONVERSAS' in names else 'MISSING/NOT VISIBLE')
+              print('  KIARA_QUEUE:', 'PRESENT' if 'KIARA_QUEUE' in names else 'MISSING/NOT VISIBLE')
+          print('Only metadata was read. No code, tokens, values, secrets or production configuration was changed.')
+          PY
