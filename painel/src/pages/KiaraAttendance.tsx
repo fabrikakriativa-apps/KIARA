@@ -27,6 +27,8 @@ export function KiaraAttendance() {
   const [promotionFeedback,setPromotionFeedback]=useState('')
   const [opportunityPhase,setOpportunityPhase]=useState('')
   const [refresh, setRefresh] = useState(0)
+  const [conversationLimit,setConversationLimit]=useState(100)
+  const [messageLimit,setMessageLimit]=useState(100)
   const [coachingMessage, setCoachingMessage] = useState<KiaraMessage|null>(null)
   const [showCoaching,setShowCoaching] = useState(false)
   const [holdReady,setHoldReady] = useState(false)
@@ -85,7 +87,7 @@ export function KiaraAttendance() {
   useEffect(() => {
     const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') { setNowMs(Date.now());setRefresh(value => value + 1) }
-    }, 30_000)
+    }, 90_000)
     return () => window.clearInterval(timer)
   }, [])
   useEffect(() => {
@@ -97,7 +99,7 @@ export function KiaraAttendance() {
         const { data, error: fetchError } = await supabase!.from('kiara_conversations')
           .select('id,contact_name,contact_phone,status,origin,campaign,region,last_interaction_at,created_at,lead_opportunity_id')
           .eq('organization_id', access.organizationId)
-          .order('last_interaction_at', { ascending: false }).limit(100)
+          .order('last_interaction_at', { ascending: false }).range(0,conversationLimit-1)
         if (fetchError) throw fetchError
         const mapped: KiaraConversation[] = (data ?? []).map(row => ({
           id: row.id, name: row.contact_name, phone: row.contact_phone||'',leadOpportunityId:row.lead_opportunity_id,
@@ -116,7 +118,7 @@ export function KiaraAttendance() {
     }
     void load()
     return () => { cancelled = true }
-  }, [access?.organizationId, access?.role, refresh])
+  }, [access?.organizationId, access?.role, refresh,conversationLimit])
   useEffect(() => {
     if (!selectedId || !access || !supabase) return
     let cancelled = false
@@ -127,7 +129,7 @@ export function KiaraAttendance() {
         .select('id,direction,sender,occurred_at,text_body')
         .eq('organization_id',access.organizationId)
         .eq('conversation_id',selectedId)
-        .order('occurred_at',{ascending:false}).limit(100)
+        .order('occurred_at',{ascending:false}).range(0,messageLimit-1)
       if (cancelled) return
       setMessagesLoading(false)
       if (fetchError) { setMessagesError('Não foi possível atualizar as mensagens desta conversa.'); return }
@@ -136,7 +138,7 @@ export function KiaraAttendance() {
     }
     void loadMessages()
     return ()=>{cancelled=true}
-  },[selectedId,access?.organizationId,refresh])
+  },[selectedId,access?.organizationId,refresh,messageLimit])
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('all')
   const [period,setPeriod] = useState<'all'|'7d'|'30d'>('all')
@@ -259,7 +261,7 @@ export function KiaraAttendance() {
         {error&&<p role="alert" className="kiara-data-error">{error}</p>}
         <div className="kiara-lead-table-header" aria-hidden="true"><span>Contato</span><span>Origem / Campanha</span><span>Região</span><span>Status</span><span>Última interação</span><span/></div>
         {filtered.length===0?<div className="kiara-empty"><MessageCircle size={34}/><strong>{conversations.length?'Nenhuma conversa corresponde aos filtros':'Nenhum atendimento sincronizado ainda'}</strong><p>{conversations.length?'Experimente outro período ou remova os filtros.':'Os contatos aparecerão aqui à medida que forem sincronizados pelo WhatsApp. Nenhum contato fictício é exibido.'}</p></div>:
-        <div className="kiara-lead-list">{filtered.map(item=><button type="button" key={item.id} className={selected?.id===item.id?'selected':''} onClick={()=>{setSelectedId(item.id);setCoachingMessage(null)}} aria-label={'Abrir conversa de '+(item.name||item.phone)}>
+        <div className="kiara-lead-list">{filtered.map(item=><button type="button" key={item.id} className={selected?.id===item.id?'selected':''} onClick={()=>{setSelectedId(item.id);setMessageLimit(100);setCoachingMessage(null)}} aria-label={'Abrir conversa de '+(item.name||item.phone)}>
           <span className="kiara-lead-contact"><span className="kiara-initial">{(item.name||item.phone).slice(0,2).toUpperCase()}</span><span className="kiara-lead-main"><strong>{item.name||item.phone}</strong><small>{item.phone}</small></span></span>
           <span className="kiara-lead-origin"><strong>{item.campaign||item.origin||'Não identificada'}</strong><small>{item.origin||'Sem origem registrada'}</small></span>
           <span className="kiara-lead-region">{item.region||'Não informada'}</span>
@@ -267,7 +269,8 @@ export function KiaraAttendance() {
           <span className="kiara-lead-date">{new Date(item.lastInteractionAt).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</span>
           <ChevronRight size={17} className="kiara-lead-chevron"/>
         </button>)}</div>}
-        <div className="kiara-list-bottom"><span>Atualização automática a cada 30 segundos</span><button type="button" disabled={loading} onClick={()=>setRefresh(v=>v+1)}><RefreshCcw size={15}/> Atualizar</button></div>
+        {conversations.length>=conversationLimit&&<button type="button" disabled={loading} onClick={()=>setConversationLimit(v=>v+100)}>Carregar mais conversas</button>}
+        <div className="kiara-list-bottom"><span>Atualização automática a cada 90 segundos com a aba visível; histórico carregado sob demanda</span><button type="button" disabled={loading} onClick={()=>setRefresh(v=>v+1)}><RefreshCcw size={15}/> Atualizar</button></div>
       </div>
 
       <aside className="kiara-conversation-card">
@@ -299,6 +302,7 @@ export function KiaraAttendance() {
           <small>{pendingMs !== null ? 'Contagem desde a última mensagem enviada pela Kiara ou pela equipe.' : 'O cliente não tem uma resposta pendente à última mensagem da loja.'}</small>
         </div>
         {messagesError && <p className="kiara-data-error" role="alert">{messagesError}</p>}
+        {selected&&selected.messages.length>=messageLimit&&<button type="button" disabled={messagesLoading} onClick={()=>setMessageLimit(v=>v+100)}>Carregar mensagens anteriores</button>}
         <div className="kiara-chat" aria-label="Histórico da conversa">
           {messagesLoading && <p className="kiara-chat-loading" role="status">Atualizando mensagens…</p>}
           {!selected ? <div className="kiara-chat-placeholder"><MessageCircle size={34}/><p>As mensagens recebidas, respostas da Kiara e intervenções humanas aparecerão aqui.</p></div> :
