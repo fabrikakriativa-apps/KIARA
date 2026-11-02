@@ -16,7 +16,7 @@ const money=(n:number)=>n.toLocaleString('pt-BR',{style:'currency',currency:'BRL
 const parse=(text:string)=>Number(text.trim().replace(/\s/g,'').replace(',','.'))
 const positive=(n:number)=>Number.isFinite(n)&&n>0
 
-export function KiaraApprovedSimulation(){
+export function KiaraApprovedSimulation({draftMode=false}:{draftMode?:boolean}){
  const access=useAccess()
  const [config,setConfig]=useState<Config|null>(null)
  const [loading,setLoading]=useState(true)
@@ -48,7 +48,8 @@ export function KiaraApprovedSimulation(){
   return()=>{live=false}
  },[access?.organizationId,refresh])
  const approved=config?.status==='approved'
- const settings=approved?config.settings:null
+ const eligible=Boolean(config&&(approved||draftMode&&access?.role==='admin'))
+ const settings=eligible?config!.settings:null
  const categories=settings?.categories.filter(c=>c.active!==false&&positive(Number(c.costPerM2)))||[]
  const rails=settings?.rails.filter(r=>r.active!==false&&positive(Number(r.costPerMeter)))||[]
  const models=settings?.models.filter(Boolean)||[]
@@ -60,7 +61,7 @@ export function KiaraApprovedSimulation(){
  const dimensionsValid=Boolean(limit&&positive(w)&&positive(h)&&w<=limit.maxWidth&&h<=limit.maxHeight&&Number.isInteger(q)&&q>=1&&q<=limit.maxQuantity)
  const railsValid=Number.isInteger(rq)&&rq>=0&&rq<=4&&(!rq||Boolean(currentRail))
  const costsValid=Boolean(settings&&Number.isFinite(settings.pricing.markupPercent)&&settings.pricing.markupPercent>=0&&settings.pricing.markupPercent<=500&&Number.isFinite(settings.installation.manualPerFace)&&settings.installation.manualPerFace>=0&&Number.isFinite(settings.installation.motorPerFace)&&settings.installation.motorPerFace>=0&&Number.isFinite(settings.motorization.finalSaleSurcharge)&&settings.motorization.finalSaleSurcharge>=0)
- const valid=Boolean(approved&&dimensionsValid&&railsValid&&costsValid&&currentModel&&currentCategory)
+ const valid=Boolean(eligible&&dimensionsValid&&railsValid&&costsValid&&currentModel&&currentCategory)
  const specific=settings?.modelCosts.find(x=>x.active!==false&&x.model===currentModel&&x.category===category&&x.position===position&&positive(Number(x.costPerM2)))
  // Custos históricos por m² já contemplam confecção: não aplicar proporção novamente.
  const fabricUnitCost=Number(specific?.costPerM2??currentCategory?.costPerM2??0)
@@ -72,12 +73,12 @@ export function KiaraApprovedSimulation(){
  const motorSurcharge=valid&&motorized?Number(settings!.motorization.finalSaleSurcharge)*q:0
  const suggested=valid?Math.round((saleBeforeMotor+motorSurcharge)*100)/100:null
  return <section className="kiara-management-card">
-  <h2>Simulador de cortinas — parâmetros aprovados</h2>
-  <p>Simulação interna, uma face por vez. Busca os custos e acréscimos na revisão aprovada do Supabase. Não cria orçamento, não grava proposta e não envia WhatsApp.</p>
-  {loading?<p>Consultando configurações comerciais…</p>:error?<p role="alert">{error}</p>:!approved?
+  <h2>{draftMode?'Teste de precificação — cortinas':'Simulador de cortinas — parâmetros aprovados'}</h2>
+  <p>{draftMode?'Prévia experimental da revisão salva no Supabase, inclusive em rascunho. Não modifica dados, não aprova valores e não envia WhatsApp.':'Simulação interna, uma face por vez. Busca os custos e acréscimos na revisão aprovada do Supabase. Não cria orçamento, não grava proposta e não envia WhatsApp.'}</p>
+  {loading?<p>Consultando configurações comerciais…</p>:error?<p role="alert">{error}</p>:!eligible?
    <p role="status">Cálculo bloqueado: {config?'a revisão '+config.revision+' permanece como rascunho':'não existe configuração comercial'} aprovada para cortinas. Revise e aprove em Configurações → Orçamentos antes de simular.</p>:
    <div className="kiara-pricing-form">
-    <p><strong>Configuração aprovada:</strong> revisão {config.revision}</p>
+    <p><strong>{approved?'Configuração aprovada':'TESTE — RASCUNHO, NÃO APROVADO'}:</strong> revisão {config!.revision}</p>
     <label>Face<select value={position} onChange={e=>setPosition(e.target.value as 'front'|'lining')}><option value="front">Frente / face única</option><option value="lining">Forro</option></select></label>
     <label>Modelo<select value={model} onChange={e=>setModel(e.target.value)}><option value="">Selecione</option>{models.map(x=><option key={x} value={x}>{x}</option>)}</select></label>
     <label>Categoria de tecido<select value={category} onChange={e=>setCategory(e.target.value)}><option value="">Selecione</option>{categories.map(x=><option key={x.name} value={x.name}>{x.name}</option>)}</select></label>
@@ -90,7 +91,7 @@ export function KiaraApprovedSimulation(){
     <label><input type="checkbox" checked={motorized} onChange={e=>setMotorized(e.target.checked)}/> Motorizada</label>
     {!valid?<p role="status">Selecione modelo e tecido e informe medidas válidas dentro dos limites cadastrados. Se incluir trilhos, selecione o tipo.</p>:
     <div>
-     <p><strong>{money(suggested!)}</strong> · estimativa interna, não aprovada para envio</p>
+     <p><strong>{money(suggested!)}</strong> · {draftMode?'TESTE INTERNO, SEM VALIDADE COMERCIAL':'estimativa interna, não aprovada para envio'}</p>
      <details><summary>Memória de cálculo</summary><dl>
       <dt>Custo da face ({specific?'modelo + categoria':'média da categoria'})</dt><dd>{money(faceCost)}</dd>
       <dt>Trilhos</dt><dd>{money(railCost)}</dd>
