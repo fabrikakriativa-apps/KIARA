@@ -12,6 +12,7 @@ KIARA_SYNC_ALL_CONTACTS = "false"
 KIARA_AUDIO_MODE = "off" # off | review (sempre humano) | reply (somente caso claro)
 KIARA_AUDIO_REVIEW_MODEL = "gpt-4.1-mini"
 KIARA_ADS_ROUTING_ENABLED = "false" # Recepção de anúncios com botões, teste restrito; não habilitar em produção
+KIARA_QUOTE_SIMULATION_ENABLED = "false"
 RESPONSE_DELAY_SECONDS = "15"
 
 # Configurar KV, Queue e demais variáveis usando recursos isolados de teste.
