@@ -242,8 +242,28 @@ async function syncHumanEcho(env, route, echo) {
     '?id=eq.' + encodeURIComponent(row.id) + queryEq('organization_id', env.SUPABASE_ORGANIZATION_ID), {
       status: 'human', last_business_message_at: timestamp, updated_at: new Date().toISOString()
     });
+  // Só considera observação quando a intervenção humana sucede
+  // imediatamente uma resposta da Kiara. Não gera regra automática.
+  let previous = null;
+  if (echo.type === 'text' && String(echo.text?.body||'').trim()) {
+    const recent=await dbRequest(env,'kiara_messages','GET',
+      '?select=sender,text_body,occurred_at'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
+      queryEq('conversation_id',row.id)+'&direction=eq.outgoing&order=occurred_at.desc&limit=1');
+    previous=recent?.[0]||null;
+  }
   await saveMessage(env, row.id, echo.id, 'outgoing', 'human',
     echo.type === 'text' ? echo.text?.body : null, timestamp, echo.type);
+  const elapsed=Date.parse(timestamp)-Date.parse(previous?.occurred_at||'');
+  if(previous?.sender==='kiara' && Number.isFinite(elapsed) && elapsed>=0 && elapsed<=7200000) {
+    await dbRequest(env,'kiara_learning_observations','POST',
+      '?on_conflict=organization_id,source_message_id',{
+        organization_id:String(env.SUPABASE_ORGANIZATION_ID),
+        conversation_id:row.id,source_message_id:String(echo.id),
+        human_text:String(echo.text?.body||'').slice(0,2000),
+        previous_ai_text:String(previous.text_body||'').slice(0,2000),
+        status:'pending'
+      });
+  }
 }
 async function syncKiaraReply(env, route, recipient, messageId, text) {
   if (!syncActive(env) || !messageId) return;
