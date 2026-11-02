@@ -5,6 +5,7 @@ import {KiaraLeads} from './pages/KiaraLeads'
 import {KiaraBudgets} from './pages/KiaraBudgets'
 import {KiaraOverview,type KiaraSection,type ConversationStatus,type ReportMode,type Period,type KiaraNavigation} from './pages/KiaraOverview'
 import {KiaraLearning} from './pages/KiaraLearning'
+import {KiaraSettings} from './pages/KiaraSettings'
 import './pages/KiaraManagement.css'
 import {supabase} from './lib/supabase'
 import {useAccess} from './components/AuthorizedAccess'
@@ -47,5 +48,5 @@ export function App(){
   <div className="kiara-user-details"><strong>{profile?.name||'Usuário logado'}</strong><small>{profile?.email||'Sessão autorizada'}</small></div>
  </div>
  <button type="button" onClick={()=>void supabase?.auth.signOut()}><LogOut size={17}/> Sair</button></div>
- </aside><main className="kiara-standalone-content">{active==='dashboard'?<KiaraOverview onNavigate={navigate}/>:active==='conversations'?<KiaraAttendance key={'conversations-'+navigationVersion} initialStatus={conversationStatus} initialConversationId={conversationId} reportMode={reportMode} reportPeriod={reportPeriod} onNavigateBudgets={()=>navigate('budgets',{budgetFilter:'pending_review'})}/>:active==='leads'?<KiaraLeads/>:active==='guidance'?<KiaraLearning/>:active==='budgets'?<KiaraBudgets key={'budgets-'+navigationVersion} initialFilter={budgetFilter} reportPeriod={reportPeriod}/>:<section className="kiara-placeholder"><section><section.icon size={28}/><h1>{section.label}</h1><p>Área reservada para a configuração da Kiara. Nenhum dado demonstrativo ou ação operacional é apresentado como real.</p><button onClick={()=>setActive('dashboard')}>Voltar à visão geral</button></section></section>}</main></div>
+ </aside><main className="kiara-standalone-content">{active==='dashboard'?<KiaraOverview onNavigate={navigate}/>:active==='conversations'?<KiaraAttendance key={'conversations-'+navigationVersion} initialStatus={conversationStatus} initialConversationId={conversationId} reportMode={reportMode} reportPeriod={reportPeriod} onNavigateBudgets={()=>navigate('budgets',{budgetFilter:'pending_review'})}/>:active==='leads'?<KiaraLeads/>:active==='guidance'?<KiaraLearning/>:active==='budgets'?<KiaraBudgets key={'budgets-'+navigationVersion} initialFilter={budgetFilter} reportPeriod={reportPeriod}/>:active==='settings'?<KiaraSettings onNavigate={navigate}/>:<section className="kiara-placeholder"><section><section.icon size={28}/><h1>{section.label}</h1><p>Área reservada para a configuração da Kiara. Nenhum dado demonstrativo ou ação operacional é apresentado como real.</p><button onClick={()=>setActive('dashboard')}>Voltar à visão geral</button></section></section>}</main></div>
 }
