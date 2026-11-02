@@ -3,10 +3,10 @@
 export const CURTAIN_MODELS=Object.freeze({'wave':'Wave','prega macho':'Prega Macho','franzida':'Franzida'});
 export const DRIVE_MODES=Object.freeze({'manual':'manual','motorizada':'motorizada'});
 export const LINING_TYPES=Object.freeze({'sem forro':'Sem forro','blackout':'Blackout','forro convencional':'Forro convencional'});
-export const CATEGORY_NAMES=Object.freeze(['Voil leve','Voil texturizado','Linho / efeito linho','Blackout','Forro convencional','Decorativo']);
+// As categorias comerciais são carregadas do banco; não há lista de preços no código.
 const n=v=>typeof v==='number'?v:typeof v==='string'&&/^\d+(?:[.,]\d+)?$/.test(v.trim())?Number(v.replace(',','.')):NaN;
 const clean=v=>typeof v==='string'?v.trim().slice(0,180):'';
-export function normalizeCurtainIntake(raw){
+export function normalizeCurtainIntake(raw,settings={}){
  const errors=[],out={};
  if(!raw||typeof raw!=='object'||Array.isArray(raw))return {ready:false,errors:['Dados de atendimento ausentes'],intake:null};
  if(raw.product!=='cortina')errors.push('O cálculo por categoria ainda está restrito a cortinas');
@@ -18,9 +18,11 @@ export function normalizeCurtainIntake(raw){
  out.width=n(raw.width);out.height=n(raw.height);
  if(!Number.isFinite(out.width)||out.width<=0||out.width>30)errors.push('Largura aproximada ausente');
  if(!Number.isFinite(out.height)||out.height<=0||out.height>10)errors.push('Altura aproximada ausente');
- out.frontCategory=CATEGORY_NAMES.find(x=>x.toLowerCase()===clean(raw.frontCategory).toLowerCase())??null;
+ const categories=(settings.categories||[]).filter(x=>x.active!==false).map(x=>x.name);
+ out.frontCategory=categories.find(x=>x.toLowerCase()===clean(raw.frontCategory).toLowerCase())??null;
  if(!out.frontCategory)errors.push('Categoria comercial frontal não confirmada');
- out.backCategory=LINING_TYPES[clean(raw.backCategory).toLowerCase()]??null;
+ out.backCategory=clean(raw.backCategory).toLowerCase()==='sem forro'?'Sem forro':
+  categories.find(x=>x.toLowerCase()===clean(raw.backCategory).toLowerCase())??null;
  if(!out.backCategory)errors.push('Quantidade ou tipo de tecidos não confirmados');
  out.drive=DRIVE_MODES[clean(raw.drive).toLowerCase()]??null;
  if(!out.drive)errors.push('Acionamento manual ou motorizado não confirmado');
@@ -29,11 +31,12 @@ export function normalizeCurtainIntake(raw){
  if(!out.quantity)errors.push('Quantidade de vãos/conjuntos não confirmada');
  return {ready:errors.length===0,errors,intake:out};
 }
-export function extractConversationInstructions(){
+export function extractConversationInstructions(settings={}){
+ const categories=(settings.categories||[]).filter(x=>x.active!==false).map(x=>x.name);
  return 'Extraia SOMENTE informações explicitamente fornecidas ou confirmadas pelo CLIENTE sobre UMA cortina. '+
  'Responda APENAS com JSON puro contendo product, environment, model, width, height, quantity, frontCategory, backCategory, drive. '+
- 'model precisa ser wave, prega macho ou franzida; frontCategory precisa ser Voil leve, Voil texturizado, Linho / efeito linho, Blackout, Forro convencional ou Decorativo; '+
- 'backCategory precisa ser Sem forro, Blackout ou Forro convencional. '+
+ 'model precisa ser wave, prega macho ou franzida. Categorias comerciais válidas (incluindo frente e forro): '+categories.join(', ')+'. '+
+ 'backCategory precisa ser Sem forro ou uma categoria comercial da lista. '+
  'drive precisa ser manual ou motorizada. Para informações desconhecidas use null; NUNCA adivinhe ou use valores técnicos. '+
  'width e height são metros, apenas quando informados com unidade clara; em centímetros converta para metros. '+
  'quantity é quantidade de vãos/conjuntos, NUNCA folhas de abertura nem camadas de tecido. '+
