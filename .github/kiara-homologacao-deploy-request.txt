@@ -1,0 +1,2 @@
+Solicitação manual de publicação isolada do painel Kiara em homologação — 2026-11-02.
+Não altera o Worker nem ativa envio de mensagens.
