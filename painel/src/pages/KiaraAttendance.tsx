@@ -257,7 +257,7 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
       && (regionFilter === 'all' || item.region === regionFilter)
       && (!from || dateOnly(item.lastInteractionAt) >= from)
       && (!to || dateOnly(item.lastInteractionAt) <= to)
-  }), [conversations, search, status, campaignFilter, regionFilter, from, to])
+  }), [conversations, search, status, period, nowMs, campaignFilter, regionFilter, from, to])
   useEffect(()=>{
     if(!filtered.some(item=>item.id===selectedId))setSelectedId(filtered[0]?.id??null)
   },[filtered,selectedId])
@@ -316,27 +316,57 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
 
     <div className="kiara-workspace">
       <div className="kiara-list-card">
-        <div className="kiara-list-toolbar">
-          <label className="kiara-toolbar-select"><CalendarDays size={17}/><span>Período</span>
-            <select aria-label="Selecionar período" value={period} onChange={event=>setPeriod(event.target.value as 'all'|'7d'|'30d')}>
-              <option value="all">Todo o histórico</option><option value="7d">Últimos 7 dias</option><option value="30d">Últimos 30 dias</option>
-            </select>
-          </label>
-          <label className="kiara-toolbar-select"><span>Status</span>
-            <select aria-label="Filtrar por status" value={status} onChange={event=>setStatus(event.target.value)}>
-              <option value="all">Todos os status</option>{Object.entries(labels).map(([key,value])=><option key={key} value={key}>{value}</option>)}
-            </select>
-          </label>
-          <button type="button" className="kiara-toolbar-more" aria-expanded={showAdvancedFilters} onClick={()=>setShowAdvancedFilters(v=>!v)}><Filter size={16}/> {showAdvancedFilters?'Ocultar filtros':'Mais filtros'}</button>
-          <span className="kiara-record-count">{filtered.length} conversa{filtered.length===1?'':'s'} encontrada{filtered.length===1?'':'s'}</span>
+        <div className="kiara-list-header-v3">
+          <div className="kiara-list-tabs" role="group" aria-label="Filtrar conversas por atendimento">
+            {([
+              ['all','Todas',conversations.length],
+              ['ai','IA',statusCounts.ai],
+              ['waiting_human','Humano',statusCounts.waiting_human],
+              ['human','Assumidas',statusCounts.human]
+            ] as const).map(([key,label,total])=><button
+              type="button" key={key} className={status===key?'active':''}
+              aria-pressed={status===key} onClick={()=>setStatus(key)}>
+              {label} <span>({total})</span>
+            </button>)}
+          </div>
+          <div className="kiara-list-search-row">
+            <label className="kiara-list-search"><Search size={16}/>
+              <input type="search" aria-label="Buscar contato, campanha ou região"
+                placeholder="Buscar contato ou mensagem…" value={search}
+                onChange={e=>setSearch(e.target.value)}/>
+            </label>
+            <div className="kiara-list-filter-wrap">
+              <button type="button" className={'kiara-list-filter-trigger'+(showAdvancedFilters?' active':'')}
+                aria-label="Filtros da lista" aria-expanded={showAdvancedFilters}
+                aria-controls="kiara-list-filter-panel"
+                onClick={()=>setShowAdvancedFilters(v=>!v)}><Filter size={17}/></button>
+              {showAdvancedFilters&&<div className="kiara-list-filter-popover" id="kiara-list-filter-panel">
+                <strong>Filtrar conversas</strong>
+                <label>Período<select aria-label="Selecionar período" value={period} onChange={e=>setPeriod(e.target.value as 'all'|'7d'|'30d')}>
+                  <option value="all">Todo o histórico</option><option value="7d">Últimos 7 dias</option><option value="30d">Últimos 30 dias</option>
+                </select></label>
+                <label>Status<select aria-label="Filtrar por status" value={status} onChange={e=>setStatus(e.target.value)}>
+                  <option value="all">Todos os status</option>{Object.entries(labels).map(([key,value])=><option key={key} value={key}>{value}</option>)}
+                </select></label>
+                <label>Campanha<select aria-label="Filtrar por campanha" value={campaignFilter} onChange={e=>setCampaignFilter(e.target.value)}>
+                  <option value="all">Todas as campanhas</option>{campaigns.map(v=><option key={v} value={v}>{v}</option>)}
+                </select></label>
+                <label>Região<select aria-label="Filtrar por região" value={regionFilter} onChange={e=>setRegionFilter(e.target.value)}>
+                  <option value="all">Todas as regiões</option>{regions.map(v=><option key={v} value={v}>{v}</option>)}
+                </select></label>
+                <div className="kiara-list-date-grid">
+                  <label>De<input type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label>
+                  <label>Até<input type="date" min={from||undefined} value={to} onChange={e=>setTo(e.target.value)}/></label>
+                </div>
+                <div className="kiara-list-filter-actions">
+                  <button type="button" onClick={()=>{setPeriod('all');setStatus('all');setCampaignFilter('all');setRegionFilter('all');setFrom('');setTo('')}}>Limpar</button>
+                  <button type="button" onClick={()=>setShowAdvancedFilters(false)}>Concluir</button>
+                </div>
+              </div>}
+            </div>
+          </div>
+          <span className="kiara-list-count">{filtered.length} conversa{filtered.length===1?'':'s'} encontrada{filtered.length===1?'':'s'}</span>
         </div>
-        {showAdvancedFilters&&<div id="kiara-filter-area" className="kiara-advanced-filters">
-          <select aria-label="Filtrar por campanha" value={campaignFilter} onChange={event=>setCampaignFilter(event.target.value)}><option value="all">Todas as campanhas</option>{campaigns.map(v=><option key={v} value={v}>{v}</option>)}</select>
-          <select aria-label="Filtrar por região" value={regionFilter} onChange={event=>setRegionFilter(event.target.value)}><option value="all">Todas as regiões</option>{regions.map(v=><option key={v} value={v}>{v}</option>)}</select>
-          <label>De <input type="date" value={from} onChange={event=>setFrom(event.target.value)}/></label>
-          <label>Até <input type="date" min={from||undefined} value={to} onChange={event=>setTo(event.target.value)}/></label>
-          <button type="button" onClick={()=>{setPeriod('all');setStatus('all');setCampaignFilter('all');setRegionFilter('all');setFrom('');setTo('');setSearch('')}}>Limpar filtros</button>
-        </div>}
         {error&&<p role="alert" className="kiara-data-error">{error}</p>}
         <div className="kiara-lead-table-header" aria-hidden="true"><span>Contato</span><span>Origem / Campanha</span><span>Região</span><span>Status</span><span>Última interação</span><span/></div>
         {filtered.length===0?<div className="kiara-empty"><MessageCircle size={34}/><strong>{conversations.length?'Nenhuma conversa corresponde aos filtros':'Nenhum atendimento sincronizado ainda'}</strong><p>{conversations.length?'Experimente outro período ou remova os filtros.':'Os contatos aparecerão aqui à medida que forem sincronizados pelo WhatsApp. Nenhum contato fictício é exibido.'}</p></div>:
