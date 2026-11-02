@@ -23,3 +23,14 @@
  .kiara-standalone-footer .kiara-user-profile{justify-content:center}
  .kiara-standalone-footer .kiara-user-details{display:none}
 }
+
+/* Layout base: não forçar rolagem nas páginas com pouco conteúdo. */
+.kiara-standalone-content{min-height:100vh;overflow-x:hidden}
+.kiara-placeholder{
+ min-height:calc(100dvh - 20px);
+ padding:16px;
+}
+.kiara-placeholder>section{padding:25px}
+@media(max-width:820px){
+ .kiara-standalone-content{overflow-x:auto}
+}
