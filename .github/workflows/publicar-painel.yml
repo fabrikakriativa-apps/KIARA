@@ -1,5 +1,5 @@
 name: Publicar painel independente KIARA (GitHub Pages)
-# Versão de homologação: cabeçalhos compactos em todas as páginas, rolagem otimizada e aviso redundante removido.
+# Versão de homologação: central de Configurações com oito áreas conforme referência.
 
 on:
   workflow_dispatch:
