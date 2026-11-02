@@ -112,13 +112,6 @@ export function KiaraOverview({onNavigate}:{onNavigate:Jump}){
     <p>Sua atendente IA que acolhe, qualifica e direciona os leads da Fábrika Kriativa — 24h por dia. 💜</p>
     <div className="kiara-overview-hero-buttons"><button type="button" disabled={!controlReady||!kiaraEnabled||controlBusy||access?.role!=='admin'} onClick={()=>void pause()}><PauseCircle size={16}/> Pausar Kiara</button><button type="button" onClick={()=>onNavigate('conversations',{status:'all'})}><MessageCircleMore size={16}/> Abrir conversas</button><button type="button" onClick={()=>onNavigate('budgets',{budgetFilter:'pending_review'})}><ClipboardCheck size={16}/> Ver orçamentos</button></div>
     {controlFeedback&&<small role="status">{controlFeedback}</small>}</div>
-    <div className="kiara-hero-quick" aria-label="Resumo operacional">
-      <div className="kiara-hero-quick-title">Acompanhe agora</div>
-      <button type="button" onClick={()=>onNavigate('conversations',{status:'ai'})} className="kiara-hero-quick-item"><span className="kiara-quick-dot green"/><span>IA atendendo</span><strong>{loading?'…':counts.ai}</strong></button>
-      <button type="button" onClick={()=>onNavigate('conversations',{status:'waiting_human'})} className="kiara-hero-quick-item"><span className="kiara-quick-dot amber"/><span>Aguardando humano</span><strong>{loading?'…':counts.waiting_human}</strong></button>
-      <button type="button" onClick={()=>onNavigate('budgets',{budgetFilter:'pending_review'})} className="kiara-hero-quick-item"><span className="kiara-quick-dot orange"/><span>Orçamentos pendentes</span><strong>{loading?'…':counts.budgets}</strong></button>
-      <button type="button" onClick={()=>onNavigate('conversations',{status:'human'})} className="kiara-hero-quick-item"><span className="kiara-quick-dot blue"/><span>Assumidas</span><strong>{loading?'…':counts.human}</strong></button>
-    </div>
    </section>
    <section className="kiara-overview-funnel"><div className="kiara-overview-funnel-heading"><h2>Resumo dos atendimentos</h2><label><CalendarDays size={15}/><select aria-label="Período dos indicadores" value={preset} onChange={e=>setPreset(e.target.value)}><option value="7d">Últimos 7 dias</option><option value="30d">Últimos 30 dias</option><option value="custom">Personalizado</option></select></label></div>
     {preset==='custom'&&<div className="kiara-overview-date-range"><label>De <input type="date" value={from} onChange={e=>setFrom(e.target.value)} max={to||localDay(new Date())}/></label><label>Até <input type="date" value={to} onChange={e=>setTo(e.target.value)} min={from||undefined} max={localDay(new Date())}/></label></div>}
