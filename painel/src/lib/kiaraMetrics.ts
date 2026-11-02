@@ -9,6 +9,7 @@ export type KiaraConversation = {
   id: string
   name: string | null
   phone: string
+  leadOpportunityId?: string | null
   status: 'ai' | 'waiting_human' | 'human' | 'no_interaction'
   origin: string | null
   campaign: string | null
