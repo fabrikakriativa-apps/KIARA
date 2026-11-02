@@ -42,14 +42,22 @@ export function KiaraKnowledgeLab(){
   event.preventDefault()
   if(!access||!supabase||busy||topic.trim().length<10)return
   setBusy(true);setError('');setNotice('')
-  const {error:e}=await supabase.from('kiara_lab_runs').insert({
+  if(!window.confirm('Iniciar o debate com os especialistas agora? A análise utiliza a API de IA e pode gerar custo por tokens.')){setBusy(false);return}
+  const {data:created,error:e}=await supabase.from('kiara_lab_runs').insert({
    organization_id:access.organizationId,
    kind:'manual',topic:topic.trim(),created_by:access.userId,status:'queued'
-  })
-  setBusy(false)
-  if(e){setError(e.message);return}
+  }).select('id').single()
+  if(e||!created){setBusy(false);setError(e?.message||'Não foi possível registrar a discussão.');return}
   setTopic('')
-  setNotice('Discussão registrada na fila. A execução dependerá da integração com o motor dos agentes.')
+  setSelected(created.id)
+  setNotice('Discussão registrada. Executando os pareceres comercial, técnico e de curadoria…')
+  setReload(n=>n+1)
+  const {data:answer,error:callError}=await supabase.functions.invoke('kiara-lab-run',{body:{run_id:created.id}})
+  setBusy(false)
+  if(callError||answer?.error){
+   setError(String(answer?.error||callError?.message||'Falha ao iniciar análise.'))
+   setNotice('Discussão salva. Se ainda estiver na fila, use “Executar debate” na lista abaixo.')
+  }else{setNotice('Análise concluída. Confira o parecer dos especialistas e a sugestão de conhecimento.')}
   setReload(n=>n+1)
  }
  async function saveSettings(){
@@ -60,7 +68,7 @@ export function KiaraKnowledgeLab(){
   })
   setBusy(false)
   if(e)setError(e.message)
-  else setNotice('Preferências salvas. A agenda automática só executará quando o serviço de análise estiver configurado.')
+  else setNotice('Preferências da análise diária salvas com sucesso.')
  }
  async function executeRun(run:Run){
   if(!supabase||!access||busy||run.status!=='queued'||run.kind!=='manual')return
@@ -90,8 +98,8 @@ export function KiaraKnowledgeLab(){
     <h3><MessageSquareText size={18}/> Iniciar discussão manual</h3>
     <p>Apresente uma dúvida, situação de atendimento, objeção ou produto para avaliação conjunta.</p>
     <textarea required minLength={10} maxLength={1500} value={topic} onChange={e=>setTopic(e.target.value)} rows={4} placeholder="Ex.: Como a Kiara deve orientar um cliente que procura persiana para cozinha com privacidade, mas sem escurecer o ambiente?"/>
-    <button type="submit" disabled={busy||topic.trim().length<10}>Registrar discussão</button>
-    <small>O debate é registrado antes da execução. Para processá-lo, use “Executar debate” após configurar a credencial do modelo.</small>
+    <button type="submit" disabled={busy||topic.trim().length<10}>{busy?'Analisando…':'Iniciar debate com especialistas'}</button>
+    <small>O tema será registrado e analisado pelos três especialistas. Os pareceres ficarão disponíveis abaixo; nenhuma orientação será publicada sem aprovação.</small>
    </form>
    <section className="kiara-lab-panel">
     <h3><CalendarClock size={18}/> Análise diária</h3>
@@ -108,7 +116,13 @@ export function KiaraKnowledgeLab(){
   <div className="kiara-lab-history">
    <section className="kiara-lab-panel">
     <h3>Discussões e análises</h3>
-    {runs.length===0?<p>Nenhuma discussão registrada.</p>:<div className="kiara-lab-run-list">{runs.map(r=><button type="button" key={r.id} className={selected===r.id?'active':''} onClick={()=>setSelected(r.id)}><strong>{r.topic}</strong><span>{r.kind==='manual'?'Manual':'Diária'} · {date(r.created_at)} · {r.status==='completed'?'Concluída':r.status==='running'?'Analisando':r.status==='failed'?'Falhou':'Na fila'}</span></button>)}</div>}
+    {runs.length===0?<p>Nenhuma discussão registrada.</p>:<div className="kiara-lab-run-list">{runs.map(r=><div key={r.id} className={'kiara-lab-run-entry'+(selected===r.id?' active':'')}>
+     <button type="button" className="kiara-lab-run-select" onClick={()=>setSelected(r.id)}>
+      <strong>{r.topic}</strong>
+      <span>{r.kind==='manual'?'Manual':'Diária'} · {date(r.created_at)} · {r.status==='completed'?'Concluída':r.status==='running'?'Analisando':r.status==='failed'?'Falhou':'Na fila'}</span>
+     </button>
+     {r.kind==='manual'&&r.status==='queued'&&<button type="button" className="kiara-lab-run-start" disabled={busy} onClick={()=>{setSelected(r.id);void executeRun(r)}}>Executar debate</button>}
+    </div>)}</div>}
    </section>
    <section className="kiara-lab-panel">
     <h3>Resultado da discussão</h3>
