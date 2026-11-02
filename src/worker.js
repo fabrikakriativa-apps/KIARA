@@ -1,4 +1,5 @@
 import { quoteIntakePrompt } from './quote-intake.js';
+import { simulateCurtainQuote } from './quote-pricing.js';
 /*
  * FÁBRIKA KRIATIVA — KIARA / WORKER INTEGRADO (VERSÃO DE TESTE)
  * Base: Worker enviado em 01/11/2026; preserva espera de 15 s e pausa do atendimento humano.
@@ -1114,6 +1115,44 @@ async function consumeMessage(env, job) {
   await env.CONVERSAS.put(completedKey, '1', {expirationTtl: MEMORY_TTL});
   console.log('Resposta da Kiara enviada pela fila',route.source);
 }
+
+// API de simulação INTERNA: desligada por padrão; exige sessão do painel e
+// vínculo ativo (admin ou comercial). Não cria envio e não altera o CRM.
+async function pricingSimulationRequest(request,env){
+ const origin=request.headers.get('Origin')||'';
+ const headers=dashboardHeaders(env,origin);
+ const reply=(body,status=200)=>Response.json(body,{status,headers});
+ if(!env.KIARA_DASHBOARD_ORIGIN||origin!==env.KIARA_DASHBOARD_ORIGIN)
+  return reply({error:'Origin not allowed'},403);
+ if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
+ if(request.method!=='POST')return reply({error:'Method not allowed'},405);
+ if(env.KIARA_QUOTE_SIMULATION_ENABLED!=='true')return reply({error:'Internal simulation disabled'},503);
+ checkSupabaseConfig(env);
+ const authorization=request.headers.get('Authorization')||'';
+ if(!/^Bearer [A-Za-z0-9._~-]{50,10000}$/.test(authorization))
+  return reply({error:'Authentication required'},401);
+ const base=String(env.SUPABASE_URL).replace(/\/$/,'');
+ const auth=await fetch(base+'/auth/v1/user',{
+  headers:{Authorization:authorization,apikey:env.SUPABASE_SERVICE_ROLE_KEY}
+ });
+ if(!auth.ok)return reply({error:'Invalid session'},401);
+ const user=await auth.json();
+ if(!/^[a-f0-9-]{36}$/i.test(user?.id||''))return reply({error:'Invalid identity'},401);
+ // Authorization token is the user's token: membership SELECT uses RLS.
+ const membership=await fetch(base+'/rest/v1/memberships?select=role&organization_id=eq.'+
+   encodeURIComponent(env.SUPABASE_ORGANIZATION_ID)+'&user_id=eq.'+
+   encodeURIComponent(user.id)+'&active=is.true&limit=1',{
+   headers:{Authorization:authorization,apikey:env.SUPABASE_SERVICE_ROLE_KEY}
+ });
+ if(!membership.ok)return reply({error:'Membership check unavailable'},503);
+ const rows=await membership.json();
+ if(!rows.some(x=>x.role==='admin'||x.role==='comercial'))
+  return reply({error:'Not authorized'},403);
+ let payload;try{payload=await request.json()}catch{return reply({error:'Invalid JSON'},400)}
+ const result=simulateCurtainQuote(payload?.input,payload?.config);
+ return reply(result,result.ready?200:422);
+}
+
 export default {
   // Optional Cloudflare Cron Trigger (recommended every five minutes).
   // Keeps knowledge warm even when there have been no WhatsApp conversations.
@@ -1147,6 +1186,10 @@ export default {
   },
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    if (url.pathname === '/kiara/pricing/simulate') {
+      try { return await pricingSimulationRequest(request,env); }
+      catch(error){console.error('Quote simulation failed',error.message);return Response.json({error:'Simulation unavailable'},{status:503});}
+    }
     if (url.pathname === '/kiara/coach') {
       try { return await coachingRequest(request,env); }
       catch (error) { console.error('Kiara coaching failed',error.message); return Response.json({error:'Coaching unavailable'},{status:503}); }
