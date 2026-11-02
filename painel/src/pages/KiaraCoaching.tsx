@@ -64,22 +64,22 @@ export function KiaraCoaching({conversationId, selectedMessage, clearSelectedMes
   setBusy(false)
  }
  return <section className="kiara-coaching" aria-label="Orientações da Kiara">
-  <div className="kiara-coach-heading"><div><h3><Sparkles size={18}/> Orientar Kiara</h3><p>Notas internas para conduzir melhor os atendimentos.</p></div><span>Privado</span></div>
+  <div className="kiara-coach-heading"><div><h3><Sparkles size={18}/> {globalOnly?'Orientações gerais da Kiara':'Orientar Kiara'}</h3><p>{globalOnly?'Crie regras gerais para revisão antes de entrarem na base de conhecimento.':'Notas internas para conduzir melhor os atendimentos.'}</p></div><span>Privado</span></div>
   <div className="kiara-coach-tabs" role="tablist">
    <button type="button" role="tab" aria-selected={tab==='guide'} className={tab==='guide'?'active':''} onClick={()=>setTab('guide')}><MessageSquareText size={15}/> Orientar</button>
    <button type="button" role="tab" aria-selected={tab==='library'} className={tab==='library'?'active':''} onClick={()=>setTab('library')}><BookOpen size={15}/> Aprendizados <span>{saved.filter(x=>x.scope==='global'&&x.status==='pending_review').length}</span></button>
   </div>
   {tab==='guide'? <div className="kiara-coach-form">
    {selectedMessage && <div className="kiara-coach-reference"><span><Lightbulb size={14}/> Corrigindo resposta da Kiara</span><p>{selectedMessage.text.slice(0,200)}{selectedMessage.text.length>200?'…':''}</p><button type="button" onClick={clearSelectedMessage} aria-label="Remover seleção"><X size={16}/></button></div>}
-   <label htmlFor="kiara-coach-text">{selectedMessage?'Como ela deveria ter respondido?':'O que você deseja orientar?'}</label>
-   <textarea id="kiara-coach-text" placeholder={selectedMessage?'Explique o que corrigir na resposta selecionada…':'Ex.: neste atendimento, destaque a diferença entre privacidade e bloqueio de luz.'} value={text} onChange={e=>setText(e.target.value)} maxLength={2000} rows={3}/>
-   <div className="kiara-coach-scopes">
+   <label htmlFor="kiara-coach-text">{globalOnly?'Qual regra geral você deseja propor?':selectedMessage?'Como ela deveria ter respondido?':'O que você deseja orientar?'}</label>
+   <textarea id="kiara-coach-text" placeholder={globalOnly?'Ex.: ao falar de persianas, pergunte se o objetivo é privacidade, controle de luz ou ambos.':selectedMessage?'Explique o que corrigir na resposta selecionada…':'Ex.: neste atendimento, destaque a diferença entre privacidade e bloqueio de luz.'} value={text} onChange={e=>setText(e.target.value)} maxLength={2000} rows={3}/>
+   {!globalOnly&&<div className="kiara-coach-scopes">
     <label><input type="radio" name="kiara-guidance-scope" checked={scope==='conversation'} disabled={!conversationId} onChange={()=>setScope('conversation')}/> Nesta conversa</label>
     <label><input type="radio" name="kiara-guidance-scope" checked={scope==='global'} onChange={()=>setScope('global')}/> Sugerir regra geral</label>
-   </div>
-   <p className="kiara-coach-helper"><CircleHelp size={14}/>{scope==='global'?'Uma regra geral exige aprovação. Mesmo aprovada, só será usada depois de habilitarmos a leitura das orientações no Worker.':'Esta nota fica vinculada à conversa e não é enviada ao cliente. A aplicação automática ainda está em desenvolvimento.'}</p>
-   <button type="button" className="kiara-coach-submit" onClick={()=>void save()} disabled={busy||!canRead||!text.trim()||(scope==='conversation'&&!conversationId)}>{busy?'Salvando…':scope==='global'?'Enviar para revisão':'Registrar orientação'}</button>
-   {saved.filter(g=>g.scope==='conversation'&&g.status==='recorded').length>0 && <div className="kiara-coach-saved"><strong>Orientações desta conversa</strong>{saved.filter(g=>g.scope==='conversation'&&g.status==='recorded').slice(0,5).map(g=><div key={g.id}><span>Registrada</span>{g.instruction}</div>)}</div>}
+   </div>}
+   <p className="kiara-coach-helper"><CircleHelp size={14}/>{globalOnly||scope==='global'?'Uma regra geral exige aprovação. Mesmo aprovada, só será usada depois de habilitarmos a leitura das orientações no Worker.':'Esta nota fica vinculada à conversa e não é enviada ao cliente. A aplicação automática ainda está em desenvolvimento.'}</p>
+   <button type="button" className="kiara-coach-submit" onClick={()=>void save()} disabled={busy||!canRead||!text.trim()||(!globalOnly&&scope==='conversation'&&!conversationId)}>{busy?'Salvando…':globalOnly||scope==='global'?'Enviar para revisão':'Registrar orientação'}</button>
+   {!globalOnly&&saved.filter(g=>g.scope==='conversation'&&g.status==='recorded').length>0 && <div className="kiara-coach-saved"><strong>Orientações desta conversa</strong>{saved.filter(g=>g.scope==='conversation'&&g.status==='recorded').slice(0,5).map(g=><div key={g.id}><span>Registrada</span>{g.instruction}</div>)}</div>}
   </div>:<div className="kiara-coach-library">
     <p><ShieldCheck size={14}/> Aprendizados aprovados ficam registrados, mas ainda não são consumidos pelo Worker.</p>
     {saved.filter(g=>g.scope==='global').length===0?<div className="kiara-coach-no-items">Nenhum aprendizado sugerido.</div>:
