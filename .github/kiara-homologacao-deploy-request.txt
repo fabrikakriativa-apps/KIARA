@@ -8,3 +8,5 @@ Solicitação de publicação da integração de precificação aprovada no simu
 Republicar após corrigir a tentativa indevida de criar projeto Pages já existente (erro Cloudflare 8000002). Somente painel isolado.
 
 Publicar ajuste visual dos botões de configuração comercial (adicionar, remover, salvar e aprovar), sem alterar preços ou Worker.
+
+Publicação isolada: botão Testar precificação na área de Configurações, com rascunho somente para testes internos, sem envio e sem alterar Worker.
