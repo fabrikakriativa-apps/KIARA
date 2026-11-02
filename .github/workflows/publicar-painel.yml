@@ -1,5 +1,5 @@
 name: Publicar painel independente KIARA (GitHub Pages)
-# Versão de homologação: dashboard operacional separado, cards navegáveis com filtros e alertas de orçamentos.
+# Versão de homologação: hero com avatar oficial, resumo de atendimentos e filtros por período.
 
 on:
   workflow_dispatch:
