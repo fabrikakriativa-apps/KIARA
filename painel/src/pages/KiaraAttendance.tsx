@@ -327,15 +327,6 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
             <button type="button" disabled={promotionBusy||!access||!['admin','comercial'].includes(access.role)} onClick={()=>void promote()}>{promotionBusy?'Vinculando…':'Enviar à Prospecção'}</button>}
           {promotionFeedback&&<p role="status">{promotionFeedback}</p>}
         </div>}
-        <div className="kiara-time-card">
-          <span><Clock3 size={16}/> Tempo médio de resposta do lead</span>
-          <strong>{formatLeadResponseTime(stats?.averageMs??null)}</strong>
-          <small>{stats?.samples ? `Calculado com ${stats.samples} resposta(s) do cliente após mensagem da loja (últimas 100 mensagens sincronizadas).` : 'Aparecerá quando houver respostas registradas.'}</small>
-          <div className="kiara-time-divider"/>
-          <span><Clock3 size={16}/> {pendingMs !== null ? 'Aguardando resposta do lead há' : 'Última mensagem do cliente'}</span>
-          <strong>{pendingMs !== null ? formatLeadResponseTime(pendingMs) : lastInboundMs !== null ? `há ${formatLeadResponseTime(lastInboundMs)}` : 'Sem dados'}</strong>
-          <small>{pendingMs !== null ? 'Contagem desde a última mensagem enviada pela Kiara ou pela equipe.' : 'O cliente não tem uma resposta pendente à última mensagem da loja.'}</small>
-        </div>
         {messagesError && <p className="kiara-data-error" role="alert">{messagesError}</p>}
         {selected&&selected.messages.length>=messageLimit&&<button type="button" disabled={messagesLoading} onClick={()=>setMessageLimit(v=>v+100)}>Carregar mensagens anteriores</button>}
         <div className="kiara-chat" aria-label="Histórico da conversa">
@@ -348,19 +339,59 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
           <input type="text" disabled value="" placeholder="Envio pelo painel disponível após validação" aria-label="Envio de mensagens desativado"/>
           <button type="button" disabled title="Envio pelo painel não habilitado" aria-label="Enviar mensagem desativado"><Send size={18}/></button>
         </div>
-        <div className="kiara-coach-toggle"><div className="kiara-coach-control">
-          <button type="button" disabled={!selected || !holdReady || holdBusy} className={replyHeld?'kiara-hold-on':''} onClick={()=>void toggleHold()}>
-            <PauseCircle size={17}/>{replyHeld?'Liberar resposta':'Segurar próxima resposta'}
-          </button>
-          {replyHeld&&<strong className="kiara-hold-warning">Resposta automática suspensa nesta conversa</strong>}
-          {holdFeedback&&<small role="status">{holdFeedback}</small>}
-        </div><button type="button" onClick={()=>setShowCoaching(value=>!value)}><Sparkles size={17}/> {showCoaching?'Fechar orientação':'Orientar Kiara'} <span>Interno</span></button></div>
-        {showCoaching&&<KiaraCoaching conversationId={selectedId} selectedMessage={coachingMessage} clearSelectedMessage={()=>setCoachingMessage(null)}/>}
-        <div className="kiara-chat-actions">
-          <button disabled={!selected || !controlReady || controlBusy || selected.status==='human'} onClick={()=>selected && void runCommand('assume',selected.id)}><Hand size={16}/> Assumir</button>
-          <button disabled={!selected || !controlReady || controlBusy || selected.status==='ai'} onClick={()=>selected && void runCommand('return_to_ai',selected.id)}><RefreshCcw size={16}/> Devolver à Kiara</button>
+      </aside>
+      <aside className="kiara-conversation-details" aria-label="Detalhes e ações do atendimento">
+        <div className="kiara-details-header"><h2>Resumo do contato</h2><span>{selected ? labels[selected.status] : 'Nenhum selecionado'}</span></div>
+        <div className="kiara-details-scroll">
+          <section className="kiara-details-section">
+            <h3>Informações do contato</h3>
+            <dl>
+              <div><dt>Nome</dt><dd>{selected?.name||'Não informado'}</dd></div>
+              <div><dt>WhatsApp</dt><dd>{selected?.phone||'Não informado'}</dd></div>
+              <div><dt>Origem</dt><dd>{selected?.origin||'Não identificada'}</dd></div>
+              <div><dt>Campanha</dt><dd>{selected?.campaign||'Não informada'}</dd></div>
+              <div><dt>Região</dt><dd>{selected?.region||'Não informada'}</dd></div>
+            </dl>
+          </section>
+          <section className="kiara-details-section">
+            <h3>Qualificação comercial</h3>
+            <dl>
+              <div><dt>Prospecção</dt><dd>{selected?.leadOpportunityId ? 'Oportunidade vinculada' : 'Ainda não vinculada'}</dd></div>
+              {selected?.leadOpportunityId&&<div><dt>Fase comercial</dt><dd>{opportunityPhase||'Não informada'}</dd></div>}
+            </dl>
+          </section>
+          <section className="kiara-details-section kiara-details-response">
+            <h3>Tempo de resposta</h3>
+            <div className="kiara-time-card">
+          <span><Clock3 size={16}/> Tempo médio de resposta do lead</span>
+          <strong>{formatLeadResponseTime(stats?.averageMs??null)}</strong>
+          <small>{stats?.samples ? `Calculado com ${stats.samples} resposta(s) do cliente após mensagem da loja (últimas 100 mensagens sincronizadas).` : 'Aparecerá quando houver respostas registradas.'}</small>
+          <div className="kiara-time-divider"/>
+          <span><Clock3 size={16}/> {pendingMs !== null ? 'Aguardando resposta do lead há' : 'Última mensagem do cliente'}</span>
+          <strong>{pendingMs !== null ? formatLeadResponseTime(pendingMs) : lastInboundMs !== null ? `há ${formatLeadResponseTime(lastInboundMs)}` : 'Sem dados'}</strong>
+          <small>{pendingMs !== null ? 'Contagem desde a última mensagem enviada pela Kiara ou pela equipe.' : 'O cliente não tem uma resposta pendente à última mensagem da loja.'}</small>
         </div>
-        <p className="kiara-security"><ShieldAlert size={16}/> As ações só são liberadas após confirmação da autorização pelo servidor. A proteção contra envios pendentes também precisa ser validada.</p>
+          </section>
+        </div>
+        <div className="kiara-details-actions">
+          <h3>Ações</h3>
+          <div className="kiara-coach-toggle">
+            <button type="button" className="kiara-details-guide" onClick={()=>setShowCoaching(value=>!value)} disabled={!selected}><Sparkles size={17}/> {showCoaching?'Fechar orientação':'Orientar Kiara'} <span>Interno</span></button>
+            <div className="kiara-coach-control">
+              <button type="button" disabled={!selected || !holdReady || holdBusy} className={replyHeld?'kiara-hold-on':''} onClick={()=>void toggleHold()}>
+                <PauseCircle size={17}/>{replyHeld?'Liberar resposta':'Segurar próxima resposta'}
+              </button>
+              {replyHeld&&<strong className="kiara-hold-warning">Resposta automática suspensa nesta conversa</strong>}
+              {holdFeedback&&<small role="status">{holdFeedback}</small>}
+            </div>
+          </div>
+          <div className="kiara-chat-actions">
+            <button type="button" disabled={!selected || !controlReady || controlBusy || selected.status==='human'} onClick={()=>selected && void runCommand('assume',selected.id)}><Hand size={16}/> Assumir</button>
+            <button type="button" disabled={!selected || !controlReady || controlBusy || selected.status==='ai'} onClick={()=>selected && void runCommand('return_to_ai',selected.id)}><RefreshCcw size={16}/> Devolver à Kiara</button>
+          </div>
+          {showCoaching&&<div className="kiara-details-coaching"><KiaraCoaching conversationId={selectedId} selectedMessage={coachingMessage} clearSelectedMessage={()=>setCoachingMessage(null)}/></div>}
+          <p className="kiara-security"><ShieldAlert size={15}/> Comandos disponíveis somente após autorização do servidor.</p>
+        </div>
       </aside>
     </div>
     <p className="kiara-footnote"><Activity size={15}/> O espelhamento depende de mensagens sincronizadas pelo Worker; a autorização dos comandos também depende da configuração segura do servidor.</p>
