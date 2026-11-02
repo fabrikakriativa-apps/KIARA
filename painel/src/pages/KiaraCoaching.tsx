@@ -25,6 +25,9 @@ export function KiaraCoaching({conversationId, selectedMessage, clearSelectedMes
  const [editing,setEditing]=useState<string|null>(null)
  const [editText,setEditText]=useState('')
  const [visibleCount,setVisibleCount]=useState(15)
+ const [libraryItems,setLibraryItems]=useState<Guidance[]>([])
+ const [libraryTotal,setLibraryTotal]=useState(0)
+ const [libraryLoading,setLibraryLoading]=useState(false)
  const canRead=Boolean(supabase && access && ['admin','comercial'].includes(access.role))
  useEffect(()=>{
   if(!canRead || !access || !supabase) return
@@ -40,6 +43,31 @@ export function KiaraCoaching({conversationId, selectedMessage, clearSelectedMes
   return ()=>{cancelled=true}
  },[canRead,access?.organizationId,conversationId,refresh])
  useEffect(()=>{if(selectedMessage){setTab('guide');setScope('conversation');setText('')}} ,[selectedMessage?.id])
+ useEffect(()=>{
+  if(!globalOnly||tab!=='library'||!canRead||!access||!supabase)return
+  let alive=true
+  setLibraryLoading(true)
+  const handle=window.setTimeout(()=>{
+   if(!access||!supabase)return
+   let query=supabase.from('kiara_guidance')
+    .select('id,instruction,scope,kind,status,created_at,message_id,created_by',{count:'exact'})
+    .eq('organization_id',access.organizationId)
+    .eq('scope','global')
+    .order('created_at',{ascending:false})
+    .range(0,visibleCount-1)
+   if(statusFilter!=='all')query=query.eq('status',statusFilter)
+   if(search.trim())query=query.ilike('instruction','%'+search.trim()+'%')
+   void query.then(({data,count,error})=>{
+    if(!alive)return
+    setLibraryLoading(false)
+    if(error){setFeedback('Não foi possível pesquisar a base de conhecimento.');return}
+    setLibraryItems((data||[]) as Guidance[])
+    setLibraryTotal(count||0)
+   })
+  },220)
+  return()=>{alive=false;window.clearTimeout(handle)}
+ },[globalOnly,tab,canRead,access?.organizationId,search,statusFilter,visibleCount,refresh])
+
  async function save(){
   if(!supabase || !access || !canRead || busy) return
   const instruction=text.trim()
@@ -78,9 +106,10 @@ export function KiaraCoaching({conversationId, selectedMessage, clearSelectedMes
   if(error)setFeedback(error.message)
   else{setFeedback(action==='edit'?'Alteração salva.':action==='archive'?'Orientação desativada.':'Orientação reativada.');setEditing(null);setRefresh(n=>n+1)}
  }
- const filteredGuidance=saved.filter(g=>g.scope==='global')
+ const filteredGuidance=globalOnly?libraryItems:saved.filter(g=>g.scope==='global')
   .filter(g=>statusFilter==='all'||g.status===statusFilter)
   .filter(g=>g.instruction.toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR').trim()))
+ const filteredCount=globalOnly?libraryTotal:filteredGuidance.length
  async function review(id:string,decision:'approve'|'archive'){
   if(!supabase || !access || access.role!=='admin' || busy) return
   setBusy(true);setFeedback('')
@@ -113,8 +142,9 @@ export function KiaraCoaching({conversationId, selectedMessage, clearSelectedMes
       <option value="all">Todas</option><option value="approved">Ativas</option><option value="pending_review">Em revisão</option><option value="archived">Desativadas</option>
      </select>
     </div>
-    <p className="kiara-knowledge-results">{filteredGuidance.length} orientação{filteredGuidance.length===1?'':'ões'} encontrada{filteredGuidance.length===1?'':'s'} · {saved.filter(g=>g.scope==='global'&&g.status==='approved').length} ativa(s)</p>
-    {filteredGuidance.length===0?<div className="kiara-coach-no-items">Nenhuma orientação encontrada.</div>:
+    <p className="kiara-knowledge-results">{filteredCount} orientação{filteredCount===1?'':'ões'} encontrada{filteredCount===1?'':'s'}</p>
+    {libraryLoading&&globalOnly?<p className="kiara-knowledge-results">Atualizando resultados…</p>:null}
+    {filteredCount===0?<div className="kiara-coach-no-items">Nenhuma orientação encontrada.</div>:
      filteredGuidance.slice(0,visibleCount).map(g=><article className="kiara-knowledge-entry" key={g.id}>
       <button className="kiara-knowledge-entry-heading" type="button" aria-expanded={expanded===g.id} onClick={()=>setExpanded(v=>v===g.id?null:g.id)}>
        <span className={'kiara-coach-state '+g.status}>{g.status==='approved'?'Ativa':g.status==='pending_review'?'Aguardando aprovação':'Desativada'}</span>
@@ -139,7 +169,7 @@ export function KiaraCoaching({conversationId, selectedMessage, clearSelectedMes
        </div>}
       </div>}
      </article>)}
-    {filteredGuidance.length>visibleCount&&<button className="kiara-knowledge-more" type="button" onClick={()=>setVisibleCount(n=>n+15)}>Mostrar mais {Math.min(15,filteredGuidance.length-visibleCount)}</button>}
+    {filteredCount>visibleCount&&<button className="kiara-knowledge-more" type="button" onClick={()=>setVisibleCount(n=>n+15)}>Mostrar mais {Math.min(15,filteredCount-visibleCount)}</button>}
    </div>}
   {feedback && <p className="kiara-coach-feedback" role="status">{feedback}</p>}
  </section>
