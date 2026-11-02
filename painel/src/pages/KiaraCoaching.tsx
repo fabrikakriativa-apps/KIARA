@@ -30,7 +30,7 @@ export function KiaraCoaching({conversationId, selectedMessage, clearSelectedMes
  const [libraryLoading,setLibraryLoading]=useState(false)
  const canRead=Boolean(supabase && access && ['admin','comercial'].includes(access.role))
  useEffect(()=>{
-  if(!canRead || !access || !supabase) return
+  if(globalOnly || !canRead || !access || !supabase) return
   let cancelled=false
   void (async()=>{
    const {data,error}=await supabase.from('kiara_guidance')
@@ -41,7 +41,7 @@ export function KiaraCoaching({conversationId, selectedMessage, clearSelectedMes
    if(!cancelled){if(error)setFeedback('Não foi possível carregar as orientações.');else setSaved((data??[]) as Guidance[])}
   })()
   return ()=>{cancelled=true}
- },[canRead,access?.organizationId,conversationId,refresh])
+ },[globalOnly,canRead,access?.organizationId,conversationId,refresh])
  useEffect(()=>{if(selectedMessage){setTab('guide');setScope('conversation');setText('')}} ,[selectedMessage?.id])
  useEffect(()=>{
   if(!globalOnly||tab!=='library'||!canRead||!access||!supabase)return
@@ -122,7 +122,7 @@ export function KiaraCoaching({conversationId, selectedMessage, clearSelectedMes
   <div className="kiara-coach-heading"><div><h3><Sparkles size={18}/> {globalOnly?'Orientações gerais da Kiara':'Orientar Kiara'}</h3><p>{globalOnly?'Registre orientações gerais, consulte e atualize sua base de conhecimento.':'Notas internas para conduzir melhor os atendimentos.'}</p></div><span>Privado</span></div>
   <div className="kiara-coach-tabs" role="tablist">
    <button type="button" role="tab" aria-selected={tab==='guide'} className={tab==='guide'?'active':''} onClick={()=>setTab('guide')}><MessageSquareText size={15}/> Orientar</button>
-   <button type="button" role="tab" aria-selected={tab==='library'} className={tab==='library'?'active':''} onClick={()=>setTab('library')}><BookOpen size={15}/> {globalOnly?'Base de conhecimento':'Aprendizados'} <span>{saved.filter(x=>x.scope==='global'&&x.status==='pending_review').length}</span></button>
+   <button type="button" role="tab" aria-selected={tab==='library'} className={tab==='library'?'active':''} onClick={()=>setTab('library')}><BookOpen size={15}/> {globalOnly?'Base de conhecimento':'Aprendizados'} {!globalOnly&&<span>{saved.filter(x=>x.scope==='global'&&x.status==='pending_review').length}</span>}</button>
   </div>
   {tab==='guide'? <div className="kiara-coach-form">
    {selectedMessage && <div className="kiara-coach-reference"><span><Lightbulb size={14}/> Corrigindo resposta da Kiara</span><p>{selectedMessage.text.slice(0,200)}{selectedMessage.text.length>200?'…':''}</p><button type="button" onClick={clearSelectedMessage} aria-label="Remover seleção"><X size={16}/></button></div>}
