@@ -1,5 +1,5 @@
 name: Publicar painel independente KIARA (GitHub Pages)
-# Versão de homologação: registro estruturado de orçamentos para aprovação, sem envio ao cliente.
+# Versão de homologação: correção de compilação do cadastro de orçamento para aprovação.
 
 on:
   workflow_dispatch:
