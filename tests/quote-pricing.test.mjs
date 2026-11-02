@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {simulateCurtainQuote,CATEGORY_COSTS,RATIOS} from '../src/quote-pricing.js';
-const input={width:2.5,height:2.7,quantity:1,model:'Wave',frontCategory:'Linho / efeito linho',backCategory:'Blackout'};
-const cfg={railType:'varao_trilho',rails:2,installation:60,markup:1.2};
-test('two fabric faces have separate costs and installation charged once',()=>{
+const input={width:2.5,height:2.7,quantity:1,model:'Wave',frontCategory:'Linho / efeito linho',backCategory:'Blackout',drive:'manual'};
+const cfg={railType:'varao_trilho',rails:2,markup:1.2};
+test('two fabric faces have separate costs and installation charged per fabric layer',()=>{
  const q=simulateCurtainQuote(input,cfg);
  assert.equal(q.ready,true);
  assert.equal(q.layers,2);
@@ -11,9 +11,11 @@ test('two fabric faces have separate costs and installation charged once',()=>{
  assert.equal(q.costs.front,800.16);
  assert.equal(q.costs.lining,464.89);
  assert.equal(q.costs.rails,175.54);
- assert.equal(q.costs.installation,60);
- assert.equal(q.costs.total,1500.59);
- assert.equal(q.internalSuggestedSale,3301.30);
+ assert.equal(q.installationDetails.units,2);
+ assert.equal(q.costs.installation,120);
+ assert.equal(q.costs.total,1560.59);
+ assert.equal(q.internalSuggestedSale,3433.30);
+ assert.equal(q.customerQuote.description,'Cortina sob medida, com instalação inclusa');
  assert.equal(q.customerPriceAllowed,false);
  assert.equal(q.reviewRequired,true);
 });
@@ -23,6 +25,21 @@ test('one fabric omits back cost and avoids unnecessary questions',()=>{
  assert.equal(q.costs.lining,0);
  assert.equal(q.costs.installation,60);
  assert.equal(q.customerPriceAllowed,false);
+});
+test('motorized curtains charge R$120 per face and add R$1400 AFTER markup',()=>{
+ const q=simulateCurtainQuote({...input,drive:'motorizada'},cfg);
+ assert.equal(q.ready,true);
+ assert.equal(q.installationDetails.perFace,120);
+ assert.equal(q.costs.installation,240);
+ assert.equal(q.baseSale,3697.30);
+ assert.equal(q.motorSurcharge,1400);
+ assert.equal(q.internalSuggestedSale,5097.30);
+ assert.equal(q.customerPriceAllowed,false);
+});
+test('motorized single face installs at R$120',()=>{
+ const q=simulateCurtainQuote({...input,backCategory:'Sem forro',drive:'motorizada'},{...cfg,rails:1});
+ assert.equal(q.costs.installation,120);
+ assert.equal(q.motorSurcharge,1400);
 });
 test('fabric ratio is metadata only and does not multiply unit reference',()=>{
  const q=simulateCurtainQuote(input,cfg);
