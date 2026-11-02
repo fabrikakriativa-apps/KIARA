@@ -1,5 +1,5 @@
 name: Publicar painel independente KIARA (GitHub Pages)
-# Versão de homologação: análises multiagente com fila diária conectada e execução protegida por segredo interno.
+# Versão de homologação: execução manual do Laboratório diretamente após registrar e ação visível na fila.
 
 on:
   workflow_dispatch:
