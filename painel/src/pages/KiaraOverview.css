@@ -310,3 +310,87 @@
  .kiara-shortcut-copy strong{font-size:9px}
  .kiara-shortcut-copy small{font-size:8px}
 }
+
+/* Visão geral — composição proporcional conforme referência aprovada. */
+.kiara-overview-hero-row{
+ display:grid!important;
+ grid-template-columns:minmax(380px, 0.95fr) minmax(560px, 1.9fr)!important;
+ gap:12px!important;
+ align-items:stretch!important;
+}
+.kiara-overview-hero,.kiara-overview-funnel{min-height:0!important;border-radius:18px}
+.kiara-overview-hero{
+ display:grid!important;
+ grid-template-columns:clamp(100px,8vw,115px) minmax(0,1fr)!important;
+ align-items:center!important;
+ gap:12px!important;
+ padding:10px 12px 10px 10px!important;
+ min-height:146px!important;
+}
+.kiara-overview-hero .kiara-overview-avatar{
+ display:block!important;
+ width:100%!important;
+ height:116px!important;
+ min-height:0!important;
+ max-height:none!important;
+ max-width:none!important;
+ align-self:center!important;
+ border-radius:14px!important;
+ background:#f1eaff;
+ object-fit:cover!important;
+ object-position:center center!important;
+}
+.kiara-overview-hero .kiara-overview-hero-copy{
+ display:flex!important;
+ flex-direction:column!important;
+ justify-content:center!important;
+ align-items:flex-start!important;
+ min-width:0!important;
+ padding:0!important;
+ gap:8px!important;
+}
+.kiara-overview-hero .kiara-overview-name{gap:7px!important;flex-wrap:wrap!important}
+.kiara-overview-hero .kiara-overview-name h2{
+ font-size:16px!important;line-height:1.15!important;
+}
+.kiara-overview-hero .kiara-overview-status{
+ font-size:9px!important;padding:5px 7px!important;
+}
+.kiara-overview-hero .kiara-overview-hero-copy>p{
+ font-size:10px!important;line-height:1.45!important;
+ max-width:none!important;margin:0!important;
+}
+.kiara-overview-hero .kiara-overview-hero-buttons{
+ display:flex!important;flex-flow:row nowrap!important;
+ align-items:center!important;justify-content:flex-start!important;
+ gap:5px!important;max-width:100%;
+}
+.kiara-overview-hero .kiara-overview-hero-buttons button{
+ display:inline-flex;flex:0 0 auto!important;min-width:0!important;
+ width:auto!important;padding:7px 7px!important;
+ font-size:9px!important;gap:4px!important;
+ white-space:nowrap!important;border-radius:8px!important;
+}
+.kiara-overview-hero .kiara-overview-hero-buttons svg{width:12px!important;height:12px!important}
+.kiara-overview-funnel{padding:10px 12px!important;gap:9px!important}
+.kiara-overview-funnel-heading h2{font-size:12px!important}
+.kiara-overview-funnel-heading label{padding:5px 7px!important}
+.kiara-overview-funnel-heading select{font-size:10px!important;min-width:96px!important}
+.kiara-overview-report-cards{gap:8px!important;grid-template-columns:repeat(2,minmax(0,1fr))!important}
+.kiara-overview-report-card{padding:9px 10px!important;gap:2px!important;border-radius:11px!important}
+.kiara-overview-report-card>span{font-size:10px!important}
+.kiara-overview-report-card strong{font-size:22px!important}
+.kiara-overview-report-card small{font-size:9px!important}
+@media(max-width:1100px){
+ .kiara-overview-hero-row{grid-template-columns:1fr!important}
+}
+@media(max-width:760px){
+ .kiara-overview-hero{grid-template-columns:90px minmax(0,1fr)!important;padding:10px!important}
+ .kiara-overview-hero .kiara-overview-avatar{height:100px!important}
+ .kiara-overview-hero .kiara-overview-hero-buttons{flex-wrap:wrap!important}
+}
+@media(max-width:480px){
+ .kiara-overview-report-cards{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .kiara-overview-report-card{padding:8px 7px!important}
+ .kiara-overview-report-card>span{font-size:9px!important}
+}
