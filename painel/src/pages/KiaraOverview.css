@@ -381,3 +381,40 @@
  .kiara-overview-report-card{padding:8px 7px!important}
  .kiara-overview-report-card>span{font-size:9px!important}
 }
+
+/* Cabeçalho da Visão geral mais compacto, preservando a distribuição aprovada. */
+.kiara-overview{
+ padding:14px clamp(13px,1.6vw,24px) 20px;
+ gap:14px;
+}
+.kiara-overview-heading{
+ gap:12px;
+ min-height:44px;
+}
+.kiara-overview-heading h1{
+ font-size:clamp(24px,2vw,30px);
+ line-height:1.1;
+ margin:0 0 3px;
+}
+.kiara-overview-heading p{
+ font-size:12px;line-height:1.35;
+}
+.kiara-overview-heading button{
+ padding:8px 11px;min-height:36px;
+}
+.kiara-overview-kpis{gap:9px}
+.kiara-overview-kpi{
+ min-height:95px;
+ padding:13px 12px;
+ gap:9px;
+}
+.kiara-overview-kpi-icon{padding:10px}
+.kiara-overview-kpi-body strong{font-size:27px}
+.kiara-overview-panel{padding:14px}
+.kiara-overview-panel-title{padding-bottom:9px}
+.kiara-overview-line{padding:10px 3px}
+@media(max-width:760px){
+ .kiara-overview{padding:12px 12px 18px;gap:12px}
+ .kiara-overview-heading{align-items:center;flex-direction:row;flex-wrap:wrap}
+ .kiara-overview-heading p{font-size:11px}
+}
