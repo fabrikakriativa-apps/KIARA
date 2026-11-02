@@ -14,79 +14,55 @@ jobs:
   publicar-homologacao:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Obter código da homologação
+        uses: actions/checkout@v4
         with:
           ref: homologacao
-      - uses: actions/setup-node@v4
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
         with:
-          node-version: 22
-      - name: Bloqueio contra publicação de produção
+          node-version: '22'
+
+      - name: Verificar isolamento e executar testes
         run: |
           test -f staging/wrangler.toml
-          grep -Eq '^name = "fabrika-atendimento-ia-homologacao"$' staging/wrangler.toml
-          grep -Eq '^main = "./worker.js"
-          grep -Eq '^workers_dev = true$' staging/wrangler.toml
-          ! grep -Eiq '^\s*(routes?|kv_namespaces|queues|services|account_id)\s*=' staging/wrangler.toml
-          ! grep -Eiq '^\s*\[\[(kv_namespaces|queues|services)' staging/wrangler.toml
+          grep -Fxq 'name = "fabrika-atendimento-ia-homologacao"' staging/wrangler.toml
+          grep -Fxq 'main = "./worker.js"' staging/wrangler.toml
+          grep -Fxq 'workers_dev = true' staging/wrangler.toml
           test -f staging/worker.js
           test -f src/worker.js
+          ! grep -Eq '^\s*(routes?|account_id|kv_namespaces|queues|services)\s*=' staging/wrangler.toml
+          ! grep -Eq '^\s*\[\[(kv_namespaces|queues|services)' staging/wrangler.toml
           node --check staging/worker.js
           node --check src/worker.js
           npm test
-      - name: Confirmar que Worker separado JA existe (somente leitura)
+
+      - name: Confirmar Worker isolado existente
         env:
           CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           python3 - <<'PY'
-          import os,json,urllib.request,urllib.error
-          a=os.environ.get('CF_ACCOUNT',''); t=os.environ.get('CF_TOKEN','')
-          if not (len(a)==32 and all(c in '0123456789abcdef' for c in a.lower())):
-            raise SystemExit('Account ID inválido/ausente')
-          if not t: raise SystemExit('Token ausente')
+          import json,os,urllib.request
+          a=os.environ.get('CF_ACCOUNT','')
+          t=os.environ.get('CF_TOKEN','')
+          if len(a)!=32 or not all(c in '0123456789abcdef' for c in a.lower()) or not t:
+              raise SystemExit('Credenciais de Cloudflare ausentes ou inválidas.')
           req=urllib.request.Request(f'https://api.cloudflare.com/client/v4/accounts/{a}/workers/scripts',headers={'Authorization':'Bearer '+t,'Accept':'application/json'})
           try:
-            with urllib.request.urlopen(req,timeout=20) as res: payload=json.load(res)
-          except Exception: raise SystemExit('Não foi possível conferir lista de Workers. Nenhuma publicação realizada.') from None
-          if not payload.get('success'): raise SystemExit('Consulta Cloudflare não autorizada.')
-          ids=[s.get('id') for s in payload.get('result',[]) if isinstance(s,dict)]
-          if 'fabrika-atendimento-ia-homologacao' not in ids:
-            raise SystemExit('Crie PRIMEIRO o Worker fabrika-atendimento-ia-homologacao no Cloudflare. Nenhum deploy executado.')
-          print('Worker isolado já existe; autorizado iniciar atualização do próprio Worker de homologação.')
+              with urllib.request.urlopen(req,timeout=20) as res: data=json.load(res)
+          except Exception:
+              raise SystemExit('Não foi possível consultar os Workers. Nenhum deploy realizado.') from None
+          if not data.get('success'):
+              raise SystemExit('Token sem autorização. Nenhum deploy realizado.')
+          names=[r.get('id') for r in data.get('result',[]) if isinstance(r,dict)]
+          if 'fabrika-atendimento-ia-homologacao' not in names:
+              raise SystemExit('Worker de homologação não encontrado. Nenhum deploy realizado.')
+          print('Worker separado confirmado.')
           PY
-      - name: Publicar o código real com rotas externas bloqueadas
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: npx --yes wrangler@4 deploy --config staging/wrangler.toml
- staging/wrangler.toml
-          grep -Eq '^workers_dev = true$' staging/wrangler.toml
-          ! grep -Eiq '^\s*(routes?|kv_namespaces|queues|services|account_id)\s*=' staging/wrangler.toml
-          ! grep -Eiq '^\s*\[\[(kv_namespaces|queues|services)' staging/wrangler.toml
-          test -f staging/health.js
-          node --check staging/health.js
-      - name: Confirmar que Worker separado JA existe (somente leitura)
-        env:
-          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          python3 - <<'PY'
-          import os,json,urllib.request,urllib.error
-          a=os.environ.get('CF_ACCOUNT',''); t=os.environ.get('CF_TOKEN','')
-          if not (len(a)==32 and all(c in '0123456789abcdef' for c in a.lower())):
-            raise SystemExit('Account ID inválido/ausente')
-          if not t: raise SystemExit('Token ausente')
-          req=urllib.request.Request(f'https://api.cloudflare.com/client/v4/accounts/{a}/workers/scripts',headers={'Authorization':'Bearer '+t,'Accept':'application/json'})
-          try:
-            with urllib.request.urlopen(req,timeout=20) as res: payload=json.load(res)
-          except Exception: raise SystemExit('Não foi possível conferir lista de Workers. Nenhuma publicação realizada.') from None
-          if not payload.get('success'): raise SystemExit('Consulta Cloudflare não autorizada.')
-          ids=[s.get('id') for s in payload.get('result',[]) if isinstance(s,dict)]
-          if 'fabrika-atendimento-ia-homologacao' not in ids:
-            raise SystemExit('Crie PRIMEIRO o Worker fabrika-atendimento-ia-homologacao no Cloudflare. Nenhum deploy executado.')
-          print('Worker isolado já existe; autorizado iniciar atualização do próprio Worker de homologação.')
-          PY
-      - name: Publicar somente staging/health.js
+
+      - name: Publicar apenas homologação
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
