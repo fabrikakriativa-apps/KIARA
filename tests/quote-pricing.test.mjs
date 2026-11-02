@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {simulateCurtainQuote,validateCurtainSettings} from '../src/quote-pricing.js';
 const pricing={
+ models:['Wave','Prega Macho','Franzida'],technicalLimits:{maxWidth:30,maxHeight:10,maxQuantity:20},
  categories:[
   {name:'Linho / efeito linho',costPerM2:107.4385,records:50},
   {name:'Blackout',costPerM2:68.8719,records:30},
