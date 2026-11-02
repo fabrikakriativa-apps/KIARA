@@ -6,7 +6,7 @@ import {KiaraObservations} from './KiaraObservations'
 import './KiaraKnowledgeLab.css'
 
 type Run={id:string;kind:'manual'|'daily';topic:string;status:string;created_at:string;result:{commercial?:string;technical?:string;curator?:string}|null;error_message:string|null;input_tokens:number;output_tokens:number}
-type Proposal={id:string;run_id:string;title:string;proposed_instruction:string;rationale:string|null;status:string;created_at:string}
+type Proposal={id:string;run_id:string;title:string;proposed_instruction:string;rationale:string|null;status:string;created_at:string;published_at:string|null;published_guidance_id:string|null}
 type Settings={daily_enabled:boolean;daily_hour_brt:number;max_conversations_per_run:number;max_runs_per_day:number}
 const defaults:Settings={daily_enabled:false,daily_hour_brt:8,max_conversations_per_run:20,max_runs_per_day:3}
 const date=(v:string)=>new Date(v).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})
@@ -29,7 +29,7 @@ export function KiaraKnowledgeLab(){
   const client=supabase
   void Promise.all([
    client.from('kiara_lab_runs').select('id,kind,topic,status,created_at,result,error_message,input_tokens,output_tokens').eq('organization_id',access.organizationId).order('created_at',{ascending:false}).limit(50),
-   client.from('kiara_lab_proposals').select('id,run_id,title,proposed_instruction,rationale,status,created_at').eq('organization_id',access.organizationId).order('created_at',{ascending:false}).limit(100),
+   client.from('kiara_lab_proposals').select('id,run_id,title,proposed_instruction,rationale,status,created_at,published_at,published_guidance_id').eq('organization_id',access.organizationId).order('created_at',{ascending:false}).limit(100),
    client.from('kiara_lab_settings').select('daily_enabled,daily_hour_brt,max_conversations_per_run,max_runs_per_day').eq('organization_id',access.organizationId).maybeSingle()
   ]).then(([a,b,c])=>{
    if(!alive)return
@@ -93,6 +93,16 @@ export function KiaraKnowledgeLab(){
   if(e||!data)setError(e?.message||'Não foi possível concluir a revisão.')
   else{setNotice(status==='approved'?'Sugestão aprovada e registrada. A publicação na base operacional requer etapa separada.':'Sugestão rejeitada.');setReload(n=>n+1)}
  }
+ async function publishProposal(p:Proposal, action:'publish'|'revoke'){
+  if(!supabase||!access||access.role!=='admin'||busy)return
+  if(action==='publish'&&!window.confirm('Publicar esta orientação na base aprovada da Kiara? Ela só poderá ser usada quando a integração de conhecimento do Worker estiver habilitada.'))return
+  if(action==='revoke'&&!window.confirm('Desativar esta orientação na base operacional?'))return
+  setBusy(true);setError('');setNotice('')
+  const {data,error:e}=await supabase.rpc('kiara_lab_publication',{p_id:p.id,p_action:action})
+  setBusy(false)
+  if(e||!data)setError(e?.message||'Não foi possível atualizar a publicação.')
+  else{setNotice(action==='publish'?'Orientação publicada na base aprovada. A sincronização do Worker acontece em segundo plano.':'Orientação desativada na base aprovada.');setReload(n=>n+1)}
+ }
  const active=runs.find(x=>x.id===selected)
  return <section className="kiara-lab">
   <header className="kiara-lab-title"><BrainCircuit size={24}/><div><h2>Laboratório de Conhecimento</h2><p>Kiara, especialista comercial, especialista técnico e curadoria. Toda nova regra exige sua aprovação.</p></div><button type="button" aria-label="Atualizar laboratório" onClick={()=>setReload(n=>n+1)}><RefreshCcw size={17}/></button></header>
@@ -151,6 +161,10 @@ export function KiaraKnowledgeLab(){
    {proposals.length===0?<p>Ainda não existem sugestões geradas pelos agentes.</p>:proposals.map(p=><article className="kiara-lab-proposal" key={p.id}>
     <strong>{p.title}</strong><span>{p.status==='pending_review'?'Aguardando aprovação':p.status==='approved'?'Aprovada':'Rejeitada'}</span>
     <p>{p.proposed_instruction}</p>{p.rationale&&<small>{p.rationale}</small>}
+    {p.published_guidance_id&&<small>Publicada na base operacional em {p.published_at?date(p.published_at):'data não registrada'}</small>}
+    {p.status==='approved'&&access?.role==='admin'&&<div>
+     {!p.published_guidance_id?<button type="button" disabled={busy} onClick={()=>void publishProposal(p,'publish')}><CheckCircle2 size={15}/> Publicar na Kiara</button>:<button type="button" disabled={busy} onClick={()=>void publishProposal(p,'revoke')}><XCircle size={15}/> Desativar regra</button>}
+    </div>}
     {p.status==='pending_review'&&access?.role==='admin'&&<div>
      <button type="button" disabled={busy} onClick={()=>void review(p,'approved')}><CheckCircle2 size={15}/> Aprovar</button>
      <button type="button" disabled={busy} onClick={()=>void review(p,'rejected')}><XCircle size={15}/> Rejeitar</button>
