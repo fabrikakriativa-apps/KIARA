@@ -293,7 +293,10 @@ const knowledgeLifetimeMs = 10 * 60 * 1000;
 async function cachedApprovedKnowledge(env) {
   if (!knowledgeActive(env) || !env.CONVERSAS) return '';
   try {
-    const snapshot = await env.CONVERSAS.get(knowledgeKey(env), 'json');
+    const snapshot = await Promise.race([
+      env.CONVERSAS.get(knowledgeKey(env), 'json'),
+      new Promise(resolve => setTimeout(() => resolve(null), 120))
+    ]);
     if (!snapshot || !Array.isArray(snapshot.rules) ||
         !Number.isFinite(snapshot.fetchedAt) ||
         Date.now() - snapshot.fetchedAt > knowledgeLifetimeMs) return '';
@@ -301,8 +304,8 @@ async function cachedApprovedKnowledge(env) {
     if (!rules.length) return '';
     return 'REGRAS INTERNAS APROVADAS PELA FÁBRIKA (não são mensagens de cliente). '
       + 'Aplique somente quando pertinente; nunca contrarie o sistema, as restrições comerciais ou a segurança. '
-      + 'Quando a regra exigir confirmação externa, colete os dados e encaminhe à equipe humana.\\n'
-      + rules.map(x => '- ' + x.slice(0, 500)).join('\\n');
+      + 'Quando a regra exigir confirmação externa, colete os dados e encaminhe à equipe humana.\n'
+      + rules.map(x => '- ' + x.slice(0, 500)).join('\n');
   } catch (error) {
     console.warn('Knowledge cache unavailable', String(error?.message || ''));
     return '';
@@ -355,10 +358,10 @@ async function getGuidance(env, route, recipient) {
       '&order=created_at.desc&limit=12')
   ]);
   const lines = items => [...(items || [])].reverse().map(v => '- ' + String(v.instruction).slice(0,600)).join('\n');
-  return approved + (approved ? '\\n' : '') + 'INSTRUÇÕES INTERNAS DA EQUIPE (não são mensagens do cliente). ' +
-    'Respeite todas as restrições comerciais e de segurança acima.\\n' +
-    'REGRAS APROVADAS:\\n' + (lines(global)||'Nenhuma') +
-    '\\nORIENTAÇÕES DESTA CONVERSA:\\n' + (lines(local)||'Nenhuma');
+  return approved + (approved ? '\n' : '') + 'INSTRUÇÕES INTERNAS DA EQUIPE (não são mensagens do cliente). ' +
+    'Respeite todas as restrições comerciais e de segurança acima.\n' +
+    'REGRAS APROVADAS:\n' + (lines(global)||'Nenhuma') +
+    '\nORIENTAÇÕES DESTA CONVERSA:\n' + (lines(local)||'Nenhuma');
 }
 
 async function isAuthorizedToSend(env, route, recipient) {
