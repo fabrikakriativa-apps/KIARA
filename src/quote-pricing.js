@@ -26,6 +26,9 @@ export const RAIL_REFERENCE=Object.freeze({
  'trilho_suico':{supplier:'Trilho Max Reforçado Branco',unit:11.5707,unverifiedMapping:true},
  'varao_trilho':{supplier:'Trilho Varao Branco',unit:35.1082,unverifiedMapping:false}
 });
+// Regra comercial da Fábrika: instalado é obrigatório e incluso no preço final.
+export const CURTAIN_INSTALLATION_PER_FACE=Object.freeze({manual:60,motorizada:120});
+export const CURTAIN_MOTOR_SALE_SURCHARGE=800;
 const round=x=>Math.round((x+Number.EPSILON)*100)/100;
 const allowedFront=new Set(['Wave','Prega Macho','Franzida']);
 const allowedBack=new Set(['Blackout','Forro convencional',null,'Sem forro']);
@@ -42,20 +45,23 @@ function reference(category,model,layer){
 export function simulateCurtainQuote(input,config={}){
  const width=Number(input?.width),height=Number(input?.height),quantity=Number(input?.quantity??1);
  const model=input?.model,frontCategory=input?.frontCategory;
+ const drive=input?.drive;
  const backCategory=input?.backCategory??'Sem forro';
  const errors=[],warnings=[];
  if(!Number.isFinite(width)||width<=0||width>30)errors.push('Largura inválida');
  if(!Number.isFinite(height)||height<=0||height>10)errors.push('Altura inválida');
  if(!Number.isInteger(quantity)||quantity<1||quantity>20)errors.push('Quantidade inválida');
  if(!allowedFront.has(model))errors.push('Modelo de cortina não reconhecido');
+ if(!Object.hasOwn(CURTAIN_INSTALLATION_PER_FACE,drive))errors.push('Acionamento manual ou motorizado precisa ser identificado');
  if(!CATEGORY_COSTS[frontCategory])errors.push('Categoria frontal não reconhecida');
  if(!allowedBack.has(backCategory))errors.push('Categoria de forro não reconhecida');
  const railType=config.railType??null;
  if(!railType||!RAIL_REFERENCE[railType])errors.push('Trilho deve ser definido internamente');
  const rails=Number(config.rails);
  if(!Number.isInteger(rails)||rails<1||rails>4)errors.push('Número de trilhos requer validação técnica');
- const install=Number(config.installation);
- if(!Number.isFinite(install)||install<0||install>10000)errors.push('Instalação requer valor interno válido');
+ // O custo de instalação é automático por camada/face, não informado pelo cliente.
+ // quantity representa conjuntos idênticos; peças de abertura serão definidas depois.
+ if(config.installation!==undefined)errors.push('Custo de instalação é automático; não informar valor manual');
  const markup=Number(config.markup);
  if(!Number.isFinite(markup)||markup<0||markup>5)errors.push('Acréscimo comercial não aprovado');
  if(errors.length)return {ready:false,errors,customerPriceAllowed:false};
@@ -67,23 +73,35 @@ export function simulateCurtainQuote(input,config={}){
  const liningCost=lining?round(area*lining.unit):0;
  const railReference=RAIL_REFERENCE[railType];
  const railCost=round(width*quantity*rails*railReference.unit);
+ const layers=lining?2:1;
+ const installationUnits=layers*quantity;
+ const installationPerFace=CURTAIN_INSTALLATION_PER_FACE[drive];
+ const install=round(installationUnits*installationPerFace);
  const supplierCost=round(frontCost+liningCost+railCost+install);
- const suggestedSale=round(supplierCost*(1+markup));
+ const baseSale=round(supplierCost*(1+markup));
+ const motorSurcharge=drive==='motorizada'?CURTAIN_MOTOR_SALE_SURCHARGE*quantity:0;
+ // Adicional comercial fica APÓS o markup; não é um custo de instalação.
+ const suggestedSale=round(baseSale+motorSurcharge);
  if(front.reliability!=='model_reference')warnings.push('Frente com custo por categoria, sem amostra suficiente do modelo.');
  if(lining)warnings.push('Forro: pouca amostra na posição posterior; valor exploratório.');
  if(railReference.unverifiedMapping)warnings.push('Confirmar correspondência do trilho suíço com o item do fornecedor.');
- warnings.push('Quantidade de trilhos e instalação devem ser confirmadas pela equipe.');
+ warnings.push('Quantidade de trilhos e peças da abertura deve ser confirmada pela equipe.');
+ if(quantity>1)warnings.push('Quantidade significa conjuntos iguais, não número de folhas de abertura ou motores; conferir individualmente.');
+ if(drive==='motorizada')warnings.push('Confirmar viabilidade, número de motores e componentes antes de aprovar.');
  warnings.push('Valores históricos de 2026; confirmar custo atual e política comercial antes de enviar.');
  return {
   ready:true,customerPriceAllowed:false,reviewRequired:true,
   status:warnings.length?'internal_review':'internal_review',
-  product:'cortina',area:round(area),layers:lining?2:1,
+  product:'cortina',area:round(area),layers,drive,
   composition:{model,frontCategory,backCategory,technicalRatios:{
     front:RATIOS['front|'+model]??null,
     lining:lining?RATIOS['lining|Franzida']:null
   }},
   references:{front,lining,rail:railReference},
-  costs:{front:frontCost,lining:liningCost,rails:railCost,installation:round(install),
-    total:supplierCost},markup,internalSuggestedSale:suggestedSale,warnings
+  installationDetails:{perFace:installationPerFace,units:installationUnits,includedInTotal:true},
+  costs:{front:frontCost,lining:liningCost,rails:railCost,installation:install,total:supplierCost},
+  markup,baseSale,motorSurcharge,internalSuggestedSale:suggestedSale,
+  // Nunca apresentar custos internos como itens separados no orçamento ao cliente.
+  customerQuote:{description:'Cortina sob medida, com instalação inclusa',total:suggestedSale},warnings
  };
 }
