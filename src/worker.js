@@ -1,5 +1,6 @@
 import { quoteIntakePrompt } from './quote-intake.js';
 import { simulateCurtainQuote } from './quote-pricing.js';
+import { normalizeCurtainIntake, extractConversationInstructions } from './quote-conversation.js';
 /*
  * FÁBRIKA KRIATIVA — KIARA / WORKER INTEGRADO (VERSÃO DE TESTE)
  * Base: Worker enviado em 01/11/2026; preserva espera de 15 s e pausa do atendimento humano.
@@ -1149,8 +1150,36 @@ async function pricingSimulationRequest(request,env){
  if(!rows.some(x=>x.role==='admin'||x.role==='comercial'))
   return reply({error:'Not authorized'},403);
  let payload;try{payload=await request.json()}catch{return reply({error:'Invalid JSON'},400)}
- const result=simulateCurtainQuote(payload?.input,payload?.config);
- return reply(result,result.ready?200:422);
+ let intake=payload?.input;
+ let extracted=null;
+ if(payload?.conversationId){
+  if(!/^[a-f0-9-]{36}$/i.test(String(payload.conversationId)))
+   return reply({error:'Invalid conversation identifier'},400);
+  // Scope to the session organization; never read another tenant's conversation.
+  const found=await dbRequest(env,'kiara_conversations','GET',
+   '?select=id,contact_wa_id'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
+   queryEq('id',payload.conversationId)+'&limit=1');
+  if(!found?.length)return reply({error:'Conversation not found'},404);
+  const messages=await dbRequest(env,'kiara_messages','GET',
+   '?select=direction,sender,text_body,occurred_at,created_at'+
+   queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
+   queryEq('conversation_id',payload.conversationId)+
+   '&order=occurred_at.desc,created_at.desc&limit=65');
+  const timeline=[...(messages||[])].reverse()
+   .filter(m=>m.text_body&&m.text_body.trim()&&m.sender!=='human')
+   .map(m=>({role:m.direction==='incoming'?'user':'assistant',content:m.text_body}));
+  if(!timeline.length)return reply({error:'Conversation has no text to extract'},422);
+  const raw=await generateReply(env,timeline,
+   '\\n\\nEXTRAÇÃO INTERNA PARA ORÇAMENTO (não é resposta ao cliente): '+extractConversationInstructions());
+  let parsed;
+  try{parsed=JSON.parse(raw.replace(/^\\`\\`\\`(?:json)?\\s*/i,'').replace(/\\s*\\`\\`\\`$/,''))}
+  catch{return reply({error:'Conversation could not be reliably structured',customerPriceAllowed:false},422)}
+  extracted=normalizeCurtainIntake(parsed);
+  if(!extracted.ready)return reply({...extracted,customerPriceAllowed:false},422);
+  intake=extracted.intake;
+ }
+ const result=simulateCurtainQuote(intake,payload?.config);
+ return reply({...result,...(extracted?{intake:extracted.intake}:{} )},result.ready?200:422);
 }
 
 export default {
