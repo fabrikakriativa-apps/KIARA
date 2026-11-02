@@ -1,0 +1,35 @@
+name: Validar painel independente Kiara
+on:
+  push:
+    branches: [feat/painel-independente]
+    paths:
+      - 'painel/**'
+      - '.github/workflows/validar-painel.yml'
+  pull_request:
+    paths:
+      - 'painel/**'
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Instalar dependências do painel
+        run: npm install --no-audit --no-fund
+        working-directory: painel
+      - name: Compilar aplicação independente
+        run: npm run build
+        working-directory: painel
+      - name: Confirmar que não há secrets no painel
+        run: |
+          ! grep -R -E 'SUPABASE_SERVICE_ROLE_KEY|META_ACCESS_TOKEN|OPENAI_API_KEY|CLOUDFLARE_API_TOKEN' painel/src painel/.env.example
+      - name: Armazenar prévia sem publicação
+        uses: actions/upload-artifact@v4
+        with:
+          name: kiara-painel-independente
+          path: painel/dist
+          retention-days: 7
