@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {readFileSync} from 'node:fs';
 
-const source=readFileSync(new URL('../src/worker.js',import.meta.url),'utf8');
+const source=readFileSync(new URL('../src/worker.js',import.meta.url),'utf8').replace("import { quoteIntakePrompt } from './quote-intake.js';",readFileSync(new URL('../src/quote-intake.js',import.meta.url),'utf8').replaceAll('export ',''));
 const instrumented=source.replace('export default {','export const __suite = {consumeMessage,coachingRequest};\nexport default {');
 if(instrumented===source)throw new Error('Worker export was not found');
 const {__suite}=await import('data:text/javascript;base64,'+Buffer.from(instrumented).toString('base64'));
