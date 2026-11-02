@@ -2,7 +2,7 @@
 // kiara_commercial_config (revisão aprovada pela Fábrika).
 // O custo histórico por m² já incorpora a confecção: NÃO reaplicar proporção.
 const round=x=>Math.round((x+Number.EPSILON)*100)/100;
-const allowedModels=new Set(['Wave','Prega Macho','Franzida']);
+// Modelos e limites técnicos comerciais são configuráveis por organização.
 const numeric=(v,min,max)=>typeof v==='number'&&Number.isFinite(v)&&v>=min&&v<=max;
 export function validateCurtainSettings(settings){
  const e=[];
@@ -11,6 +11,8 @@ export function validateCurtainSettings(settings){
  else for(const c of settings.categories){
   if(typeof c.name!=='string'||!c.name.trim()||!numeric(c.costPerM2,0.01,100000))e.push('Categoria com preço inválido');
  }
+ if(!Array.isArray(settings.models)||!settings.models.length||settings.models.some(x=>typeof x!=='string'||!x.trim()))e.push('Modelos de cortina não configurados');
+ if(!numeric(settings.technicalLimits?.maxWidth,0.01,30)||!numeric(settings.technicalLimits?.maxHeight,0.01,10)||!numeric(settings.technicalLimits?.maxQuantity,1,20))e.push('Limites técnicos não configurados');
  if(!Array.isArray(settings.rails)||!settings.rails.length)e.push('Trilhos não configurados');
  else for(const rail of settings.rails){
   if(typeof rail.id!=='string'||!rail.id.trim()||!numeric(rail.costPerMeter,0.01,100000))e.push('Trilho com custo inválido');
@@ -38,12 +40,12 @@ export function simulateCurtainQuote(input,config={}){
  errors.push(...validateCurtainSettings(settings));
  if(errors.length)return {ready:false,errors,customerPriceAllowed:false};
  const width=Number(input?.width),height=Number(input?.height),quantity=Number(input?.quantity??1);
- if(!Number.isFinite(width)||width<=0||width>30)errors.push('Largura inválida');
- if(!Number.isFinite(height)||height<=0||height>10)errors.push('Altura inválida');
- if(!Number.isInteger(quantity)||quantity<1||quantity>20)errors.push('Quantidade inválida');
+ if(!Number.isFinite(width)||width<=0||width>settings.technicalLimits.maxWidth)errors.push('Largura inválida');
+ if(!Number.isFinite(height)||height<=0||height>settings.technicalLimits.maxHeight)errors.push('Altura inválida');
+ if(!Number.isInteger(quantity)||quantity<1||quantity>settings.technicalLimits.maxQuantity)errors.push('Quantidade inválida');
  const model=input?.model,drive=input?.drive,frontCategory=input?.frontCategory;
  const backCategory=input?.backCategory;
- if(!allowedModels.has(model))errors.push('Modelo de cortina não reconhecido');
+ if(!settings.models.includes(model))errors.push('Modelo de cortina não configurado');
  if(!['manual','motorizada'].includes(drive))errors.push('Acionamento não confirmado');
  if(!settings.categories.some(c=>c.name===frontCategory&&c.active!==false))errors.push('Categoria frontal não configurada');
  if(backCategory!=='Sem forro'&&!settings.categories.some(c=>c.name===backCategory&&c.active!==false))errors.push('Forro não configurado');
