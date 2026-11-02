@@ -1,5 +1,5 @@
 name: Publicar painel independente KIARA (GitHub Pages)
-# Versão de homologação: proporções de Visão geral conforme referência, sem mudanças em Conversas.
+# Versão de homologação: proporção 54/46 do cabeçalho da Visão geral conforme imagem.
 
 on:
   workflow_dispatch:
