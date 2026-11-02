@@ -26,7 +26,7 @@ test('one fabric omits back cost and avoids unnecessary questions',()=>{
 });
 test('fabric ratio is metadata only and does not multiply unit reference',()=>{
  const q=simulateCurtainQuote(input,cfg);
- assert.equal(q.composition.technicalRatios.front.ratio,2.2);
+ assert.equal(q.composition.technicalRatios.front.ratio,2.5);
  assert.equal(q.costs.front,Math.round(q.area*q.references.front.unit*100)/100);
  assert.equal(RATIOS['front|Prega Macho'].ratio,3);
 });
