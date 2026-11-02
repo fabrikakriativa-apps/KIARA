@@ -93,3 +93,5 @@ jobs:
 # Revalidacao apos atualizacao confirmada do segredo GitHub.
 
 # Revalidacao apos inclusao de Cloudflare Pages Read.
+
+# Revalidacao apos clicar em Update na configuracao do token Pages.
