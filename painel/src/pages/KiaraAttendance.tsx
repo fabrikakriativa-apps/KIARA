@@ -7,6 +7,7 @@ import { useAccess } from '../components/AuthorizedAccess'
 import { formatLeadResponseTime, leadResponseStats, leadAwaitingResponseMs, leadLastInboundMs } from '../lib/kiaraMetrics'
 import { KiaraCoaching } from './KiaraCoaching'
 import { kiaraCoachConfigured, readKiaraHold, setKiaraHold } from '../lib/kiaraCoachingControl'
+import {sendKiaraToProspecting,prospectingUrl} from '../lib/kiaraProspecting'
 import './KiaraAttendance.css'
 import './KiaraVisual.css'
 
@@ -22,6 +23,9 @@ export function KiaraAttendance() {
   const access = useAccess()
   const [conversations, setConversations] = useState<KiaraConversation[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [promotionBusy,setPromotionBusy]=useState(false)
+  const [promotionFeedback,setPromotionFeedback]=useState('')
+  const [opportunityPhase,setOpportunityPhase]=useState('')
   const [refresh, setRefresh] = useState(0)
   const [coachingMessage, setCoachingMessage] = useState<KiaraMessage|null>(null)
   const [showCoaching,setShowCoaching] = useState(false)
@@ -91,19 +95,19 @@ export function KiaraAttendance() {
       setLoading(true)
       try {
         const { data, error: fetchError } = await supabase!.from('kiara_conversations')
-          .select('id,contact_name,contact_phone,status,origin,campaign,region,last_interaction_at,created_at')
+          .select('id,contact_name,contact_phone,status,origin,campaign,region,last_interaction_at,created_at,lead_opportunity_id')
           .eq('organization_id', access.organizationId)
           .order('last_interaction_at', { ascending: false }).limit(100)
         if (fetchError) throw fetchError
         const mapped: KiaraConversation[] = (data ?? []).map(row => ({
-          id: row.id, name: row.contact_name, phone: row.contact_phone||'',
+          id: row.id, name: row.contact_name, phone: row.contact_phone||'',leadOpportunityId:row.lead_opportunity_id,
           status: row.status as KiaraConversation['status'], origin: row.origin,
           campaign: row.campaign, region: row.region, lastInteractionAt: row.last_interaction_at||row.created_at,
           messages: []
         }))
         if (!cancelled) {
           setConversations(previous => mapped.map(item => ({...item, messages: previous.find(old => old.id === item.id)?.messages ?? []})))
-          setSelectedId(current => current && mapped.some(item=>item.id===current) ? current : mapped[0]?.id ?? null)
+          setSelectedId(current => current && mapped.some(item=>item.id===current) ? current : mapped.find(item=>item.id===new URLSearchParams(window.location.search).get('conversationId'))?.id??mapped[0]?.id??null)
           setError('')
         }
       } catch {
@@ -144,6 +148,27 @@ export function KiaraAttendance() {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const selected = conversations.find(item => item.id === selectedId) ?? null
+  useEffect(()=>{
+    setOpportunityPhase('')
+    if(!selected?.leadOpportunityId||!access||!supabase)return
+    let active=true
+    void supabase.from('sales_opportunities').select('stage,commercial_phase').eq('organization_id',access.organizationId).eq('id',selected.leadOpportunityId).maybeSingle().then(({data})=>{
+      if(active&&data)setOpportunityPhase(data.commercial_phase||data.stage||'')
+    })
+    return ()=>{active=false}
+  },[selected?.leadOpportunityId,access?.organizationId,refresh])
+  const promote=async()=>{
+    if(!selected||!access||promotionBusy)return
+    if(!window.confirm('Enviar este contato para Prospecção? O sistema verificará registros existentes pelo telefone antes de criar uma oportunidade.'))return
+    setPromotionBusy(true);setPromotionFeedback('')
+    try{
+      const result=await sendKiaraToProspecting(access.organizationId,selected.id)
+      setConversations(list=>list.map(c=>c.id===selected.id?{...c,leadOpportunityId:result.opportunity_id}:c))
+      setPromotionFeedback(result.created?'Oportunidade criada e vinculada na Prospecção.':'Contato vinculado a uma oportunidade já existente, sem duplicidade.')
+      setRefresh(n=>n+1)
+    }catch(e){setPromotionFeedback(e instanceof Error?e.message:'Não foi possível enviar à Prospecção.')}
+    finally{setPromotionBusy(false)}
+  }
   const filtered = useMemo(() => conversations.filter(item => {
     const query = search.trim().toLocaleLowerCase('pt-BR')
     return (!query || [item.name, item.phone, item.campaign, item.origin, item.region].some(value => (value || '').toLocaleLowerCase('pt-BR').includes(query)))
@@ -257,6 +282,13 @@ export function KiaraAttendance() {
           </div>
         </div>
         {selected?.campaign&&<div className="kiara-campaign-banner"><span><MessageCircleMore size={18}/> Lead vindo de campanha</span><strong>{selected.campaign}</strong><small>{selected.origin||'Origem não identificada'}{selected.region?' · '+selected.region:''}</small></div>}
+        {selected&&<div className="kiara-prospect-strip">
+          <div><strong>{selected.leadOpportunityId?'Vinculada à Prospecção':'Qualificar como oportunidade'}</strong>
+          <small>{selected.leadOpportunityId?(opportunityPhase?'Fase comercial: '+opportunityPhase:'Histórico e oportunidade vinculados pelo Supabase.'):'Após a qualificação, envie o contato ao funil comercial sem duplicar o cadastro.'}</small></div>
+          {selected.leadOpportunityId?<a href={prospectingUrl()} target="_blank" rel="noopener noreferrer">Abrir Prospecção <ExternalLink size={15}/></a>:
+            <button type="button" disabled={promotionBusy||!access||!['admin','comercial'].includes(access.role)} onClick={()=>void promote()}>{promotionBusy?'Vinculando…':'Enviar à Prospecção'}</button>}
+          {promotionFeedback&&<p role="status">{promotionFeedback}</p>}
+        </div>}
         <div className="kiara-time-card">
           <span><Clock3 size={16}/> Tempo médio de resposta do lead</span>
           <strong>{formatLeadResponseTime(stats?.averageMs??null)}</strong>
