@@ -6,7 +6,15 @@ const completed={product:'cortina',environment:'Sala',model:'wave',width:3.2,hei
 test('confirmed conversation fields produce private curtain simulation',()=>{
  const normalized=normalizeCurtainIntake(completed);
  assert.equal(normalized.ready,true);
- const quote=simulateCurtainQuote(normalized.intake,{railType:'varao_trilho',rails:2,markup:1.2});
+ const quote=simulateCurtainQuote(normalized.intake,{
+  railType:'varao_trilho',rails:2,
+  pricing:{
+   categories:[{name:'Voil texturizado',costPerM2:86.6504},{name:'Blackout',costPerM2:68.8719}],
+   modelCosts:[],ratios:[],rails:[{id:'varao_trilho',costPerMeter:35.1082}],
+   installation:{manualPerFace:60,motorPerFace:120},
+   motorization:{finalSaleSurcharge:1400},pricing:{markupPercent:120}
+  }
+ });
  assert.equal(quote.ready,true);
  assert.equal(quote.layers,2);
  assert.equal(quote.drive,'motorizada');
