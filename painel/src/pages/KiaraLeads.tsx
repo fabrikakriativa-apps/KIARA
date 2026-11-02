@@ -64,7 +64,7 @@ export function KiaraLeads(){
     {filtered.map(chat=>{const opportunity=chat.lead_opportunity_id?opportunities[chat.lead_opportunity_id]:null;return <div className="kiara-leads-row" key={chat.id}>
       <div><strong>{chat.contact_name||chat.contact_phone}</strong><small>{chat.contact_phone}</small></div>
       <div><strong>{chat.campaign||'Sem campanha'}</strong><small>{chat.origin||'Origem não informada'}</small></div>
-      <div>{opportunity?<><span className="kiara-leads-linked">Vinculado</span><small>{opportunity.commercial_phase||opportunity.stage}</small><a target="_blank" rel="noopener noreferrer" href={prospectingUrl()}>Abrir Prospecção <ExternalLink size={12}/></a></>:<span className="kiara-leads-pending">Não enviado</span>}</div>
+      <div>{opportunity?<><span className="kiara-leads-linked">Vinculado</span><small>{opportunity.commercial_phase||opportunity.stage}</small><a target="_blank" rel="noopener noreferrer" href={prospectingUrl(opportunity.id)}>Abrir Prospecção <ExternalLink size={12}/></a></>:<span className="kiara-leads-pending">Não enviado</span>}</div>
       <div><small>{new Date(chat.last_interaction_at).toLocaleString('pt-BR')}</small><a href={'?conversationId='+encodeURIComponent(chat.id)}>Ver conversa</a></div>
     </div>})}
    </div>}</div>
