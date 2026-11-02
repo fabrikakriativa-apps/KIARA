@@ -1,5 +1,5 @@
 name: Publicar painel independente KIARA (GitHub Pages)
-# Versão de homologação: Conversas em três painéis, ações preservadas e rolagem independente.
+# Versão de homologação: perfil autenticado no rodapé, busca ampla e filtros sem duplicidade.
 
 on:
   workflow_dispatch:
