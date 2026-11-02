@@ -7,6 +7,7 @@ type ModelCost={category:string;model:string;position:string;costPerM2:number;re
 type Ratio={position:string;model:string;ratio:number;records?:number}
 type Rail={id:string;label:string;costPerMeter:number;active?:boolean}
 type Settings={
+ models:string[];technicalLimits:{maxWidth:number;maxHeight:number;maxQuantity:number};
  categories:Category[];modelCosts:ModelCost[];ratios:Ratio[];rails:Rail[];
  installation:{manualPerFace:number;motorPerFace:number};
  motorization:{finalSaleSurcharge:number};
@@ -14,6 +15,7 @@ type Settings={
 }
 type Stored={settings:Settings;status:string;revision:number;updated_at:string}
 const blank=():Settings=>({
+ models:[],technicalLimits:{maxWidth:0,maxHeight:0,maxQuantity:0},
  categories:[],modelCosts:[],ratios:[],rails:[],
  installation:{manualPerFace:0,motorPerFace:0},
  motorization:{finalSaleSurcharge:0},pricing:{markupPercent:0}
@@ -21,6 +23,8 @@ const blank=():Settings=>({
 const money=(n:number)=>n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})
 function validate(s:Settings){
  const issues:string[]=[]
+ if(!s.models.length)issues.push('Cadastre pelo menos um modelo')
+ if(!s.technicalLimits?.maxWidth||!s.technicalLimits?.maxHeight||!s.technicalLimits?.maxQuantity)issues.push('Defina limites comerciais de medidas e quantidade')
  if(!s.categories.length)issues.push('Cadastre pelo menos uma categoria')
  if(!s.rails.length)issues.push('Cadastre pelo menos um trilho')
  for(const c of s.categories){
@@ -110,6 +114,17 @@ export function KiaraCommercialSettings(){
     <label>Adicional de motorização no valor final (R$){inputNumber(data.motorization.finalSaleSurcharge,n=>mutate({...data,motorization:{finalSaleSurcharge:n}}))}</label>
     <label>Acréscimo comercial sobre custos (%){inputNumber(data.pricing.markupPercent,n=>mutate({...data,pricing:{markupPercent:n}}))}</label>
    </div>
+   <h4>Modelos de cortina e limites comerciais</h4>
+   {data.models.map((model,i)=><div className="kiara-pricing-form" key={i}>
+    <label>Modelo<input disabled={!admin} value={model} onChange={e=>mutate({...data,models:data.models.map((x,j)=>j===i?e.target.value:x)})}/></label>
+    {admin&&<button type="button" onClick={()=>mutate({...data,models:data.models.filter((_,j)=>i!==j)})}>Remover modelo</button>}
+   </div>)}
+   {admin&&<button type="button" onClick={()=>mutate({...data,models:[...data.models,'']})}>Adicionar modelo</button>}
+   <div className="kiara-pricing-form">
+    <label>Largura máxima no pré-orçamento (m){inputNumber(data.technicalLimits?.maxWidth||0,n=>mutate({...data,technicalLimits:{...data.technicalLimits,maxWidth:n}}))}</label>
+    <label>Altura máxima no pré-orçamento (m){inputNumber(data.technicalLimits?.maxHeight||0,n=>mutate({...data,technicalLimits:{...data.technicalLimits,maxHeight:n}}))}</label>
+    <label>Quantidade máxima de conjuntos<input type="number" min="1" disabled={!admin} value={data.technicalLimits?.maxQuantity||0} onChange={e=>mutate({...data,technicalLimits:{...data.technicalLimits,maxQuantity:Number(e.target.value)}})}/></label>
+   </div>
    <h4>Categorias comerciais de tecido</h4>
    {data.categories.map((item,i)=><div className="kiara-pricing-form" key={i}>
     <label>Categoria<input disabled={!admin} value={item.name} onChange={e=>mutate({...data,categories:data.categories.map((x,j)=>j===i?{...x,name:e.target.value}:x)})}/></label>
@@ -124,7 +139,7 @@ export function KiaraCommercialSettings(){
      <option value="">Selecione</option>{data.categories.map(c=><option key={c.name} value={c.name}>{c.name}</option>)}
     </select></label>
     <label>Modelo<select disabled={!admin} value={item.model} onChange={e=>mutate({...data,modelCosts:data.modelCosts.map((x,j)=>j===i?{...x,model:e.target.value}:x)})}>
-     {['Wave','Prega Macho','Franzida'].map(v=><option key={v}>{v}</option>)}
+     {data.models.map(v=><option key={v}>{v}</option>)}
     </select></label>
     <label>Posição<select disabled={!admin} value={item.position} onChange={e=>mutate({...data,modelCosts:data.modelCosts.map((x,j)=>j===i?{...x,position:e.target.value}:x)})}>
      <option value="front">Frente/face única</option><option value="lining">Forro</option>
