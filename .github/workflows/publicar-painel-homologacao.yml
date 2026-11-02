@@ -22,7 +22,7 @@ jobs:
         env:
           CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_5R2zVzcZQVAGGd72zXayFQ_zCp_tJkU
         run: |
           test -n "$CF_TOKEN" || { echo "::error::Token Cloudflare ausente"; exit 1; }
           test -n "$CF_ACCOUNT" || { echo "::error::Conta Cloudflare ausente"; exit 1; }
@@ -32,7 +32,7 @@ jobs:
         env:
           KIARA_BASE_PATH: /
           VITE_SUPABASE_URL: https://dpowbyexrcdcwwqysgzp.supabase.co
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_5R2zVzcZQVAGGd72zXayFQ_zCp_tJkU
           VITE_KIARA_PRICE_SIMULATION_URL: ""
         run: |
           npm ci --no-audit --no-fund
