@@ -1,0 +1,59 @@
+name: Publicar painel independente KIARA (GitHub Pages)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publicar-painel.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: kiara-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Obter SOMENTE painel independente aprovado para testes
+        uses: actions/checkout@v4
+        with:
+          ref: feat/painel-independente
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Confirmar limites da publicação
+        run: |
+          test -f painel/package.json
+          test -f painel/index.html
+          test -f painel/src/App.tsx
+          test -f painel/src/pages/KiaraAttendance.tsx
+          grep -q "base:process.env.KIARA_BASE_PATH||'/KIARA/'" painel/vite.config.ts
+      - name: Instalar dependências do painel (sem tocar no Worker)
+        working-directory: painel
+        run: npm install --no-audit --no-fund
+      - name: Compilar painel independente
+        working-directory: painel
+        env:
+          VITE_SUPABASE_URL: https://dpowbyexrcdcwwqysgzp.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_5R2zVzcZQVAGGd72zXayFQ_zCp_tJkU
+          VITE_KIARA_COACH_URL: https://fabrika-atendimento-ia-homologacao.fabrikakriativa.workers.dev/kiara/coach
+          KIARA_BASE_PATH: /KIARA/
+        run: npm run build
+      - name: Publicar somente conteúdo estático
+        uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: painel/dist
+      - name: Publicar Github Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
