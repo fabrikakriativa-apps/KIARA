@@ -62,7 +62,19 @@ export function KiaraKnowledgeLab(){
   if(e)setError(e.message)
   else setNotice('Preferências salvas. A agenda automática só executará quando o serviço de análise estiver configurado.')
  }
- async function review(p:Proposal,status:'approved'|'rejected'){
+ async function executeRun(run:Run){
+  if(!supabase||!access||busy||run.status!=='queued'||run.kind!=='manual')return
+  if(!window.confirm('Executar três análises por IA? Esta operação poderá consumir tokens pagos quando a credencial do modelo estiver configurada.'))return
+  setBusy(true);setError('');setNotice('Consultando os especialistas…')
+  const {data,error:e}=await supabase.functions.invoke('kiara-lab-run',{body:{run_id:run.id}})
+  setBusy(false)
+  if(e||data?.error){
+   setError(String(data?.error||e?.message||'Não foi possível executar a discussão.'))
+   setNotice('')
+  }else{setNotice('Discussão concluída. Consulte os pareceres e revise as sugestões.')}
+  setReload(n=>n+1)
+ }
+  async function review(p:Proposal,status:'approved'|'rejected'){
   if(!supabase||!access||access.role!=='admin'||busy)return
   setBusy(true);setError('');setNotice('')
   const {data,error:e}=await supabase.rpc('kiara_lab_review_proposal',{p_id:p.id,p_status:status})
@@ -79,7 +91,7 @@ export function KiaraKnowledgeLab(){
     <p>Apresente uma dúvida, situação de atendimento, objeção ou produto para avaliação conjunta.</p>
     <textarea required minLength={10} maxLength={1500} value={topic} onChange={e=>setTopic(e.target.value)} rows={4} placeholder="Ex.: Como a Kiara deve orientar um cliente que procura persiana para cozinha com privacidade, mas sem escurecer o ambiente?"/>
     <button type="submit" disabled={busy||topic.trim().length<10}>Registrar discussão</button>
-    <small>A solicitação será armazenada, sem responder ao cliente.</small>
+    <small>O debate é registrado antes da execução. Para processá-lo, use “Executar debate” após configurar a credencial do modelo.</small>
    </form>
    <section className="kiara-lab-panel">
     <h3><CalendarClock size={18}/> Análise diária</h3>
@@ -102,6 +114,7 @@ export function KiaraKnowledgeLab(){
     <h3>Resultado da discussão</h3>
     {!active?<p>Selecione uma análise para consultar as conclusões.</p>:<>
      <p><strong>{active.topic}</strong></p>
+     {active.status==='queued'&&active.kind==='manual'&&<button type="button" disabled={busy} onClick={()=>void executeRun(active)}>Executar debate com especialistas</button>}
      <small><Clock3 size={13}/> {date(active.created_at)} · {active.status} · {active.input_tokens+active.output_tokens} tokens registrados</small>
      {active.error_message&&<p className="kiara-lab-error">{active.error_message}</p>}
      {active.result?.commercial&&<article><strong>Agente Comercial</strong><p>{active.result.commercial}</p></article>}
