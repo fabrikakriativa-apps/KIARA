@@ -6,13 +6,12 @@ export const QUOTE_PRODUCTS = Object.freeze({
     models: [
       {id:'wave',label:'Wave'},
       {id:'prega_macho',label:'Prega macho'},
-      {id:'franzida',label:'Franzida'},
-      {id:'ilhos',label:'Ilhós'}
+      {id:'franzida',label:'Franzida'}
     ],
     essential:['ambiente','modelo','largura','altura','tecido_frontal','forro_preferencia'],
     conditional:{
       forro:'Perguntar se deseja forro e qual o objetivo (privacidade, escurecimento).',
-      trilho:'Confirmar trilho ou varão quando afetar a composição.',
+      suporte:'Somente trilho suíço ou varão trilho, fixados no teto ou parede.',
       acionamento:'Perguntar se deseja motorização apenas quando pertinente.'
     }
   },
@@ -69,7 +68,8 @@ export function quoteIntakePrompt(){
   'Campos essenciais: produto, ambiente, modelo, largura e altura aproximadas; '+
   'cortina exige identificação de tecido frontal e indicação de necessidade de forro; '+
   'persiana exige finalidade de controle de luz e material/tecido quando aplicável. '+
-  'Trilho/varão, acionamento, acabamento e instalação são condicionais ao modelo. '+
+  'Para cortinas, somente trilho suíço ou varão trilho, instalados no teto ou parede. Não oferecer ilhós. ' +
+  'Acionamento, acabamento e instalação são condicionais ao modelo. '+
   'Se o cliente já informou algo, não pergunte novamente; mantenha os itens separados por ambiente. '+
   'Se não souber o modelo, ofereça escolha visual de estilos quando houver recurso homologado, '+
   'ou peça uma foto de referência, sem adivinhar o modelo. '+
