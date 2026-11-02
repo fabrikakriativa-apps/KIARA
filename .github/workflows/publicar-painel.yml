@@ -1,5 +1,5 @@
 name: Publicar painel independente KIARA (GitHub Pages)
-# Versão de homologação: hero com avatar oficial, resumo de atendimentos e filtros por período.
+# Versão de homologação: avatar oficial e quatro indicadores com filtros corretos de orçamento enviado.
 
 on:
   workflow_dispatch:
