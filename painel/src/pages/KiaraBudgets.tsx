@@ -9,12 +9,12 @@ export function KiaraBudgets({initialFilter='all',reportPeriod=null}:{initialFil
  useEffect(()=>{if(!supabase||!access)return;let live=true;const client=supabase;void (async()=>{
   const [settings,queue]=await Promise.all([
    client.from('kiara_budget_settings').select('approval_mode').eq('organization_id',access.organizationId).maybeSingle(),
-   client.from('kiara_budget_drafts').select('id,conversation_id,structured_budget,customer_message,status,created_at,review_note,sent_at').eq('organization_id',access.organizationId).order('created_at',{ascending:false}).limit(100)
+   (filter==='sent'?client.from('kiara_budget_drafts').select('id,conversation_id,structured_budget,customer_message,status,created_at,review_note,sent_at').eq('organization_id',access.organizationId).eq('status','sent').gte('sent_at',reportPeriod?.start||'1970-01-01T00:00:00Z').lt('sent_at',reportPeriod?.end||'9999-01-01T00:00:00Z').order('sent_at',{ascending:false}).limit(200):client.from('kiara_budget_drafts').select('id,conversation_id,structured_budget,customer_message,status,created_at,review_note,sent_at').eq('organization_id',access.organizationId).order('created_at',{ascending:false}).limit(200))
   ])
   if(!live)return
   if(settings.error||queue.error){setError('Não foi possível carregar as configurações ou a fila.');return}
   setMode(settings.data?.approval_mode||'manual');setDrafts((queue.data||[]) as Draft[]);setError('')
- })();return()=>{live=false}},[access?.organizationId,refresh])
+ })();return()=>{live=false}},[access?.organizationId,refresh,filter,reportPeriod?.start,reportPeriod?.end])
  async function review(id:string,decision:'approved'|'rejected'){
   if(!supabase||access?.role!=='admin'||busy)return
   if(!window.confirm(decision==='approved'?'Aprovar este orçamento? Isso NÃO o envia automaticamente ao cliente.':'Rejeitar este orçamento para correção?'))return
