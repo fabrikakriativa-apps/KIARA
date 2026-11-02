@@ -1,5 +1,5 @@
 name: Publicar painel independente KIARA (GitHub Pages)
-# Versão de homologação: menus Resumo, Qualificação, Orçamento e Notas no painel de Conversas.
+# Versão de homologação: abas compactas e busca de conversas com filtros no ícone.
 
 on:
   workflow_dispatch:
