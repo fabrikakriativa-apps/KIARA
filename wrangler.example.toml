@@ -1,0 +1,15 @@
+# EXEMPLO — não executar deploy com esta configuração.
+# Copie somente após comparar o Worker de produção e confirmar bindings.
+name = "fabrika-atendimento-ia-homologacao"
+main = "src/worker.js"
+compatibility_date = "2026-11-02"
+
+[vars]
+KIARA_HOLD_ENABLED = "false"
+KIARA_GUIDANCE_ENABLED = "false"
+KIARA_CONTROL_ENABLED = "false"
+KIARA_SYNC_ALL_CONTACTS = "false"
+RESPONSE_DELAY_SECONDS = "15"
+
+# Configurar KV, Queue e demais variáveis usando recursos isolados de teste.
+# Nunca colocar segredos META_*, EASY_*, OPENAI_API_KEY ou SUPABASE_SERVICE_ROLE_KEY no GitHub.
