@@ -1120,7 +1120,7 @@ async function consumeMessage(env, job) {
         { role: 'user', content: inputText }
       ];
   let references=[];
-  try { references=await approvedFinishImages(env,String(job.input||'')); }
+  try { references=await approvedFinishImages(env,String(inputText||'')); }
   catch(err) { console.warn('Biblioteca indisponível; seguir por texto',String(err?.message||'')); }
   const guidance = await getGuidance(env, route, sender);
   const approvedCommercial = await approvedCommercialConversationRules(env);
