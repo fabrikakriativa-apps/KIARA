@@ -1208,15 +1208,19 @@ async function pricingSimulationRequest(request,env){
  });
  if(!membership.ok)return reply({error:'Membership check unavailable'},503);
  const rows=await membership.json();
- if(!rows.some(x=>x.role==='admin'||x.role==='comercial'))
+ if(!Array.isArray(rows)||!rows.some(x=>x.role==='admin'||x.role==='comercial'))
   return reply({error:'Not authorized'},403);
  let payload;try{payload=await request.json()}catch{return reply({error:'Invalid JSON'},400)}
- // Configuração aprovada é requisito para cálculo e para interpretar categorias.
+ // Uma revisão em rascunho pode ser simulada somente por administrador,
+ // sem extração de conversa, criação de proposta ou envio ao WhatsApp.
+ const draftRequested=payload?.mode==='draft';
+ if(draftRequested&&(rows[0]?.role!=='admin'||payload?.conversationId))
+  return reply({error:'Rascunho restrito à simulação manual do administrador'},403);
  const records=await dbRequest(env,'kiara_commercial_config','GET',
-  '?select=revision,settings'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
-  '&product=eq.cortina&status=eq.approved&limit=1');
+  '?select=revision,settings,status'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
+  '&product=eq.cortina&status=eq.'+(draftRequested?'draft':'approved')+'&limit=1');
  if(!records?.length)return reply({ready:false,customerPriceAllowed:false,
-  errors:['Precificação de cortinas não aprovada nas Configurações']},422);
+  errors:['Revisão comercial indisponível para esta simulação']},422);
  const activePricing=records[0].settings;
  let intake=payload?.input;
  let extracted=null;
@@ -1253,7 +1257,8 @@ async function pricingSimulationRequest(request,env){
  const result=simulateCurtainQuote(intake,{
   railType,rails,pricing:records[0].settings,revision:records[0].revision
  });
- return reply({...result,...(extracted?{intake:extracted.intake}:{} )},result.ready?200:422);
+ return reply({...result,configurationStatus:records[0].status,
+  ...(extracted?{intake:extracted.intake}:{} )},result.ready?200:422);
 }
 
 export default {
