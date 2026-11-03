@@ -1,6 +1,7 @@
 import {useEffect,useState} from 'react'
 import {supabase} from '../lib/supabase'
 import {useAccess} from '../components/AuthorizedAccess'
+import {KiaraBatchReferenceUpload} from './KiaraBatchReferenceUpload'
 
 type ImageRow={id:string;organization_id:string;product:'cortina'|'persiana';model:string;title:string;description:string;storage_path:string;category:'produto'|'modelo_confeccao'|'composicao';active:boolean;created_at:string}
 type DisplayRow=ImageRow&{url?:string}
@@ -87,6 +88,7 @@ export function KiaraReferenceImages(){
    <label>Descrição para orientar a escolha<textarea rows={3} maxLength={500} value={description} onChange={e=>setDescription(e.target.value)} placeholder="Ex.: mostra a transparência do tecido e a instalação sobreposta"/></label>
    <button className="kiara-commercial-button kiara-commercial-button--primary" type="button" disabled={busy||!file||!title.trim()||!model.trim()} onClick={()=>void addImage()}>{busy?'Salvando…':'Adicionar imagem como inativa'}</button>
   </div>}
+  {admin&&<KiaraBatchReferenceUpload onImported={()=>setRefresh(x=>x+1)}/>}
   {notice&&<p role="status">{notice}</p>}
   <h4>Referências cadastradas ({images.length})</h4>
   {loading?<p>Carregando imagens…</p>:images.length===0?<p>Nenhuma imagem cadastrada. Comece com fotos aprovadas dos modelos mais pedidos.</p>:
