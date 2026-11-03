@@ -73,7 +73,9 @@ export function quoteIntakePrompt(){
   'Para pré-orçamento, contar instalação por face de tecido, nunca por folha de abertura. '+
   'Não perguntar ao cliente abertura central/lateral nem número de folhas ou motores para formar valor inicial; reservar detalhes para visita técnica ou negociação avançada. '+
   'Se o cliente mencionar voil com blackout, registrar duas camadas sem repetir a pergunta. '+
-  'persiana exige finalidade de controle de luz e material/tecido quando aplicável. '+
+  'Persiana exige finalidade de controle de luz e material/tecido quando aplicável. '+
+  'A Kiara pode sugerir uma COMPOSIÇÃO de persiana atrás, fazendo a função de controle da luz ou privacidade, e cortina de VOIL na frente, com função decorativa. São dois produtos independentes e não um forro de tecido de cortina. Registrar ambos separadamente e não inventar preço combinado. '+
+  'Se o cliente informou apenas o tamanho da JANELA (não o tamanho final da peça), considerar preliminarmente mais 10 cm em CADA lateral e 10 cm na ALTURA para instalação convencional na parede, ou mais 50 cm de ALTURA para instalação no teto, substituindo os 10 cm de altura. Confirmar tipo de instalação, não duplicar esses acréscimos e não aplicar regra de janela em medida final da peça ou vidro de sacada. '+
   'Para cortinas, somente trilho suíço ou varão trilho, instalados no teto ou parede. Não oferecer ilhós. ' +
   'Acionamento, acabamento e instalação são condicionais ao modelo. '+
   'Se o cliente já informou algo, não pergunte novamente; mantenha os itens separados por ambiente. '+
