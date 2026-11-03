@@ -40,3 +40,5 @@ Ajuste complementar da interface: modelos e parâmetros especiais permanecem edi
 Atualização do simulador comercial: cálculo por faces frente/forro com trilhos compartilhados, validação de ano-base e utilização das categorias da revisão comercial. Somente painel de homologação; Worker e WhatsApp de produção inalterados.
 
 Homologação integrada: substituir simulador legado pelo cálculo por categorias comerciais; considerar composição de frente e forro com único conjunto de trilhos. Publicar somente painel separado de homologação, nunca Worker ou WhatsApp de produção.
+
+Revisão de homologação final: integração comercial consistente, campos numéricos validados, composição frente e forro, e simulador legado removido. Publicar apenas painel de homologação; produção permanece intocada.
