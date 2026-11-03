@@ -50,3 +50,5 @@ Homologar tela Leads: ação de envio manual e autorizado para CRM Prospecção,
 Atualizar homologação: base de conhecimento editorial versionada (v2.0 em rascunho), motivo de encaminhamento na conversa e compositor humano com nome derivado do perfil logado. Envio humano deve permanecer desabilitado até ativação segura do Worker homologação.
 
 Painel Kiara homologação: mensagens humanas com identificação obrigatória do perfil via Worker, motivo de transferência e cadastro de versões Markdown da base de conhecimento, incluindo v2.0 em rascunho. Desativar envio humano até verificação do endpoint no número de teste.
+
+2026-11-03: publicar painel com VITE_KIARA_CONTROL_URL, VITE_KIARA_COACH_URL, VITE_KIARA_HUMAN_MESSAGE_URL e VITE_KIARA_PRICE_SIMULATION_URL configurados para Worker isolado; testar OPTIONS em todas as rotas. NÃO liberar envios automáticos ou WhatsApp de produção.
