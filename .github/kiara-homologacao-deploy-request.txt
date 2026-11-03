@@ -16,3 +16,5 @@ Publicar layout horizontal da precificação e forro Franzida por padrão, apena
 Publicar simulador com composição única frente/forro Franzida, trilhos/instalação/motorização por conjunto, painel isolado, sem alterações no Worker ou Supabase.
 
 Corrigir instalação por face na calculadora completa: 1 face manual R$60, frente+forro manual R$120, motorização conforme parâmetros por face; somente painel de homologação, sem Worker.
+
+Publicar painel de parâmetros comerciais de persianas e simulação interna de rascunho; sem preços pré-definidos, sem alterar Worker, sem autorizar envios automáticos.
