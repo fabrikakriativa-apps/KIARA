@@ -7,6 +7,7 @@ type Technical={
  maxPieceWidth:number;maxPieceHeight:number;maxPieces:number;overlapCm:number
  recommendedMaxWidth:number;recommendedMinWidth:number
  minimumManualWidth:number;minimumMotorWidth:number;windowSideAllowanceCm:number
+ windowHeightAllowanceCm:number;ceilingHeightAllowanceCm:number
 }
 type BlindSettings={
  version:number;models:BlindModel[];technicalLimits:Technical
@@ -21,7 +22,7 @@ type Area='window'|'balcony'
 const initial=():BlindSettings=>({
  version:2,models:[],
  technicalLimits:{maxPieceWidth:2.4,maxPieceHeight:2.7,maxPieces:20,overlapCm:10,
-  recommendedMaxWidth:1.2,recommendedMinWidth:.9,minimumManualWidth:.25,minimumMotorWidth:.72,windowSideAllowanceCm:10},
+  recommendedMaxWidth:1.2,recommendedMinWidth:.9,minimumManualWidth:.25,minimumMotorWidth:.72,windowSideAllowanceCm:10,windowHeightAllowanceCm:10,ceilingHeightAllowanceCm:50},
  installation:{manualPerPiece:null,motorPerPiece:null},
  motorization:{saleSurchargePerPiece:null},pricing:{markupPercent:null},
  defaults:{model:'Rolô',color:'Off-white',openness:'1%',layout:'overlap'},notes:''
@@ -36,7 +37,7 @@ function validate(s:BlindSettings){
  if(![t.maxPieceWidth,t.maxPieceHeight,t.recommendedMaxWidth,t.recommendedMinWidth,t.minimumManualWidth,t.minimumMotorWidth].every(x=>Number.isFinite(x)&&x>0))errors.push('Limites de medidas inválidos.')
  if(t.recommendedMinWidth>t.recommendedMaxWidth||t.recommendedMaxWidth>t.maxPieceWidth)errors.push('Confira larguras recomendadas e máxima.')
  if(t.minimumManualWidth>t.maxPieceWidth||t.minimumMotorWidth>t.maxPieceWidth)errors.push('Largura mínima acima da máxima.')
- if(!Number.isInteger(t.maxPieces)||t.maxPieces<1||![t.overlapCm,t.windowSideAllowanceCm].every(x=>Number.isFinite(x)&&x>=0))errors.push('Limites de peças ou adicionais inválidos.')
+ if(!Number.isInteger(t.maxPieces)||t.maxPieces<1||![t.overlapCm,t.windowSideAllowanceCm,t.windowHeightAllowanceCm,t.ceilingHeightAllowanceCm].every(x=>Number.isFinite(x)&&x>=0))errors.push('Limites de peças ou adicionais inválidos.')
  if(!s.models.length||s.models.some(m=>!m.id.trim()||!m.name.trim()||!complete(m.costPerM2)||m.costPerM2===0||!complete(m.minCost)))errors.push('Cadastre modelos com código, nome, custo por m² e mínimo.')
  if(new Set(s.models.map(m=>m.id.trim())).size!==s.models.length)errors.push('Códigos de modelo duplicados.')
  if([s.installation.manualPerPiece,s.installation.motorPerPiece,s.motorization.saleSurchargePerPiece,s.pricing.markupPercent].some(v=>!complete(v)))errors.push('Preencha custos de instalação, motorização e acréscimo.')
@@ -51,6 +52,7 @@ export function KiaraBlindSettings(){
  const [dirty,setDirty]=useState(false),[notice,setNotice]=useState(''),[refresh,setRefresh]=useState(0)
  const [area,setArea]=useState<Area>('window'),[condo,setCondo]=useState('unknown'),[rules,setRules]=useState('unknown')
  const [glass,setGlass]=useState('unknown'),[layout,setLayout]=useState('unknown')
+ const [mount,setMount]=useState<'wall'|'ceiling'>('wall')
  const [modelId,setModelId]=useState(''),[width,setWidth]=useState(''),[height,setHeight]=useState('')
  const [pieces,setPieces]=useState(''),[motorized,setMotorized]=useState(false)
  const [segments,setSegments]=useState('1'),[photosConfirmed,setPhotosConfirmed]=useState(false)
@@ -105,14 +107,15 @@ export function KiaraBlindSettings(){
  const eachWidth=baseWidth/count+(selectedLayout==='overlap'?2*t.overlapCm/100:0)
  const measuredWidth=eachWidth
  const suggestedCount=Number.isFinite(w)&&w>0?Math.ceil((area==='window'?w+2*t.windowSideAllowanceCm/100:w)/t.recommendedMaxWidth):null
+ const budgetHeight=area==='window'?h+(mount==='ceiling'?t.ceilingHeightAllowanceCm:t.windowHeightAllowanceCm)/100:h
  const model=data.models.find(m=>m.id===modelId&&m.active)
- const dimensionOK=Number.isFinite(measuredWidth)&&measuredWidth>=manualMinimum&&measuredWidth<=t.maxPieceWidth&&h>0&&h<=t.maxPieceHeight&&count>0&&count<=t.maxPieces
+ const dimensionOK=Number.isFinite(measuredWidth)&&measuredWidth>=manualMinimum&&measuredWidth<=t.maxPieceWidth&&budgetHeight>0&&budgetHeight<=t.maxPieceHeight&&count>0&&count<=t.maxPieces
  const condoBlocked=area==='balcony'&&condo==='yes'&&rules==='different'
  // Sem separação frente/lateral e altura de cada segmento, a geometria da varanda é incompleta.
  const reviewLarge=Number.isFinite(measuredWidth)&&measuredWidth>1.8
  const balconyBlocked=area==='balcony'&&(!photosConfirmed||Number(segments)!==1||glass==='unknown')
  const ready=Boolean(stored&&!dirty&&model&&validate(data).length===0&&dimensionOK&&!reviewLarge&&!condoBlocked&&!balconyBlocked)
- const fabric=ready?Math.max(measuredWidth*h*(model!.costPerM2??0),model!.minCost??0)*count:0
+ const fabric=ready?Math.max(measuredWidth*budgetHeight*(model!.costPerM2??0),model!.minCost??0)*count:0
  const installation=ready?count*(motorized?data.installation.motorPerPiece??0:data.installation.manualPerPiece??0):0
  const motor=ready&&motorized?count*(data.motorization.saleSurchargePerPiece??0):0
  const price=ready?Math.round(((fabric+installation)*(1+(data.pricing.markupPercent??0)/100)+motor)*100)/100:null
@@ -142,6 +145,8 @@ export function KiaraBlindSettings(){
     <label>Mínima motorizada (m)<input type="number" min="0.01" step=".01" disabled={!admin} value={t.minimumMotorWidth} onChange={e=>setLimit('minimumMotorWidth',Number(e.target.value))}/></label>
     <label>Sobreposição por lado/folha (cm)<input type="number" min="0" step="1" disabled={!admin} value={t.overlapCm} onChange={e=>setLimit('overlapCm',Number(e.target.value))}/></label>
     <label>Adicional por lado da janela (cm)<input type="number" min="0" step="1" disabled={!admin} value={t.windowSideAllowanceCm} onChange={e=>setLimit('windowSideAllowanceCm',Number(e.target.value))}/></label>
+    <label>Adicional na altura da janela, parede (cm)<input type="number" min="0" step="1" disabled={!admin} value={t.windowHeightAllowanceCm} onChange={e=>setLimit('windowHeightAllowanceCm',Number(e.target.value))}/></label>
+    <label>Adicional na altura da janela, teto (cm)<input type="number" min="0" step="1" disabled={!admin} value={t.ceilingHeightAllowanceCm} onChange={e=>setLimit('ceilingHeightAllowanceCm',Number(e.target.value))}/></label>
     <label>Máximo de folhas por simulação<input type="number" min="1" step="1" disabled={!admin} value={t.maxPieces} onChange={e=>setLimit('maxPieces',Number(e.target.value))}/></label>
    </div>
    <p>Largura técnica máxima cadastral: 2,40 m; a recomendação para uso versátil é dividir em folhas de aproximadamente 0,90 a 1,20 m. O simulador sinaliza, mas não decide a divisão final sem conferência.</p>
@@ -177,6 +182,7 @@ export function KiaraBlindSettings(){
       <label>Trechos envidraçados<select value={segments} onChange={e=>setSegments(e.target.value)}><option value="1">Um trecho medido</option><option value="2">Frente e lateral</option><option value="3">Mais de dois trechos</option></select></label>
       <label className="kiara-blinds-checkbox"><input type="checkbox" checked={photosConfirmed} onChange={e=>setPhotosConfirmed(e.target.checked)}/> Fotos e identificação da área envidraçada conferidas</label>
      </>}
+     {area==='window'&&<label>Instalação da janela<select value={mount} onChange={e=>setMount(e.target.value as 'wall'|'ceiling')}><option value="wall">Parede / acima da janela</option><option value="ceiling">Teto</option></select></label>}
      <label>Modelo de persiana<select value={modelId} onChange={e=>setModelId(e.target.value)}><option value="">Selecione</option>{data.models.filter(x=>x.active).map(x=><option value={x.id} key={x.id}>{x.name}</option>)}</select></label>
      <label>{area==='window'?'Largura da janela/vão (m)':'Largura do trecho envidraçado (m)'}<input value={width} onChange={e=>setWidth(e.target.value)} placeholder="2,50"/></label>
      <label>{area==='window'?'Altura da janela/vão (m)':'Altura da área envidraçada (m)'}<input value={height} onChange={e=>setHeight(e.target.value)} placeholder="2,20"/></label>
@@ -186,6 +192,7 @@ export function KiaraBlindSettings(){
     {area==='balcony'&&<p><strong>Referência provisória para sacada sem regras conhecidas:</strong> {data.defaults.model}, {data.defaults.color}, visibilidade {data.defaults.openness}, instalação {layoutName(selectedLayout)}. Sujeita à confirmação do condomínio quando aplicável.</p>}
     {suggestedCount!==null&&<p>Divisão inicial sugerida pela largura: aproximadamente {suggestedCount} folha(s), antes de conferir sobreposição e dimensões técnicas. Preferência por 0,90–1,20 m por folha, sempre que possível.</p>}
     {area==='balcony'&&<p>Em varanda, pedir foto da frente e das laterais e identificar largura, comprimento e altura de cada trecho. Se houver meia parede, não usar a altura total do piso ao teto como altura do vidro.</p>}
+    {area==='window'&&Number.isFinite(budgetHeight)&&h>0&&<p>Altura preliminar para orçamento: {budgetHeight.toLocaleString('pt-BR',{maximumFractionDigits:3})} m (altura da janela + {mount==='ceiling'?t.ceilingHeightAllowanceCm:t.windowHeightAllowanceCm} cm, sem somar ambos os adicionais).</p>}
     {count>0&&Number.isFinite(measuredWidth)&&<p>Estimativa geométrica: {count} folha(s) com cerca de {measuredWidth.toLocaleString('pt-BR',{maximumFractionDigits:3})} m de largura fabricada cada; {selectedLayout==='overlap'?'sobreposição incluída onde aplicável':'lado a lado sem sobreposição interna'}. Conferir divisão antes do pedido.</p>}
     {price!==null?<p><strong>{fmt(price)}</strong> · TESTE INTERNO, SEM VALIDADE COMERCIAL. Custo: {fmt(fabric)}; instalação: {fmt(installation)}; motorização: {fmt(motor)}.</p>:
      <p role="status">{dirty?'Salve os valores antes de testar.':condoBlocked?'Regras específicas do condomínio: solicite modelo, cor e instalação permitidos.':balconyBlocked?'Varanda com informações incompletas: solicite fotos e medidas separadas de frente e laterais.':reviewLarge?'Folha acima de 1,80 m: revisar divisão e fabricante antes de apresentar preço.':!dimensionOK&&count>0?'Largura ou altura da folha fora dos limites para o acionamento selecionado.':'Informe modelo, divisão e medidas válidas; preços só são mostrados após cadastrar custos.'}</p>}
