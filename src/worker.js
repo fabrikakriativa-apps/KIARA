@@ -1,4 +1,6 @@
 import { quoteIntakePrompt } from './quote-intake.js';
+import {chooseFinishImages,requestedFinishImages} from './media-reference.js';
+import {sendKiaraImage} from './send-media.js';
 import { commercialConversationRules } from './commercial-guidance.js';
 import { simulateCurtainQuote } from './quote-pricing.js';
 import { normalizeCurtainIntake, extractConversationInstructions } from './quote-conversation.js';
