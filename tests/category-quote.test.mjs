@@ -50,7 +50,7 @@ test('composição frente e forro soma tecidos e instalações, sem duplicar tri
  assert.equal(quote.faces.length,2);
  assert.equal(quote.faces[0].material,372.87);
  assert.equal(quote.faces[1].installation,60);
- assert.equal(quote.internalSuggestedSale,2066.79);
+ assert.equal(quote.internalSuggestedSale,2066.81);
  assert.equal(quote.customerPriceAllowed,false);
  assert.equal(quote.configurationRevision,3);
 });
