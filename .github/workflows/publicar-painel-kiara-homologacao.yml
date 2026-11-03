@@ -55,5 +55,24 @@ jobs:
             echo "$route status $code"
             test "$code" = 204 || { echo "::error::Worker sem rota $route. Publicação do Worker necessária."; exit 1; }
           done
+      - name: Confirmar recursos habilitados para homologação sem enviar mensagens
+        env:
+          WORKER_URL: https://fabrika-atendimento-ia-homologacao.fabrikakriativa.workers.dev
+          ORIGIN: https://kiara-painel-homologacao.pages.dev
+        run: |
+          check() {
+            method="$1"
+            endpoint="$2"
+            status=$(curl -sS -o /dev/null -w '%{http_code}' -X "$method" -H "Origin: $ORIGIN" "$WORKER_URL$endpoint")
+            echo "$endpoint: $status (esperado 401 sem autenticação)"
+            if [ "$status" != "401" ]; then
+              echo "::error::Recurso $endpoint não está habilitado no Worker de homologação. HTTP $status."
+              exit 1
+            fi
+          }
+          check GET /kiara/control
+          check GET /kiara/coach
+          check POST /kiara/pricing/simulate
+          check POST /kiara/human-message
 
 # Publicação restrita ao projeto kiara-painel-homologacao; não modifica o Worker.
