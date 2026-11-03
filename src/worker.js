@@ -1116,7 +1116,8 @@ async function consumeMessage(env, job) {
   const approvedCommercial = await approvedCommercialConversationRules(env);
   const routing=adsRoutingEnabled(env)?await loadRouteState(env,route,sender):null;
   if(adsRoutingEnabled(env)&&(!routing||routing.status!=='selected'))return;
-  const instructions=guidance+(approvedCommercial?'\n\n'+approvedCommercial:'')+(routing?.status==='selected'?'\n\n'+flowPrompt(routing.choice)+'\n\n'+quoteIntakePrompt():'');
+  const mediaHint=references.length?'\n\nHá referência visual aprovada para esta solicitação. A imagem poderá ser enviada após sua resposta; não diga que já a enviou.':'\n\nNão há mídia aprovada disponível para esta conversa. Explique apenas por texto e não prometa envio de imagem.';
+  const instructions=guidance+mediaHint+(approvedCommercial?'\n\n'+approvedCommercial:'')+(routing?.status==='selected'?'\n\n'+flowPrompt(routing.choice)+'\n\n'+quoteIntakePrompt():'');
   const answer = await generateReply(env, nextHistory, instructions);
   if(routing?.status==='selected' && answer.includes('<<ENCAMINHAR_HUMANO>>')){
     await humanRoute(env,route,sender,targetId,'A Kiara solicitou análise humana');
