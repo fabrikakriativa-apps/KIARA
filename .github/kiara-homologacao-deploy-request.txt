@@ -46,3 +46,5 @@ Revisão de homologação final: integração comercial consistente, campos num�
 Publicar atualização de homologação do comparador de preços com Worker autenticado, incluindo testes locais por categorias e faces; sem ativar API de simulação, sem editar WhatsApp ou Worker de produção.
 
 Homologar tela Leads: ação de envio manual e autorizado para CRM Prospecção, checagem de vínculo e deduplicação transacional via RPC já existente. Publicar somente painel Cloudflare de homologação. Não alterar base de conhecimento nem ativar produção.
+
+Atualizar homologação: base de conhecimento editorial versionada (v2.0 em rascunho), motivo de encaminhamento na conversa e compositor humano com nome derivado do perfil logado. Envio humano deve permanecer desabilitado até ativação segura do Worker homologação.
