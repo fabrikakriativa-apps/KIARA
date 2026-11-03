@@ -5,6 +5,7 @@ import {KiaraBatchReferenceUpload} from './KiaraBatchReferenceUpload'
 
 type ImageRow={id:string;organization_id:string;product:'cortina'|'persiana';model:string;title:string;description:string;storage_path:string;category:'produto'|'modelo_confeccao'|'composicao';active:boolean;created_at:string}
 type DisplayRow=ImageRow&{url?:string}
+type ImageDraft=Pick<ImageRow,'product'|'category'|'model'|'title'|'description'>
 const bucket='kiara-reference-images'
 const supported=['image/jpeg','image/png','image/webp']
 const maxBytes=5*1024*1024
@@ -21,6 +22,11 @@ export function KiaraReferenceImages(){
  const [file,setFile]=useState<File|null>(null)
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[notice,setNotice]=useState('')
  const [refresh,setRefresh]=useState(0)
+ const [editingId,setEditingId]=useState<string|null>(null)
+ const [draft,setDraft]=useState<ImageDraft|null>(null)
+ const [categoryFilter,setCategoryFilter]=useState('all')
+ const [statusFilter,setStatusFilter]=useState('all')
+ const [search,setSearch]=useState('')
  useEffect(()=>{
   if(!supabase||!access){setLoading(false);return}
   let live=true;setLoading(true)
