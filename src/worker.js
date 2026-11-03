@@ -1024,8 +1024,16 @@ async function sendFinishImages(env,route,sender,refs,targetId,conversation){
    if(await readHold(env,route,sender))return false;
    if(await env.CONVERSAS.get(conversation.paused))return false;
    if(!(await isAuthorizedToSend(env,route,sender)))return false;
-   const batch=await pendingCustomerBatch(env,route,sender);
-   return Boolean(batch?.latestId===targetId);
+   // Após a resposta textual, pendingCustomerBatch fica vazio: verificar o último pedido recebido.
+   const records=await dbRequest(env,'kiara_conversations','GET',
+    '?select=id'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
+    queryEq('source',route.source)+queryEq('phone_number_id',route.phoneId)+
+    queryEq('contact_wa_id',digits(sender))+'&limit=1');
+   if(!records?.[0]?.id)return false;
+   const latest=await dbRequest(env,'kiara_messages','GET',
+    '?select=whatsapp_message_id'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
+    queryEq('conversation_id',records[0].id)+'&direction=eq.incoming&order=occurred_at.desc,created_at.desc&limit=1');
+   return Boolean(latest?.[0]?.whatsapp_message_id===targetId);
   };
   if(!(await guard()))return;
   const sent=await sendKiaraImage({env,route,to:sender,reference:ref,version:GRAPH_VERSION,guard});
