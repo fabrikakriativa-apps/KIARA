@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
 const source=readFileSync(new URL('../src/worker.js',import.meta.url),'utf8').replace("import { quoteIntakePrompt } from './quote-intake.js';",readFileSync(new URL('../src/quote-intake.js',import.meta.url),'utf8').replaceAll('export ','')).replace("import { simulateCurtainQuote } from './quote-pricing.js';",readFileSync(new URL('../src/quote-pricing.js',import.meta.url),'utf8').replaceAll('export ','')).replace("import { normalizeCurtainIntake, extractConversationInstructions } from './quote-conversation.js';",readFileSync(new URL('../src/quote-conversation.js',import.meta.url),'utf8').replaceAll('export ','')).replace("import { commercialConversationRules } from './commercial-guidance.js';",readFileSync(new URL('../src/commercial-guidance.js',import.meta.url),'utf8').replaceAll('export ',''));
-const instrumented=source.replace('export default {','export const __knowledge={cachedApprovedKnowledge,refreshApprovedKnowledge,getGuidance,generateReply};\nexport default {');
+const usable=source.replace("import {chooseFinishImages,requestedFinishImages} from './media-reference.js';",'const chooseFinishImages=()=>[]; const requestedFinishImages=()=>[];').replace("import {sendKiaraImage} from './send-media.js';",'const sendKiaraImage=async()=>null;');
+const instrumented=usable.replace('export default {','export const __knowledge={cachedApprovedKnowledge,refreshApprovedKnowledge,getGuidance,generateReply};\nexport default {');
 assert.notEqual(instrumented,source);
 const {__knowledge}=await import('data:text/javascript;base64,'+Buffer.from(instrumented).toString('base64'));
 const org='0e398095-cc22-421b-ae34-7bf0df8ad7b2';
