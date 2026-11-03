@@ -1,4 +1,5 @@
 import { quoteIntakePrompt } from './quote-intake.js';
+import { commercialConversationRules } from './commercial-guidance.js';
 import { simulateCurtainQuote } from './quote-pricing.js';
 import { normalizeCurtainIntake, extractConversationInstructions } from './quote-conversation.js';
 /*
@@ -55,8 +56,7 @@ CONDUTA
 - Se não souber o tecido, oriente de maneira simples.
 - Não transforme a conversa em questionário.
 PREÇOS
-A calculadora ainda não foi integrada.
-Nunca invente preços ou estimativas.
+A calculadora de cortinas existe como ferramenta INTERNA e exige configuração comercial aprovada e revisão humana.\nNunca invente preços ou estimativas.
 Não apresente faixas de preço.
 Explique que a equipe poderá preparar uma estimativa
 quando houver informações suficientes.
@@ -337,6 +337,16 @@ async function refreshApprovedKnowledge(env) {
   }
 }
 
+// Opt-in: somente dados comerciais aprovados. Desligado por padrão.
+async function approvedCommercialConversationRules(env){
+ if(env.KIARA_COMMERCIAL_GUIDANCE_ENABLED!=='true')return '';
+ if(!env.SUPABASE_ORGANIZATION_ID||!env.SUPABASE_SERVICE_ROLE_KEY||!env.SUPABASE_URL)
+  throw new Error('Configuração comercial indisponível');
+ const rows=await dbRequest(env,'kiara_commercial_config','GET',
+  '?select=product,status,settings'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
+  '&status=eq.approved&limit=10');
+ return commercialConversationRules(rows);
+}
 async function getGuidance(env, route, recipient) {
   // New approved knowledge never waits for the database. The old live
   // guidance lookup remains an explicitly separate feature flag.
@@ -1068,9 +1078,10 @@ async function consumeMessage(env, job) {
         { role: 'user', content: inputText }
       ];
   const guidance = await getGuidance(env, route, sender);
+  const approvedCommercial = await approvedCommercialConversationRules(env);
   const routing=adsRoutingEnabled(env)?await loadRouteState(env,route,sender):null;
   if(adsRoutingEnabled(env)&&(!routing||routing.status!=='selected'))return;
-  const instructions=guidance+(routing?.status==='selected'?'\n\n'+flowPrompt(routing.choice)+'\n\n'+quoteIntakePrompt():'');
+  const instructions=guidance+(approvedCommercial?'\n\n'+approvedCommercial:'')+(routing?.status==='selected'?'\n\n'+flowPrompt(routing.choice)+'\n\n'+quoteIntakePrompt():'');
   const answer = await generateReply(env, nextHistory, instructions);
   if(routing?.status==='selected' && answer.includes('<<ENCAMINHAR_HUMANO>>')){
     await humanRoute(env,route,sender,targetId,'A Kiara solicitou análise humana');
