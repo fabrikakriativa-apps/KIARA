@@ -2,6 +2,7 @@ import {useEffect,useState} from 'react'
 import {supabase} from '../lib/supabase'
 import {useAccess} from '../components/AuthorizedAccess'
 import {KiaraApprovedSimulation} from './KiaraApprovedSimulation'
+import {KiaraBlindSettings} from './KiaraBlindSettings'
 
 type Category={name:string;costPerM2:number;records?:number;active?:boolean}
 type ModelCost={category:string;model:string;position:string;costPerM2:number;records?:number;active?:boolean}
@@ -107,7 +108,7 @@ export function KiaraCommercialSettings(){
   <label>Produto <select value={product} onChange={e=>setProduct(e.target.value as 'cortina'|'persiana')}>
    <option value="cortina">Cortinas</option><option value="persiana">Persianas</option>
   </select></label>
-  {product==='persiana'?<p>As regras de quantidade e de instalação das persianas ainda serão definidas. Não há precificação automática homologada para esse produto.</p>:<>
+  {product==='persiana'?<KiaraBlindSettings/>:<>
    <p><strong>Estado:</strong> {stored?.status==='approved'?'Aprovada':stored?'Rascunho':'Sem configuração'} · Revisão {stored?.revision||'—'} {dirty?'· alterações não salvas':''}</p>
    <h4>Custos comerciais e instalação</h4>
    <div className="kiara-pricing-form">
