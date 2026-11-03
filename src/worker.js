@@ -1016,6 +1016,24 @@ async function approvedFinishImages(env,text){
   '&product=eq.cortina&active=is.true&limit=100');
  return chooseFinishImages(text,rows);
 }
+async function sendFinishImages(env,route,sender,refs,targetId,conversation){
+ for(const ref of refs){
+  const key=route.source+':media-sent:'+targetId+':'+ref.id;
+  if(await env.CONVERSAS.get(key))continue;
+  const guard=async()=>{
+   if(await readHold(env,route,sender))return false;
+   if(await env.CONVERSAS.get(conversation.paused))return false;
+   if(!(await isAuthorizedToSend(env,route,sender)))return false;
+   const batch=await pendingCustomerBatch(env,route,sender);
+   return Boolean(batch?.latestId===targetId);
+  };
+  if(!(await guard()))return;
+  const sent=await sendKiaraImage({env,route,to:sender,reference:ref,version:GRAPH_VERSION,guard});
+  if(!sent)return;
+  await env.CONVERSAS.put(key,'1',{expirationTtl:MEMORY_TTL});
+  await bestEffortSync(()=>syncKiaraReply(env,route,sender,sent,'[Imagem de referência: '+ref.title+']'),'visual reference');
+ }
+}
 async function consumeMessage(env, job) {
   const route = routeBySource(job.source, env);
   if (!route) return;
