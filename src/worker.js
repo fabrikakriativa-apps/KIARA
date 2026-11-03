@@ -1161,6 +1161,10 @@ async function consumeMessage(env, job) {
     JSON.stringify(nextHistory.slice(-MAX_CONTEXT_ITEMS)),
     {expirationTtl: MEMORY_TTL});
   await env.CONVERSAS.put(completedKey, '1', {expirationTtl: MEMORY_TTL});
+  if(references.length){
+   try{await sendFinishImages(env,route,sender,references,targetId,conversation)}
+   catch(error){console.warn('Imagem não enviada; preservar atendimento em texto',String(error?.message||''))}
+  }
   console.log('Resposta da Kiara enviada pela fila',route.source);
 }
 
