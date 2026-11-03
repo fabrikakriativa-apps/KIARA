@@ -1119,7 +1119,9 @@ async function consumeMessage(env, job) {
         ...history.slice(-MAX_CONTEXT_ITEMS),
         { role: 'user', content: inputText }
       ];
-  const references=await approvedFinishImages(env,String(job.input||''));
+  let references=[];
+  try { references=await approvedFinishImages(env,String(job.input||'')); }
+  catch(err) { console.warn('Biblioteca indisponível; seguir por texto',String(err?.message||'')); }
   const guidance = await getGuidance(env, route, sender);
   const approvedCommercial = await approvedCommercialConversationRules(env);
   const routing=adsRoutingEnabled(env)?await loadRouteState(env,route,sender):null;
