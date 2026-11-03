@@ -53,7 +53,7 @@ export function KiaraApprovedSimulation({draftMode=false}:{draftMode?:boolean}){
  const categories=settings?.categories.filter(c=>c.active!==false&&positive(Number(c.costPerM2)))||[]
  const rails=settings?.rails.filter(r=>r.active!==false&&positive(Number(r.costPerMeter)))||[]
  const models=settings?.models.filter(Boolean)||[]
- const currentModel=models.includes(model)?model:''
+ const currentModel=position==='lining'?(models.includes('Franzida')?'Franzida':''):models.includes(model)?model:''
  const currentCategory=categories.find(x=>x.name===category)
  const currentRail=rails.find(x=>x.id===rail)
  const w=parse(width),h=parse(height),q=Number(quantity),rq=Number(railQuantity)
@@ -80,7 +80,7 @@ export function KiaraApprovedSimulation({draftMode=false}:{draftMode?:boolean}){
    <div className="kiara-pricing-form">
     <p><strong>{approved?'Configuração aprovada':'TESTE — RASCUNHO, NÃO APROVADO'}:</strong> revisão {config!.revision}</p>
     <label>Face<select value={position} onChange={e=>setPosition(e.target.value as 'front'|'lining')}><option value="front">Frente / face única</option><option value="lining">Forro</option></select></label>
-    <label>Modelo<select value={model} onChange={e=>setModel(e.target.value)}><option value="">Selecione</option>{models.map(x=><option key={x} value={x}>{x}</option>)}</select></label>
+    <label>Modelo de confecção<select value={currentModel} disabled={position==='lining'} onChange={e=>setModel(e.target.value)}><option value="">Selecione</option>{models.map(x=><option key={x} value={x}>{x}</option>)}</select>{position==='lining'&&<small>Forro sempre franzido no pré-orçamento. Outros acabamentos somente após avaliação personalizada.</small>}</label>
     <label>Categoria de tecido<select value={category} onChange={e=>setCategory(e.target.value)}><option value="">Selecione</option>{categories.map(x=><option key={x.name} value={x.name}>{x.name}</option>)}</select></label>
     <label>Largura (m)<input value={width} onChange={e=>setWidth(e.target.value)} inputMode="decimal" placeholder="3,30"/></label>
     <label>Altura (m)<input value={height} onChange={e=>setHeight(e.target.value)} inputMode="decimal" placeholder="2,65"/></label>
