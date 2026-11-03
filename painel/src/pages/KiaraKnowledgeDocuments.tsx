@@ -29,7 +29,7 @@ export function KiaraKnowledgeDocuments(){
  async function upload(){
   if(!supabase||!access||!admin||busy||!file||!version.trim())return
   if(!/^[a-z0-9._-]+$/i.test(version.trim())){setMessage('Use uma versão como 2.1 ou 3.0.');return}
-  if(!/\\.(md|txt)$/i.test(file.name)||file.size>200000){setMessage('Selecione arquivo Markdown ou TXT com até 200 KB.');return}
+  if(!/\.(md|txt)$/i.test(file.name)||file.size>200000){setMessage('Selecione arquivo Markdown ou TXT com até 200 KB.');return}
   setBusy(true);setMessage('')
   try{
    const contents=await file.text()
