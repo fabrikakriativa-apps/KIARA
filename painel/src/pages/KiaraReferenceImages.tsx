@@ -134,8 +134,18 @@ export function KiaraReferenceImages(){
   {admin&&<KiaraBatchReferenceUpload onImported={()=>setRefresh(x=>x+1)}/>}
   {notice&&<p role="status">{notice}</p>}
   <h4>Referências cadastradas ({images.length})</h4>
-  {loading?<p>Carregando imagens…</p>:images.length===0?<p>Nenhuma referência cadastrada. Adicione imagens individualmente ou utilize a importação em lote.</p>:
-   <div className="kiara-reference-grid">{images.map(row=><article className="kiara-reference-item" key={row.id}>
+  <p><small>{activeCount} ativa(s) · {images.length-activeCount} inativa(s). As inativas não são elegíveis ao envio automático.</small></p>
+  <div className="kiara-reference-filters">
+   <label>Buscar referência<input type="search" value={search} onChange={event=>setSearch(event.target.value)} placeholder="Título, modelo, produto…"/></label>
+   <label>Categoria<select value={categoryFilter} onChange={event=>setCategoryFilter(event.target.value)}>
+    <option value="all">Todas</option><option value="produto">Produtos e tecidos</option><option value="modelo_confeccao">Modelos de confecção</option><option value="composicao">Composições</option>
+   </select></label>
+   <label>Situação<select value={statusFilter} onChange={event=>setStatusFilter(event.target.value)}>
+    <option value="all">Todas</option><option value="active">Ativas</option><option value="inactive">Inativas</option>
+   </select></label>
+  </div>
+  {loading?<p>Carregando imagens…</p>:images.length===0?<p>Nenhuma referência cadastrada. Adicione imagens individualmente ou utilize a importação em lote.</p>:visible.length===0?<p>Nenhuma referência encontrada para os filtros selecionados.</p>:
+   <div className="kiara-reference-grid">{visible.map(row=><article className="kiara-reference-item" key={row.id}>
     {row.url?<img src={row.url} alt={row.title} loading="lazy"/>:<div className="kiara-reference-unavailable">Prévia indisponível</div>}
     <div><strong>{row.title}</strong><small>{row.product==='cortina'?'Cortina':'Persiana'} · {row.model} · {row.category==='modelo_confeccao'?'Modelo de confecção':row.category==='composicao'?'Composição':'Produto e tecido'}</small>
      {row.description&&<p>{row.description}</p>}
