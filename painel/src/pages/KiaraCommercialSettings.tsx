@@ -140,10 +140,10 @@ export function KiaraCommercialSettings(){
     <label>Categoria<select disabled={!admin} value={item.category} onChange={e=>mutate({...data,modelCosts:data.modelCosts.map((x,j)=>j===i?{...x,category:e.target.value}:x)})}>
      <option value="">Selecione</option>{data.categories.map(c=><option key={c.name} value={c.name}>{c.name}</option>)}
     </select></label>
-    <label>Modelo<select disabled={!admin} value={item.model} onChange={e=>mutate({...data,modelCosts:data.modelCosts.map((x,j)=>j===i?{...x,model:e.target.value}:x)})}>
+    <label>Modelo<select disabled={!admin||item.position==='lining'} value={item.position==='lining'?'Franzida':item.model} onChange={e=>mutate({...data,modelCosts:data.modelCosts.map((x,j)=>j===i?{...x,model:e.target.value}:x)})}>
      {data.models.map(v=><option key={v}>{v}</option>)}
     </select></label>
-    <label>Posição<select disabled={!admin} value={item.position} onChange={e=>mutate({...data,modelCosts:data.modelCosts.map((x,j)=>j===i?{...x,position:e.target.value}:x)})}>
+    <label>Posição<select disabled={!admin} value={item.position} onChange={e=>mutate({...data,modelCosts:data.modelCosts.map((x,j)=>j===i?{...x,position:e.target.value,model:e.target.value==='lining'?'Franzida':x.model}:x)})}>
      <option value="front">Frente/face única</option><option value="lining">Forro</option>
     </select></label>
     <label>Custo por m² (R$){inputNumber(item.costPerM2,n=>mutate({...data,modelCosts:data.modelCosts.map((x,j)=>j===i?{...x,costPerM2:n}:x)}))}</label>
