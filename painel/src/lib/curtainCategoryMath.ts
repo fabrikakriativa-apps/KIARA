@@ -22,6 +22,8 @@ export function calculateCurtainCategoryQuote(settings:CurtainPriceSettings,face
  const annual=settings?.annualAdjustmentPercent??0,markup=settings?.pricing?.markupPercent
  if(!valid(annual)||annual<=-100||annual>100)errors.push('Reajuste inválido')
  if(!valid(markup)||markup<0||markup>500)errors.push('Acréscimo inválido')
+ if(!valid(settings?.installation?.manualPerFace)||settings.installation.manualPerFace<0)errors.push('Instalação inválida')
+ if(!Number.isInteger(settings?.referenceYear)||settings.referenceYear<2022||settings.referenceYear>2100)errors.push('Ano-base inválido')
  const rail=settings?.rails?.find(x=>x.id===railId&&x.active!==false)
  if(!rail||!valid(rail.costPerMeter)||rail.costPerMeter<0)errors.push('Trilho não configurado')
  if(railQuantity===0&&rail&&rail.costPerMeter!==0)errors.push('Selecione Sem Trilho para quantidade zero')
