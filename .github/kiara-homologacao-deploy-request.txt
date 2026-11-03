@@ -26,3 +26,5 @@ Publicar regra de condominio focada em sacadas/varandas, sem aplicar restricao a
 Publicar cadastro privado de imagens e aprovacao na biblioteca visual. Flow de abertura corrigido na branch homologacao do Worker, sem deploy operacional.
 
 Publicar somente painel de homologacao: categorias de imagens, manifesto 22 referencias e importacao em lote inativa. Sem ativacao do Worker ou de WhatsApp.
+
+Ajuste importacao visual: instrucoes para ZIP simplificado de 22 fotos, selecionar todas da mesma pasta, nenhuma foto ativa automaticamente. Publicar apenas painel homologacao.
