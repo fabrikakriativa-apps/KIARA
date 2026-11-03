@@ -24,3 +24,5 @@ Publicar formulario de persianas: condominio, referencias provisórias, janela e
 Publicar regra de condominio focada em sacadas/varandas, sem aplicar restricao automaticamente a ambientes internos. Somente painel de homologacao.
 
 Publicar cadastro privado de imagens e aprovacao na biblioteca visual. Flow de abertura corrigido na branch homologacao do Worker, sem deploy operacional.
+
+Publicar somente painel de homologacao: categorias de imagens, manifesto 22 referencias e importacao em lote inativa. Sem ativacao do Worker ou de WhatsApp.
