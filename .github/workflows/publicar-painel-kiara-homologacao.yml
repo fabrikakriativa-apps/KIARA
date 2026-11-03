@@ -55,3 +55,5 @@ jobs:
             echo "$route status $code"
             test "$code" = 204 || { echo "::error::Worker sem rota $route. Publicação do Worker necessária."; exit 1; }
           done
+
+# Publicação restrita ao projeto kiara-painel-homologacao; não modifica o Worker.
