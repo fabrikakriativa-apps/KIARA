@@ -44,3 +44,5 @@ Homologação integrada: substituir simulador legado pelo cálculo por categoria
 Revisão de homologação final: integração comercial consistente, campos numéricos validados, composição frente e forro, e simulador legado removido. Publicar apenas painel de homologação; produção permanece intocada.
 
 Publicar atualização de homologação do comparador de preços com Worker autenticado, incluindo testes locais por categorias e faces; sem ativar API de simulação, sem editar WhatsApp ou Worker de produção.
+
+Homologar tela Leads: ação de envio manual e autorizado para CRM Prospecção, checagem de vínculo e deduplicação transacional via RPC já existente. Publicar somente painel Cloudflare de homologação. Não alterar base de conhecimento nem ativar produção.
