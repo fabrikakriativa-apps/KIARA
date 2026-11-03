@@ -33,8 +33,9 @@ jobs:
           grep -q 'Sem handler de Queue' staging/worker.js
       - name: Validar sintaxe e testes de integração sem mensagens reais
         run: |
-          npm test
+          node --check src/worker.js
           node --check staging/worker.js
+          npm test
       - name: Verificar credenciais Cloudflare sem exibir valores
         env:
           CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
