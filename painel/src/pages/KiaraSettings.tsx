@@ -1,18 +1,20 @@
 import {useEffect,useState} from 'react'
-import {ArrowLeft,ArrowRight,BookOpen,BrainCircuit,Bot,Calculator,CheckCircle2,Cloud,FileText,LockKeyhole,PlugZap,Settings2,ShieldCheck,Users,Workflow} from 'lucide-react'
+import {ArrowLeft,ArrowRight,BookOpen,BrainCircuit,Bot,Calculator,CheckCircle2,Cloud,FileText,LockKeyhole,PlugZap,Settings2,ShieldCheck,Users,Workflow,Images} from 'lucide-react'
 import {useAccess} from '../components/AuthorizedAccess'
 import {supabase} from '../lib/supabase'
 import {kiaraControlConfigured,readKiaraControl} from '../lib/kiaraControl'
 import {KiaraCommercialSettings} from './KiaraCommercialSettings'
+import {KiaraReferenceImages} from './KiaraReferenceImages'
 import type {KiaraSection} from './KiaraOverview'
 import './KiaraSettings.css'
 
-type Section='ai'|'rules'|'knowledge'|'budgets'|'integrations'|'permissions'|'learning'|'security'
+type Section='ai'|'rules'|'knowledge'|'images'|'budgets'|'integrations'|'permissions'|'learning'|'security'
 type Item={id:Section;title:string;description:string;icon:typeof Bot}
 const items:Item[]=[
  {id:'ai',title:'Atendimento da IA',description:'Ative, pause e defina o comportamento da Kiara.',icon:Bot},
  {id:'rules',title:'Regras e roteiros',description:'Mensagens, qualificação, horários e direcionamentos.',icon:Workflow},
  {id:'knowledge',title:'Base de conhecimento',description:'Produtos, políticas, prazos, garantias e diferenciais.',icon:BookOpen},
+ {id:'images',title:'Imagens de referência',description:'Fotos dos modelos de cortinas e persianas.',icon:Images},
  {id:'budgets',title:'Orçamentos',description:'Tabelas, composições, valores e validação de envio.',icon:Calculator},
  {id:'integrations',title:'Integrações',description:'WhatsApp, Supabase, CRM e outras conexões.',icon:PlugZap},
  {id:'permissions',title:'Permissões e acesso',description:'Usuários, perfis e níveis de permissão.',icon:Users},
@@ -62,10 +64,11 @@ export function KiaraSettings({onNavigate}:{onNavigate:(section:KiaraSection)=>v
     <span className="kiara-settings-tile-copy"><strong>{item.title}</strong><small>{item.description}</small></span>
     <ArrowRight size={15} className="kiara-settings-arrow"/>
    </button>)}
-  </div>:<div className={`kiara-settings-detail${selected==='budgets'?' kiara-settings-detail--commercial':''}`}>
+  </div>:<div className={`kiara-settings-detail${selected==='budgets'||selected==='images'?' kiara-settings-detail--commercial':''}`}>
    <button type="button" className="kiara-settings-back" onClick={()=>setSelected(null)}><ArrowLeft size={16}/> Todas as configurações</button>
    <div className="kiara-settings-detail-title">{selectedItem&&<selectedItem.icon size={23}/>}<h2>{selectedItem?.title}</h2></div>
    {selected==='budgets'&&<KiaraCommercialSettings/>}
+   {selected==='images'&&<KiaraReferenceImages/>}
    {selected==='ai'&&<div className="kiara-settings-info">
     <h3>Estado atual do atendimento</h3>
     <p>{aiState==='checking'?'Consultando o estado da Kiara…':aiState==='active'?'Kiara ativa, conforme a consulta autenticada ao servidor.':aiState==='paused'?'Kiara pausada, conforme a consulta autenticada ao servidor.':'Controle operacional indisponível ou ainda não configurado.'}</p>
