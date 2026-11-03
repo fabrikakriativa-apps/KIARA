@@ -12,3 +12,5 @@ Publicar ajuste visual dos botões de configuração comercial (adicionar, remov
 Publicação isolada: botão Testar precificação na área de Configurações, com rascunho somente para testes internos, sem envio e sem alterar Worker.
 
 Publicar layout horizontal da precificação e forro Franzida por padrão, apenas painel isolado de homologação, sem alteração de custos e Worker.
+
+Publicar simulador com composição única frente/forro Franzida, trilhos/instalação/motorização por conjunto, painel isolado, sem alterações no Worker ou Supabase.
