@@ -486,7 +486,7 @@ async function humanMessageRequest(request,env){
  const authorization=request.headers.get('Authorization')||'';
  if(!/^Bearer [A-Za-z0-9._~-]{50,10000}$/.test(authorization))
   return reply({error:'Sessão necessária'},401);
- const base=String(env.SUPABASE_URL).replace(/\\/$/,'');
+ const base=String(env.SUPABASE_URL).replace(/\/$/,'');
  const auth=await fetch(base+'/auth/v1/user',{headers:{Authorization:authorization,apikey:env.SUPABASE_SERVICE_ROLE_KEY}});
  if(!auth.ok)return reply({error:'Sessão inválida'},401);
  const user=await auth.json();
@@ -504,7 +504,7 @@ async function humanMessageRequest(request,env){
  if(!/^[a-f0-9-]{36}$/i.test(id)||!message||message.length>3000)
   return reply({error:'Conversa ou texto inválido'},400);
  const profiles=await dbRequest(env,'profiles','GET','?select=full_name'+queryEq('id',user.id)+'&limit=1');
- const name=String(profiles?.[0]?.full_name||'').replace(/[\\r\\n:]+/g,' ').trim().slice(0,80);
+ const name=String(profiles?.[0]?.full_name||'').replace(/[\r\n:]+/g,' ').trim().slice(0,80);
  if(name.length<2)return reply({error:'Cadastre seu nome no perfil antes de responder'},422);
  const records=await dbRequest(env,'kiara_conversations','GET',
   '?select=id,source,phone_number_id,contact_wa_id,status,last_customer_message_at'+
@@ -844,8 +844,8 @@ const routeStateKey=(route,sender)=>route.source+':ad-route:'+digits(sender);
 const adReferralValid=ref=>ref&&ref.source_type==='ad'&&/^[0-9]{5,40}$/.test(String(ref.source_id||''));
 const humanRequested=text=>/(?:falar|conversar|atender|atendimento|preciso|quero|prefiro|chamar|transferir).{0,48}(?:pessoa|humano|humana|atendente|consultor|consultora|equipe|algu[eé]m da loja)|(?:^|\s)consultivo(?:\s|$)/i.test(text);
 const conversationalBreakdown=text=>{
- const t=String(text||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase();
- return /\\b(?:nao entendi|voce nao entendeu|nao esta entendendo|ja expliquei|ja respondi|ja falei|esta repetindo|voce repetiu|estou confus[oa]|fiquei confus[oa]|nao foi isso|nao e isso que pedi|isso nao faz sentido|parece que nao me entende|nao consegue me ajudar)\\b/.test(t);
+ const t=String(text||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ return /\b(?:nao entendi|voce nao entendeu|nao esta entendendo|ja expliquei|ja respondi|ja falei|esta repetindo|voce repetiu|estou confus[oa]|fiquei confus[oa]|nao foi isso|nao e isso que pedi|isso nao faz sentido|parece que nao me entende|nao consegue me ajudar)\b/.test(t);
 };
 const mustEscalate=text=>humanRequested(text)||outsideScope(text)||conversationalBreakdown(text);
 const outsideScope=text=>/\b(?:sofa|sofá|estofad[oa]s?|cabeceira|pap[eé]is? de parede|cadeira|poltrona|reforma|conserto|manuten[cç][aã]o|tapete|colch[aã]o)\b/i.test(text);
