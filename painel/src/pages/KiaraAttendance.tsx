@@ -179,13 +179,13 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
           scopedIds=(ids||[]).map((x:{conversation_id:string})=>x.conversation_id)
         }
         let query=supabase!.from('kiara_conversations')
-          .select('id,contact_name,contact_phone,status,origin,campaign,region,last_interaction_at,created_at,lead_opportunity_id')
+          .select('id,contact_name,contact_phone,status,origin,campaign,region,last_interaction_at,created_at,lead_opportunity_id,handoff_reason')
           .eq('organization_id',access.organizationId)
         if(scopedIds!==null)query=query.in('id',scopedIds.length?scopedIds:['00000000-0000-0000-0000-000000000000'])
         const {data,error:fetchError}=await query.order('last_interaction_at',{ascending:false}).range(0,conversationLimit-1)
         if (fetchError) throw fetchError
         const mapped: KiaraConversation[] = (data ?? []).map(row => ({
-          id: row.id, name: row.contact_name, phone: row.contact_phone||'',leadOpportunityId:row.lead_opportunity_id,
+          id: row.id, name: row.contact_name, phone: row.contact_phone||'',leadOpportunityId:row.lead_opportunity_id,handoffReason:row.handoff_reason,
           status: row.status as KiaraConversation['status'], origin: row.origin,
           campaign: row.campaign, region: row.region, lastInteractionAt: row.last_interaction_at||row.created_at,
           messages: []
@@ -413,6 +413,8 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
             <button type="button" aria-label="Atualizar mensagens" title="Atualizar mensagens" onClick={()=>setRefresh(n=>n+1)}><MoreVertical size={20}/></button>
           </div>
         </div>
+        {selected?.status==='waiting_human'&&selected.handoffReason&&
+         <p className="kiara-data-error" role="status"><strong>Motivo do encaminhamento:</strong> {selected.handoffReason}</p>}
         {selected?.campaign&&<div className="kiara-campaign-banner"><span><MessageCircleMore size={18}/> Lead vindo de campanha</span><strong>{selected.campaign}</strong><small>{selected.origin||'Origem não identificada'}{selected.region?' · '+selected.region:''}</small></div>}
         {selected&&<div className="kiara-prospect-strip">
           <div><strong>{selected.leadOpportunityId?'Vinculada à Prospecção':'Qualificar como oportunidade'}</strong>
