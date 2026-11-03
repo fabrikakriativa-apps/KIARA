@@ -528,6 +528,7 @@ async function humanMessageRequest(request,env){
  let whatsappId;
  try{whatsappId=await sendMessage(route,chat.contact_wa_id,outbound)}
  catch{return reply({error:'WhatsApp não confirmou o envio; nenhum sucesso foi registrado'},502)}
+ if(!whatsappId)return reply({error:'A Meta não forneceu identificador da mensagem; confira a conversa antes de repetir.'},502);
  // O envio já foi confirmado: falha de espelhamento não autoriza reenvio.
  let synchronized=true;
  try{
