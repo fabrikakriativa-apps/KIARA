@@ -2,7 +2,7 @@ import {useEffect,useState} from 'react'
 import {supabase} from '../lib/supabase'
 import {useAccess} from '../components/AuthorizedAccess'
 
-type ImageRow={id:string;organization_id:string;product:'cortina'|'persiana';model:string;title:string;description:string;storage_path:string;active:boolean;created_at:string}
+type ImageRow={id:string;organization_id:string;product:'cortina'|'persiana';model:string;title:string;description:string;storage_path:string;category:'produto'|'modelo_confeccao'|'composicao';active:boolean;created_at:string}
 type DisplayRow=ImageRow&{url?:string}
 const bucket='kiara-reference-images'
 const supported=['image/jpeg','image/png','image/webp']
@@ -15,6 +15,7 @@ export function KiaraReferenceImages(){
  const [product,setProduct]=useState<'cortina'|'persiana'>('cortina')
  const [model,setModel]=useState('')
  const [title,setTitle]=useState('')
+ const [category,setCategory]=useState<'produto'|'modelo_confeccao'|'composicao'>('produto')
  const [description,setDescription]=useState('')
  const [file,setFile]=useState<File|null>(null)
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[notice,setNotice]=useState('')
@@ -23,7 +24,7 @@ export function KiaraReferenceImages(){
   if(!supabase||!access){setLoading(false);return}
   let live=true;setLoading(true)
   void (async()=>{
-   const response=await supabase.from('kiara_reference_images').select('id,organization_id,product,model,title,description,storage_path,active,created_at')
+   const response=await supabase.from('kiara_reference_images').select('id,organization_id,product,model,title,description,storage_path,category,active,created_at')
     .eq('organization_id',access.organizationId).order('created_at',{ascending:false})
    if(!live)return
    if(response.error){setNotice('Falha ao carregar imagens: '+response.error.message);setLoading(false);return}
@@ -48,7 +49,7 @@ export function KiaraReferenceImages(){
   if(uploaded.error){setNotice('Falha no upload: '+uploaded.error.message);setBusy(false);return}
   const saved=await supabase.from('kiara_reference_images').insert({
    organization_id:access.organizationId,created_by:access.userId,product,model:model.trim(),
-   title:title.trim(),description:description.trim(),storage_path:path,active:false
+   title:title.trim(),description:description.trim(),storage_path:path,category,active:false
   })
   if(saved.error){
    await supabase.storage.from(bucket).remove([path])
@@ -78,6 +79,7 @@ export function KiaraReferenceImages(){
    <h4>Adicionar referência</h4>
    <div className="kiara-pricing-form">
     <label>Produto<select value={product} onChange={e=>setProduct(e.target.value as 'cortina'|'persiana')}><option value="cortina">Cortina</option><option value="persiana">Persiana</option></select></label>
+    <label>Categoria<select value={category} onChange={e=>setCategory(e.target.value as 'produto'|'modelo_confeccao'|'composicao')}><option value="produto">Produto, tecido ou transparência</option><option value="modelo_confeccao">Modelo de confecção</option><option value="composicao">Composição de produtos</option></select></label>
     <label>Modelo<input value={model} onChange={e=>setModel(e.target.value)} placeholder="Ex.: Wave, Rolô, Romana" maxLength={100}/></label>
     <label>Título da referência<input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Ex.: Rolô off-white em varanda" maxLength={100}/></label>
     <label>Imagem (JPG, PNG ou WebP, até 5 MB)<input id="kiara-reference-file" type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setFile(e.target.files?.[0]||null)}/></label>
@@ -90,7 +92,7 @@ export function KiaraReferenceImages(){
   {loading?<p>Carregando imagens…</p>:images.length===0?<p>Nenhuma imagem cadastrada. Comece com fotos aprovadas dos modelos mais pedidos.</p>:
    <div className="kiara-reference-grid">{images.map(row=><article className="kiara-reference-item" key={row.id}>
     {row.url?<img src={row.url} alt={row.title} loading="lazy"/>:<div className="kiara-reference-unavailable">Prévia indisponível</div>}
-    <div><strong>{row.title}</strong><small>{row.product==='cortina'?'Cortina':'Persiana'} · {row.model}</small>
+    <div><strong>{row.title}</strong><small>{row.product==='cortina'?'Cortina':'Persiana'} · {row.model} · {row.category==='modelo_confeccao'?'Modelo de confecção':row.category==='composicao'?'Composição':'Produto e tecido'}</small>
      {row.description&&<p>{row.description}</p>}
      <small>{row.active?'Ativa na biblioteca':'Inativa — aguardando aprovação'}</small>
      {admin&&<button type="button" disabled={busy} onClick={()=>void toggle(row)}>{row.active?'Desativar imagem':'Aprovar e ativar'}</button>}
