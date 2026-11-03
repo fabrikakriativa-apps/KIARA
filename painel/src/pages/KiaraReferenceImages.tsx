@@ -150,7 +150,22 @@ export function KiaraReferenceImages(){
     <div><strong>{row.title}</strong><small>{row.product==='cortina'?'Cortina':'Persiana'} · {row.model} · {row.category==='modelo_confeccao'?'Modelo de confecção':row.category==='composicao'?'Composição':'Produto e tecido'}</small>
      {row.description&&<p>{row.description}</p>}
      <small>{row.active?'Ativa na biblioteca':'Inativa — aguardando aprovação'}</small>
-     {admin&&<button type="button" disabled={busy} onClick={()=>void toggle(row)}>{row.active?'Desativar imagem':'Aprovar e ativar'}</button>}
+     {admin&&<div className="kiara-reference-actions">
+      <button type="button" disabled={busy||editingId!==null} onClick={()=>void toggle(row)}>{row.active?'Desativar':'Aprovar e ativar'}</button>
+      <button type="button" disabled={busy||row.active||editingId!==null} onClick={()=>beginEdit(row)}>Editar informações</button>
+     </div>}
+     {editingId===row.id&&draft&&<div className="kiara-reference-edit">
+      <p><small>Edite os dados desta referência. Para substituir a foto, cadastre uma nova imagem.</small></p>
+      <label>Produto<select value={draft.product} onChange={event=>setDraft({...draft,product:event.target.value as ImageDraft['product']})}><option value="cortina">Cortina</option><option value="persiana">Persiana</option></select></label>
+      <label>Categoria<select value={draft.category} onChange={event=>setDraft({...draft,category:event.target.value as ImageDraft['category']})}><option value="produto">Produto ou tecido</option><option value="modelo_confeccao">Modelo de confecção</option><option value="composicao">Composição</option></select></label>
+      <label>Modelo<input value={draft.model} maxLength={100} onChange={event=>setDraft({...draft,model:event.target.value})}/></label>
+      <label>Título<input value={draft.title} maxLength={100} onChange={event=>setDraft({...draft,title:event.target.value})}/></label>
+      <label>Descrição<textarea rows={3} maxLength={500} value={draft.description} onChange={event=>setDraft({...draft,description:event.target.value})}/></label>
+      <div className="kiara-reference-actions">
+       <button type="button" disabled={busy||!draft.model.trim()||!draft.title.trim()} onClick={()=>void saveEdit()}>Salvar alterações</button>
+       <button type="button" disabled={busy} onClick={()=>{setEditingId(null);setDraft(null)}}>Cancelar</button>
+      </div>
+     </div>}
     </div>
    </article>)}</div>}
   <p><small>As imagens são ilustrativas, não garantias de disponibilidade ou resultado. A aprovação na biblioteca não ativa, por si só, o envio automático pelo WhatsApp.</small></p>
