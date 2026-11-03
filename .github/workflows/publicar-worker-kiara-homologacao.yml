@@ -1,0 +1,64 @@
+name: Publicar Worker Kiara - homologação isolada
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publicar-worker-kiara-homologacao.yml'
+permissions:
+  contents: read
+concurrency:
+  group: kiara-worker-somente-homologacao
+  cancel-in-progress: false
+jobs:
+  homologar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: homologacao
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Conferir escopo da implantação
+        run: |
+          test -f staging/wrangler.toml
+          grep -q '^name = "fabrika-atendimento-ia-homologacao"$' staging/wrangler.toml
+          grep -q '^main = "./worker.js"$' staging/wrangler.toml
+          grep -q '^KIARA_DASHBOARD_ORIGIN = "https://kiara-painel-homologacao.pages.dev"$' staging/wrangler.toml
+          test ! -e wrangler.toml
+          test ! -e .dev.vars
+          test ! -e wrangler.jsonc
+          grep -q 'Rota desativada na homologação isolada' staging/worker.js
+          grep -q 'Sem handler de Queue' staging/worker.js
+      - name: Validar sintaxe e testes de integração sem mensagens reais
+        run: |
+          npm test
+          node --check staging/worker.js
+      - name: Verificar credenciais Cloudflare sem exibir valores
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -n "$CF_TOKEN" || { echo "::error::Token Cloudflare indisponível"; exit 1; }
+          test -n "$CF_ACCOUNT" || { echo "::error::Conta Cloudflare indisponível"; exit 1; }
+      - name: Publicar somente Worker read-only de homologação
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx --yes wrangler@4 deploy --config staging/wrangler.toml
+      - name: Confirmar simulação protegida sem enviar mensagens
+        env:
+          WORKER_URL: https://fabrika-atendimento-ia-homologacao.fabrikakriativa.workers.dev
+          PANEL_ORIGIN: https://kiara-painel-homologacao.pages.dev
+        run: |
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -X OPTIONS -H "Origin: $PANEL_ORIGIN" "$WORKER_URL/kiara/pricing/simulate")
+          echo "Preflight simulação: $code"
+          test "$code" = 204
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST -H "Origin: $PANEL_ORIGIN" "$WORKER_URL/kiara/pricing/simulate")
+          echo "Simulação sem sessão: $code"
+          test "$code" = 401
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST -H "Origin: $PANEL_ORIGIN" "$WORKER_URL/kiara/human-message")
+          echo "Envio humano desativado: $code"
+          test "$code" = 404
