@@ -240,6 +240,10 @@ async function syncInbound(env, route, value, message) {
   });
   await saveMessage(env, row.id, message.id, 'incoming', 'customer',
     message.type === 'text' ? message.text?.body : message.type==='interactive' ? message.interactive?.button_reply?.title : null, timestamp, message.type);
+  // A janela de 24h depende da última mensagem REAL do cliente, nunca da resposta da IA.
+  await dbRequest(env,'kiara_conversations','PATCH',
+    '?id=eq.'+encodeURIComponent(row.id)+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID),
+    {last_customer_message_at:timestamp});
 }
 async function syncHumanEcho(env, route, echo) {
   if (!syncActive(env)) return;
