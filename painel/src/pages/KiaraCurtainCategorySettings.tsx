@@ -1,6 +1,7 @@
 import {useEffect,useState} from 'react'
 import {supabase} from '../lib/supabase'
 import {useAccess} from '../components/AuthorizedAccess'
+import {calculateCurtainCategoryQuote} from '../lib/curtainCategoryMath'
 
 type Category={name:string;costPerM2:number;records?:number;fabricsCount?:number;baseYear?:number;active?:boolean}
 type Rail={id:string;label:string;costPerMeter:number;records?:number;baseYear?:number;active?:boolean}
@@ -14,7 +15,6 @@ type Settings={
 }
 type Stored={settings:Settings;revision:number;status:string}
 const money=(n:number)=>n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})
-const rounded=(n:number)=>Math.round((n+Number.EPSILON)*100)/100
 const numeric=(n:number)=>Number.isFinite(n)
 function validate(s:Settings):string[]{
  const errors:string[]=[]
@@ -36,7 +36,8 @@ export function KiaraCurtainCategorySettings(){
  const [stored,setStored]=useState<Stored|null>(null)
  const [data,setData]=useState<Settings|null>(null)
  const [dirty,setDirty]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[refresh,setRefresh]=useState(0)
- const [category,setCategory]=useState(''),[rail,setRail]=useState(''),[width,setWidth]=useState('2,10'),[height,setHeight]=useState('2,45'),[quantity,setQuantity]=useState('1'),[year,setYear]=useState('2026'),[includeInstallation,setIncludeInstallation]=useState(true)
+ const [category,setCategory]=useState(''),[rail,setRail]=useState(''),[width,setWidth]=useState('2,10'),[height,setHeight]=useState('2,45'),[quantity,setQuantity]=useState('1'),[year,setYear]=useState(''),[includeInstallation,setIncludeInstallation]=useState(true)
+ const [withLining,setWithLining]=useState(false),[liningCategory,setLiningCategory]=useState(''),[railCount,setRailCount]=useState('1')
  useEffect(()=>{
   if(!supabase||!access)return
   let live=true
@@ -44,6 +45,7 @@ export function KiaraCurtainCategorySettings(){
    if(!live)return
    if(error){setMessage('Falha ao carregar precificação: '+error.message);return}
    setStored(row as Stored|null);setData((row as Stored|null)?.settings||null);setDirty(false)
+   if((row as Stored|null)?.settings?.referenceYear)setYear(String((row as Stored).settings.referenceYear))
   })
   return()=>{live=false}
  },[access?.organizationId,refresh])
@@ -71,15 +73,10 @@ export function KiaraCurtainCategorySettings(){
   else{setMessage('Configuração aprovada somente para simulações internas.');setRefresh(x=>x+1)}
  }
  const w=Number(width.replace(',','.')),h=Number(height.replace(',','.')),q=Number(quantity),y=Number(year)
- const cat=data?.categories.find(c=>c.name===category&&c.active!==false)
- const selectedRail=data?.rails.find(r=>r.id===rail&&r.active!==false)
- const valid=Boolean(data&&cat&&selectedRail&&w>0&&h>0&&Number.isInteger(q)&&q>=1&&q<=data.technicalLimits.maxQuantity&&w<=data.technicalLimits.maxWidth&&h<=data.technicalLimits.maxHeight&&Number.isInteger(y)&&y>=Number(cat.baseYear||data.referenceYear)&&y>=Number(selectedRail.baseYear||data.referenceYear))
- const adjusted=(unit:number,baseYear:number)=>unit*Math.pow(1+(data?.annualAdjustmentPercent||0)/100,y-baseYear)
- const fabric=valid? w*h*q*adjusted(cat!.costPerM2,Number(cat!.baseYear||data!.referenceYear)):0
- const track=valid? w*q*adjusted(selectedRail!.costPerMeter,Number(selectedRail!.baseYear||data!.referenceYear)):0
- const installation=valid&&includeInstallation?q*(data?.installation.manualPerFace||0):0
- const cost=fabric+track+installation
- const total=valid?rounded(cost*(1+(data?.pricing.markupPercent||0)/100)):0
+ const face={width:w,height:h,quantity:q,category,year:y,includeInstallation}
+ const quote=data?calculateCurtainCategoryQuote(data,[face,...(withLining?[{...face,category:liningCategory}]:[])],rail,Number(railCount)):null
+ const valid=Boolean(quote?.ready)
+ const total=quote?.ready?quote.sale:0
  return <section className="kiara-settings-info">
   <h3>Precificação comercial — cortinas</h3>
   <p>Metodologia por categoria comercial: custo por m² da categoria × área, mais trilho e instalação; aplica-se o acréscimo comercial ao total. O modelo e a proporção são informativos e não alteram o preço. Trabalhe uma face por vez.</p>
@@ -140,15 +137,20 @@ export function KiaraCurtainCategorySettings(){
     <div className="kiara-pricing-form">
      <label>Categoria<select value={category} onChange={e=>setCategory(e.target.value)}><option value="">Selecione</option>{data.categories.filter(x=>x.active!==false).map(x=><option key={x.name} value={x.name}>{x.name}</option>)}</select></label>
      <label>Trilho<select value={rail} onChange={e=>setRail(e.target.value)}><option value="">Selecione</option>{data.rails.filter(x=>x.active!==false).map(x=><option key={x.id} value={x.id}>{x.label}</option>)}</select></label>
+     <label>Quantidade total de trilhos<input type="number" min="0" max="4" value={railCount} onChange={e=>setRailCount(e.target.value)}/><small>Conte os trilhos físicos apenas uma vez, mesmo quando houver forro.</small></label>
+     <label>Composição<select value={withLining?'front-lining':'front'} onChange={e=>setWithLining(e.target.value==='front-lining')}><option value="front">Somente frente</option><option value="front-lining">Frente + forro de tecido</option></select></label>
+     {withLining&&<label>Categoria do forro<select value={liningCategory} onChange={e=>setLiningCategory(e.target.value)}><option value="">Selecione</option>{data.categories.filter(x=>x.active!==false).map(x=><option key={x.name} value={x.name}>{x.name}</option>)}</select></label>}
      <label>Largura (m)<input value={width} onChange={e=>setWidth(e.target.value)}/></label>
      <label>Altura (m)<input value={height} onChange={e=>setHeight(e.target.value)}/></label>
      <label>Quantidade de faces iguais<input type="number" min="1" value={quantity} onChange={e=>setQuantity(e.target.value)}/></label>
      <label>Ano da estimativa<input type="number" value={year} onChange={e=>setYear(e.target.value)}/></label>
      <label><input type="checkbox" checked={includeInstallation} onChange={e=>setIncludeInstallation(e.target.checked)}/> Incluir instalação por face</label>
     </div>
-    {valid?<div><p><strong>Valor sugerido: {money(total)}</strong> — simulação interna, sujeita a revisão humana.</p>
-     <p>Área: {rounded(w*h*q)} m² · Tecido: {money(fabric)} · Trilho: {money(track)} · Instalação: {money(installation)} · Custo: {money(cost)} · Acréscimo: {data.pricing.markupPercent}%.</p></div>
-     :<p role="status">Selecione categoria e trilho e informe medidas, quantidade e ano válidos para calcular.</p>}
+    {valid&&quote?.ready?<div><p><strong>Valor sugerido: {money(total)}</strong> — simulação interna, sujeita a revisão humana.</p>
+      {quote.faces.map((face,index)=><p key={index}>{index===0?'Frente':'Forro'} ({face.category}): área {face.area.toLocaleString('pt-BR')} m² · tecido {money(face.fabric)} · instalação {money(face.installation)}</p>)}
+      <p>Trilhos compartilhados: {money(quote.rails)} · Custo total: {money(quote.cost)} · Acréscimo: {quote.markupPercent}%.</p>
+      <p><small>Para composições com medidas ou quantidades diferentes, calcule cada face separadamente. Nenhum valor é enviado automaticamente.</small></p>
+     </div>:<p role="status">{quote&&!quote.ready?quote.errors.join('. '):'Preencha os campos para calcular.'}</p>}
    </section>
   </>}
   {message&&<p role="status">{message}</p>}
