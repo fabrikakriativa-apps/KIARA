@@ -28,3 +28,5 @@ Publicar cadastro privado de imagens e aprovacao na biblioteca visual. Flow de a
 Publicar somente painel de homologacao: categorias de imagens, manifesto 22 referencias e importacao em lote inativa. Sem ativacao do Worker ou de WhatsApp.
 
 Ajuste importacao visual: instrucoes para ZIP simplificado de 22 fotos, selecionar todas da mesma pasta, nenhuma foto ativa automaticamente. Publicar apenas painel homologacao.
+
+Atualizar painel de homologação: importador genérico permanente de imagens, edição por arquivo, campos em lote, textos atemporais e revisão individual; não alterar Worker de produção.
