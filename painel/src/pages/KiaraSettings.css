@@ -88,3 +88,52 @@
  padding:9px 13px;border-radius:9px;font-weight:700;font-size:12px;cursor:pointer;
 }
 @media(max-width:640px){.kiara-commercial-test-section{padding:12px}}
+
+
+/* Gestão comercial: aproveitar a largura da tela, mantendo linhas compactas. */
+.kiara-settings-detail--commercial{max-width:none;width:100%}
+.kiara-settings-detail--commercial .kiara-settings-info{max-width:none;width:100%;min-width:0}
+.kiara-settings-detail--commercial .kiara-pricing-form{min-width:0}
+.kiara-settings-detail--commercial .kiara-commercial-row{
+ display:grid;align-items:end;gap:12px;width:100%;
+}
+.kiara-settings-detail--commercial .kiara-commercial-row label{min-width:0}
+.kiara-settings-detail--commercial .kiara-commercial-row--model{
+ grid-template-columns:minmax(200px,1fr) auto;
+}
+.kiara-settings-detail--commercial .kiara-commercial-row--category{
+ grid-template-columns:minmax(180px,2fr) minmax(130px,1.2fr) minmax(105px,.8fr) auto;
+}
+.kiara-settings-detail--commercial .kiara-commercial-row--cost{
+ grid-template-columns:minmax(160px,1.5fr) minmax(120px,1.2fr) minmax(130px,1.15fr) minmax(125px,1fr) auto;
+}
+.kiara-settings-detail--commercial .kiara-commercial-row--rail{
+ grid-template-columns:minmax(120px,1fr) minmax(210px,2fr) minmax(140px,1fr) auto;
+}
+.kiara-settings-detail--commercial .kiara-commercial-row--ratio{
+ grid-template-columns:minmax(150px,1.4fr) minmax(170px,1.4fr) minmax(140px,1fr) auto;
+}
+.kiara-settings-detail--commercial .kiara-commercial-row .kiara-commercial-button{
+ white-space:nowrap;justify-self:end;align-self:end;
+}
+@media(max-width:1050px){
+ .kiara-settings-detail--commercial .kiara-commercial-row--cost{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+ }
+ .kiara-settings-detail--commercial .kiara-commercial-row--cost .kiara-commercial-button{
+  justify-self:start;
+ }
+}
+@media(max-width:760px){
+ .kiara-settings-detail--commercial .kiara-commercial-row{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+ }
+ .kiara-settings-detail--commercial .kiara-commercial-row .kiara-commercial-button{
+  justify-self:start;
+ }
+}
+@media(max-width:510px){
+ .kiara-settings-detail--commercial .kiara-commercial-row{
+  grid-template-columns:minmax(0,1fr);
+ }
+}
