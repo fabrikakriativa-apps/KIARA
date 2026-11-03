@@ -1,3 +1,4 @@
+import {calculateCategoryCurtain} from './category-quote.js';
 // Motor sem preços fixos: todos os custos e política comercial vêm de
 // kiara_commercial_config (revisão aprovada pela Fábrika).
 // O custo histórico por m² já incorpora a confecção: NÃO reaplicar proporção.
@@ -35,6 +36,10 @@ function priceReference(settings,category,model,position){
   reliability:position==='front'&&exact&&sample>=5?'model_reference':'exploratory'};
 }
 export function simulateCurtainQuote(input,config={}){
+ if(config.pricing?.methodology==='commercial_categories_v1'){
+  if(config.markup!==undefined||config.installation!==undefined)return {ready:false,errors:['Alteração comercial não autorizada'],customerPriceAllowed:false};
+  return {...calculateCategoryCurtain({...input,railType:config.railType,rails:config.rails},config.pricing),configurationRevision:config.revision??null};
+ }
  const errors=[],warnings=[];
  const settings=config.pricing;
  errors.push(...validateCurtainSettings(settings));
