@@ -47,3 +47,11 @@ A arquitetura separa as funções:
 7. Só então definir processo de merge e deploy aprovado, com rollback.
 
 **Nunca versionar secrets, chaves da Meta, OpenAI, Supabase ou EasyCoexistence.**
+
+## Integração de regras comerciais (homologação)
+
+`KIARA_COMMERCIAL_GUIDANCE_ENABLED` permanece **desligada por padrão**. Quando for explicitamente configurada como `true` em um Worker de teste e os bindings de Supabase estiverem corretos, o Worker consulta `kiara_commercial_config` apenas para linhas com `status=approved` da organização autenticada. A IA recebe somente modelos, categorias e orientações técnicas; não recebe preços, margens ou custos. Falha da consulta impede geração da resposta, em vez de usar rascunhos.
+
+A simulação interna de cortinas continua no endpoint autenticado `/kiara/pricing/simulate`, com revisão aprovada, `customerPriceAllowed:false` e revisão humana obrigatória. A integração nova **não libera preços ao cliente**. Os roteiros comerciais de persianas aprovados só passam a orientar o atendimento quando a flag for habilitada e as configurações forem aprovadas.
+
+Testes: `node --check src/worker.js` e `npm test`. Não publicar este Worker em produção antes de validar controles humanos, WhatsApp e estratégia de rollback.
