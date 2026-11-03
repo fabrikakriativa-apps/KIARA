@@ -2,6 +2,7 @@ import {useEffect,useState} from 'react'
 import {supabase} from '../lib/supabase'
 import {useAccess} from '../components/AuthorizedAccess'
 import {calculateCurtainCategoryQuote} from '../lib/curtainCategoryMath'
+import {KiaraQuoteServerValidation} from './KiaraQuoteServerValidation'
 
 type Category={name:string;costPerM2:number;records?:number;fabricsCount?:number;baseYear?:number;active?:boolean}
 type Rail={id:string;label:string;costPerMeter:number;records?:number;baseYear?:number;active?:boolean}
@@ -150,6 +151,10 @@ export function KiaraCurtainCategorySettings(){
       {quote.faces.map((face,index)=><p key={index}>{index===0?'Frente':'Forro'} ({face.category}): área {face.area.toLocaleString('pt-BR')} m² · tecido {money(face.fabric)} · instalação {money(face.installation)}</p>)}
       <p>Trilhos compartilhados: {money(quote.rails)} · Custo total: {money(quote.cost)} · Acréscimo: {quote.markupPercent}%.</p>
       <p><small>Para composições com medidas ou quantidades diferentes, calcule cada face separadamente. Nenhum valor é enviado automaticamente.</small></p>
+      <KiaraQuoteServerValidation params={{
+       width:w,height:h,quantity:q,year:y,faces:[{category,includeInstallation},...(withLining?[{category:liningCategory,includeInstallation}]:[])],
+       railType:rail,rails:Number(railCount),expected:total,revision:stored?.revision||0,draft:stored?.status!=='approved',dirty
+      }}/>
      </div>:<p role="status">{quote&&!quote.ready?quote.errors.join('. '):'Preencha os campos para calcular.'}</p>}
    </section>
   </>}
