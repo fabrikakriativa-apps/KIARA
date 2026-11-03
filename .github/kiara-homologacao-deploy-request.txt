@@ -38,3 +38,5 @@ Publicar APENAS o painel de homologação com novo editor de preços de cortinas
 Ajuste complementar da interface: modelos e parâmetros especiais permanecem editáveis, mas sem afetar o cálculo por média de categoria. Publicar apenas painel homologação.
 
 Atualização do simulador comercial: cálculo por faces frente/forro com trilhos compartilhados, validação de ano-base e utilização das categorias da revisão comercial. Somente painel de homologação; Worker e WhatsApp de produção inalterados.
+
+Homologação integrada: substituir simulador legado pelo cálculo por categorias comerciais; considerar composição de frente e forro com único conjunto de trilhos. Publicar somente painel separado de homologação, nunca Worker ou WhatsApp de produção.
