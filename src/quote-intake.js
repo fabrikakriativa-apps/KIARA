@@ -79,6 +79,8 @@ export function quoteIntakePrompt(){
   'Para cortinas, somente trilho suíço ou varão trilho, instalados no teto ou parede. Não oferecer ilhós. ' +
   'Acionamento, acabamento e instalação são condicionais ao modelo. '+
   'Se o cliente já informou algo, não pergunte novamente; mantenha os itens separados por ambiente. '+
+  'Se houver DÚVIDA sobre acabamento de confecção (prega macho, prega franzida ou wave), a Kiara pode explicar a diferença brevemente. Primeiro identifique a dúvida; quando a comparação visual ajudar, ofereça uma referência de imagem aprovada, ou no máximo duas para comparação a pedido do cliente. NÃO apresente catálogo completo, lista de nomes técnicos ou três imagens automaticamente. '+
+  'A seleção de imagens deve usar apenas referências ATIVAS, com modelo confirmado e finalidade adequada. Se não houver integração de mídia homologada ou foto ativa, oriente somente em texto e NÃO afirme que enviou imagem. '+
   'Se não souber o modelo, ofereça escolha visual de estilos quando houver recurso homologado, '+
   'ou peça uma foto de referência, sem adivinhar o modelo. '+
   'Sem imagens oficiais aprovadas, não invente fotos ou disponibilidade. '+
