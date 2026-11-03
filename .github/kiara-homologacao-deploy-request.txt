@@ -30,3 +30,5 @@ Publicar somente painel de homologacao: categorias de imagens, manifesto 22 refe
 Ajuste importacao visual: instrucoes para ZIP simplificado de 22 fotos, selecionar todas da mesma pasta, nenhuma foto ativa automaticamente. Publicar apenas painel homologacao.
 
 Atualizar painel de homologação: importador genérico permanente de imagens, edição por arquivo, campos em lote, textos atemporais e revisão individual; não alterar Worker de produção.
+
+Atualizar painel isolado de homologação: filtros, edição de metadados em referências inativas e confirmação de persistência. Worker e WhatsApp de produção permanecem inalterados.
