@@ -802,7 +802,7 @@ async function handoffAudio(env,route,sender,messageId,reason) {
   const row=await upsertConversation(env,route.source,route.phoneId,sender);
   await dbRequest(env,'kiara_conversations','PATCH',
     '?id=eq.'+encodeURIComponent(row.id)+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID),{
-      status:'waiting_human',reply_held:true,updated_at:new Date().toISOString()
+      status:'waiting_human',reply_held:true,handoff_reason:String(reason||'Necessário atendimento humano').slice(0,400),updated_at:new Date().toISOString()
     });
 }
 async function handleAudioJob(env,route,job) {
@@ -891,6 +891,16 @@ async function saveRouteState(env,route,sender,state){
 async function humanRoute(env,route,sender,id,reason){
   await handoffAudio(env,route,sender,id,reason);
   await saveRouteState(env,route,sender,{status:'human',source:'human',reason});
+  // Confirmação única, apenas depois do bloqueio da IA. Não afirma que alguém já assumiu.
+  if(env.KIARA_HANDOFF_NOTICE_ENABLED==='true'){
+   const noticeKey=route.source+':handoff-notice:'+digits(sender)+':'+String(id);
+   if(!await env.CONVERSAS.get(noticeKey)){
+    const notice='Vou encaminhar seu atendimento à nossa equipe.';
+    const sent=await sendMessage(route,sender,notice);
+    await env.CONVERSAS.put(noticeKey,'1',{expirationTtl:MEMORY_TTL});
+    await bestEffortSync(()=>syncKiaraReply(env,route,sender,sent,notice),'handoff notice');
+   }
+  }
 }
 async function processAdRouting(env,route,message){
   if(!adsRoutingEnabled(env))return {handled:false};
