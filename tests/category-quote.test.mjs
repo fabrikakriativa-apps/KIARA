@@ -39,3 +39,30 @@ test('não subestima pedidos de duas faces ou com motorização',()=>{
  assert.equal(simulateCurtainQuote({...source,backCategory:'Forro convencional'},base).ready,false);
  assert.equal(simulateCurtainQuote({...source,drive:'motorizada'},base).ready,false);
 });
+
+test('composição frente e forro soma tecidos e instalações, sem duplicar trilho',()=>{
+ const quote=simulateCurtainQuote({
+  width:2.10,height:2.45,quantity:1,year:2026,drive:'manual',
+  faces:[{category:'Voil texturizado',includeInstallation:true},{category:'Voil texturizado',includeInstallation:true}]
+ },{pricing:settings,railType:'varao',rails:1,revision:3});
+ assert.equal(quote.ready,true);
+ assert.equal(quote.costs.rails,73.73);
+ assert.equal(quote.faces.length,2);
+ assert.equal(quote.faces[0].material,372.87);
+ assert.equal(quote.faces[1].installation,60);
+ assert.equal(quote.internalSuggestedSale,2066.79);
+ assert.equal(quote.customerPriceAllowed,false);
+ assert.equal(quote.configurationRevision,3);
+});
+test('composição de uma face mantém o preço histórico',()=>{
+ const quote=simulateCurtainQuote({width:2.1,height:2.45,quantity:1,faces:[{category:'Voil texturizado'}]},
+  {pricing:settings,railType:'varao',rails:1});
+ assert.equal(quote.internalSuggestedSale,1114.51);
+});
+test('composição rejeita motorização, categoria ausente e quantidade inválida',()=>{
+ const cfg={pricing:settings,railType:'varao',rails:1};
+ const raw={width:2.1,height:2.45,quantity:1,faces:[{category:'Voil texturizado'}]};
+ assert.equal(simulateCurtainQuote({...raw,drive:'motorizada'},cfg).ready,false);
+ assert.equal(simulateCurtainQuote({...raw,faces:[{category:'Inexistente'}]},cfg).ready,false);
+ assert.equal(simulateCurtainQuote(raw,{...cfg,rails:7}).ready,false);
+});
