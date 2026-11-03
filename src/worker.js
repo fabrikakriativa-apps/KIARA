@@ -802,7 +802,7 @@ async function handoffAudio(env,route,sender,messageId,reason) {
   const row=await upsertConversation(env,route.source,route.phoneId,sender);
   await dbRequest(env,'kiara_conversations','PATCH',
     '?id=eq.'+encodeURIComponent(row.id)+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID),{
-      status:'human',reply_held:true,updated_at:new Date().toISOString()
+      status:'waiting_human',reply_held:true,updated_at:new Date().toISOString()
     });
 }
 async function handleAudioJob(env,route,job) {
@@ -843,6 +843,11 @@ const greeting = 'Olá! 👋 Seja bem-vindo(a) à Fábrika Kriativa!\n\nSou a Ki
 const routeStateKey=(route,sender)=>route.source+':ad-route:'+digits(sender);
 const adReferralValid=ref=>ref&&ref.source_type==='ad'&&/^[0-9]{5,40}$/.test(String(ref.source_id||''));
 const humanRequested=text=>/(?:falar|conversar|atender|atendimento|preciso|quero|prefiro|chamar|transferir).{0,48}(?:pessoa|humano|humana|atendente|consultor|consultora|equipe|algu[eé]m da loja)|(?:^|\s)consultivo(?:\s|$)/i.test(text);
+const conversationalBreakdown=text=>{
+ const t=String(text||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase();
+ return /\\b(?:nao entendi|voce nao entendeu|nao esta entendendo|ja expliquei|ja respondi|ja falei|esta repetindo|voce repetiu|estou confus[oa]|fiquei confus[oa]|nao foi isso|nao e isso que pedi|isso nao faz sentido|parece que nao me entende|nao consegue me ajudar)\\b/.test(t);
+};
+const mustEscalate=text=>humanRequested(text)||outsideScope(text)||conversationalBreakdown(text);
 const outsideScope=text=>/\b(?:sofa|sofá|estofad[oa]s?|cabeceira|pap[eé]is? de parede|cadeira|poltrona|reforma|conserto|manuten[cç][aã]o|tapete|colch[aã]o)\b/i.test(text);
 function choiceFrom(message){
   if(message.type==='interactive' && message.interactive?.type==='button_reply'){
@@ -896,7 +901,7 @@ async function processAdRouting(env,route,message){
   const replyType=message.type==='interactive'&&message.interactive?.type==='button_reply';
   const text=replyType?String(message.interactive.button_reply.title||''):message.type==='text'?String(message.text?.body||''):'';
   if(state?.status==='human')return {handled:true};
-  if(humanRequested(text)||outsideScope(text)){
+  if(mustEscalate(text)){
     await humanRoute(env,route,sender,message.id,'Atendimento humano solicitado ou assunto fora do escopo');
     return {handled:true};
   }
@@ -1178,6 +1183,10 @@ async function consumeMessage(env, job) {
 
   const history = (await env.CONVERSAS.get(conversation.history, 'json')) || [];
   const inputText = batch?.text || job.input;
+  if(mustEscalate(inputText)){
+    await humanRoute(env,route,sender,targetId,'Dificuldade de entendimento, pedido humano ou assunto fora do fluxo');
+    return;
+  }
   const nextHistory = syncActive(env)
     ? await loadCommercialHistory(env, route, sender, targetId)
     : [
@@ -1193,8 +1202,9 @@ async function consumeMessage(env, job) {
   if(adsRoutingEnabled(env)&&(!routing||routing.status!=='selected'))return;
   const mediaHint=references.length?'\n\nHá referência visual aprovada para esta solicitação. A imagem poderá ser enviada após sua resposta; não diga que já a enviou.':'\n\nNão há mídia aprovada disponível para esta conversa. Explique apenas por texto e não prometa envio de imagem.';
   const instructions=guidance+mediaHint+(approvedCommercial?'\n\n'+approvedCommercial:'')+(routing?.status==='selected'?'\n\n'+flowPrompt(routing.choice)+'\n\n'+quoteIntakePrompt():'');
-  const answer = await generateReply(env, nextHistory, instructions);
-  if(routing?.status==='selected' && answer.includes('<<ENCAMINHAR_HUMANO>>')){
+  const handoffPolicy='\\n\\nTRANSFERÊNCIA: Se o cliente demonstrar confusão persistente, repetir que a Kiara não entendeu, tiver frustração com o atendimento, pedido humano ou situação fora do catálogo, responda APENAS <<ENCAMINHAR_HUMANO>>. Não transfira apenas porque o cliente respondeu não, mudou de ideia, fez uma pergunta normal ou ainda não informou uma medida. Em situações normais, esclareça com uma pergunta por vez.';
+  const answer = await generateReply(env, nextHistory, instructions+handoffPolicy);
+  if(answer.includes('<<ENCAMINHAR_HUMANO>>')){
     await humanRoute(env,route,sender,targetId,'A Kiara solicitou análise humana');
     return;
   }
