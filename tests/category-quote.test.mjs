@@ -33,3 +33,9 @@ test('valores incompletos não resultam em preço',()=>{
  const invalid=simulateCurtainQuote({...source,width:0},{pricing:settings,railType:'varao',rails:1});
  assert.equal(invalid.customerPriceAllowed,false);assert.equal(invalid.ready,false);
 });
+
+test('não subestima pedidos de duas faces ou com motorização',()=>{
+ const base={pricing:settings,railType:'varao',rails:1};
+ assert.equal(simulateCurtainQuote({...source,backCategory:'Forro convencional'},base).ready,false);
+ assert.equal(simulateCurtainQuote({...source,drive:'motorizada'},base).ready,false);
+});
