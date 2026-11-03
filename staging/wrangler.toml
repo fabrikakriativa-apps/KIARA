@@ -7,6 +7,6 @@ workers_dev = true
 [vars]
 SUPABASE_URL = "https://dpowbyexrcdcwwqysgzp.supabase.co"
 SUPABASE_PUBLISHABLE_KEY = "sb_publishable_5R2zVzcZQVAGGd72zXayFQ_zCp_tJkU"
-KIARA_DASHBOARD_ORIGIN = "https://fabrikakriativa-apps.github.io"
+KIARA_DASHBOARD_ORIGIN = "https://kiara-painel-homologacao.pages.dev"
 SUPABASE_ORGANIZATION_ID = "0e398095-cc22-421b-ae34-7bf0df8ad7b2"
 # Não incluir service_role, token WhatsApp, OpenAI, fila ou KV.
