@@ -108,6 +108,14 @@ export function KiaraReferenceImages(){
   else if(!result.data)setNotice('A alteração não foi confirmada. Atualize a lista e tente novamente.')
   else{setNotice(!row.active?'Imagem aprovada na biblioteca. O envio depende das configurações do atendimento.':'Imagem desativada.');setRefresh(x=>x+1)}
  }
+ const visible=images.filter(row=>{
+  if(categoryFilter!=='all'&&row.category!==categoryFilter)return false
+  if(statusFilter==='active'&&!row.active)return false
+  if(statusFilter==='inactive'&&row.active)return false
+  const term=search.trim().toLocaleLowerCase('pt-BR')
+  return !term||[row.title,row.model,row.description,row.product].some(value=>String(value||'').toLocaleLowerCase('pt-BR').includes(term))
+ })
+ const activeCount=images.filter(row=>row.active).length
  return <section className="kiara-reference-library">
   <h3>Biblioteca de imagens de referência</h3>
   <p>Organize e aprove referências visuais de produtos, modelos de confecção e composições. Os arquivos permanecem privados e só podem ser utilizados pela Kiara conforme as regras de atendimento e de envio habilitadas.</p>
