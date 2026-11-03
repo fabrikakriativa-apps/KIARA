@@ -2,7 +2,7 @@ import {useEffect,useMemo,useState} from 'react'
 import {BarChart3,ExternalLink,RefreshCcw,Search,Users} from 'lucide-react'
 import {useAccess} from '../components/AuthorizedAccess'
 import {supabase} from '../lib/supabase'
-import {prospectingUrl} from '../lib/kiaraProspecting'
+import {prospectingUrl,sendKiaraToProspecting} from '../lib/kiaraProspecting'
 import './KiaraLeads.css'
 
 type ChatLead={
@@ -20,6 +20,8 @@ export function KiaraLeads(){
  const [error,setError]=useState('')
  const [search,setSearch]=useState('')
  const [refresh,setRefresh]=useState(0)
+ const [promoting,setPromoting]=useState<string|null>(null)
+ const [notice,setNotice]=useState('')
  useEffect(()=>{
   if(!supabase||!access){setLoading(false);return}
   let active=true
@@ -46,6 +48,17 @@ export function KiaraLeads(){
   })()
   return()=>{active=false}
  },[access?.organizationId,refresh])
+ async function promote(chat:ChatLead){
+  if(!access||!chat.contact_phone||chat.lead_opportunity_id||promoting)return
+  if(!window.confirm('Encaminhar este contato à Prospecção? O sistema verificará a existência de oportunidade para evitar duplicidade.'))return
+  setPromoting(chat.id);setNotice('')
+  try{
+   const result=await sendKiaraToProspecting(access.organizationId,chat.id)
+   setNotice(result.created?'Oportunidade criada e vinculada à conversa.':'Contato vinculado a uma oportunidade já existente.')
+   setRefresh(n=>n+1)
+  }catch(e){setNotice(e instanceof Error?e.message:'Não foi possível encaminhar à Prospecção.')}
+  finally{setPromoting(null)}
+ }
  const filtered=useMemo(()=>chats.filter(c=>[c.contact_name,c.contact_phone,c.origin,c.campaign].some(v=>(v||'').toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR')))),[chats,search])
  const linked=chats.filter(c=>Boolean(c.lead_opportunity_id)).length
  const withCampaign=chats.filter(c=>Boolean(c.campaign)).length
@@ -59,12 +72,15 @@ export function KiaraLeads(){
   </div>
   <div className="kiara-leads-panel"><div className="kiara-leads-filter"><label><Search size={17}/><input placeholder="Filtrar contato, origem ou campanha" value={search} onChange={e=>setSearch(e.target.value)}/></label><span>{filtered.length} registros</span></div>
    {error&&<p role="alert" className="kiara-leads-error">{error}</p>}
+   {notice&&<p role="status" className="kiara-leads-notice">{notice}</p>}
    {loading?<p className="kiara-leads-empty">Carregando dados autorizados…</p>:filtered.length===0?<p className="kiara-leads-empty">Nenhum contato encontrado para este filtro.</p>:<div className="kiara-leads-table">
     <div className="kiara-leads-row header"><span>Contato</span><span>Campanha / origem</span><span>Prospecção</span><span>Último contato</span></div>
     {filtered.map(chat=>{const opportunity=chat.lead_opportunity_id?opportunities[chat.lead_opportunity_id]:null;return <div className="kiara-leads-row" key={chat.id}>
       <div><strong>{chat.contact_name||chat.contact_phone}</strong><small>{chat.contact_phone}</small></div>
       <div><strong>{chat.campaign||'Sem campanha'}</strong><small>{chat.origin||'Origem não informada'}</small></div>
-      <div>{opportunity?<><span className="kiara-leads-linked">Vinculado</span><small>{opportunity.commercial_phase||opportunity.stage}</small><a target="_blank" rel="noopener noreferrer" href={prospectingUrl(opportunity.id)}>Abrir Prospecção <ExternalLink size={12}/></a></>:<span className="kiara-leads-pending">Não enviado</span>}</div>
+      <div>{opportunity?<><span className="kiara-leads-linked">Vinculado</span><small>{opportunity.commercial_phase||opportunity.stage}</small><a target="_blank" rel="noopener noreferrer" href={prospectingUrl(opportunity.id)}>Abrir Prospecção <ExternalLink size={12}/></a></>:<><span className="kiara-leads-pending">Não enviado</span>{access?.role==='admin'||access?.role==='comercial'?
+       <button type="button" className="kiara-leads-promote" disabled={Boolean(promoting)||!chat.contact_phone}
+         onClick={()=>void promote(chat)}>{promoting===chat.id?'Encaminhando…':'Encaminhar à Prospecção'}</button>:null}</>}</div>
       <div><small>{new Date(chat.last_interaction_at).toLocaleString('pt-BR')}</small><a href={'?conversationId='+encodeURIComponent(chat.id)}>Ver conversa</a></div>
     </div>})}
    </div>}</div>
