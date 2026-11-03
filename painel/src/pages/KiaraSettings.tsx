@@ -62,7 +62,7 @@ export function KiaraSettings({onNavigate}:{onNavigate:(section:KiaraSection)=>v
     <span className="kiara-settings-tile-copy"><strong>{item.title}</strong><small>{item.description}</small></span>
     <ArrowRight size={15} className="kiara-settings-arrow"/>
    </button>)}
-  </div>:<div className="kiara-settings-detail">
+  </div>:<div className={`kiara-settings-detail${selected==='budgets'?' kiara-settings-detail--commercial':''}`}>
    <button type="button" className="kiara-settings-back" onClick={()=>setSelected(null)}><ArrowLeft size={16}/> Todas as configurações</button>
    <div className="kiara-settings-detail-title">{selectedItem&&<selectedItem.icon size={23}/>}<h2>{selectedItem?.title}</h2></div>
    {selected==='budgets'&&<KiaraCommercialSettings/>}
