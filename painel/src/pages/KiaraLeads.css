@@ -15,3 +15,8 @@
  .kiara-leads-page{padding:12px}
  .kiara-leads-page>header{gap:8px}
 }
+
+.kiara-leads-promote{padding:7px 10px;border:1px solid #c9d6f4;border-radius:8px;background:#f3f6ff;color:#365bb5;font-size:11px;font-weight:750;cursor:pointer;align-self:flex-start}
+.kiara-leads-promote:disabled{opacity:.55;cursor:not-allowed}
+.kiara-leads-promote:hover:not(:disabled){background:#e8efff}
+.kiara-leads-notice{margin:8px 15px;padding:10px 12px;border-radius:8px;background:#f5f8ff;color:#334972;font-size:12px}
