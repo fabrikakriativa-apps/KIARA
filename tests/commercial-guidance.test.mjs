@@ -17,7 +17,7 @@ test('sacada exige convenção, interiores não',()=>{
 });
 test('cortina: forro Franzida e instalação por face, sem custos',()=>{
  const text=commercialConversationRules([{product:'cortina',status:'approved',settings:{models:['Wave','Franzida'],categories:[{name:'Voil leve',costPerM2:123}],installation:{manualPerFace:60}}}]);
- assert.match(text,/forro como Franzida/);
+ assert.match(text,/forro é Franzida/);
  assert.match(text,/duas faces/);
  assert.doesNotMatch(text,/123|60/);
 });
