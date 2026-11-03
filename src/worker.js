@@ -787,10 +787,10 @@ function choiceFrom(message){
 }
 const choiceLabel=choice=>choice==='quick'?'Orçamento rápido':'Atendimento personalizado';
 const firstQuestion=choice=>choice==='quick'
-  ?'Perfeito! 😊 Vamos começar. Você procura cortina ou persiana, e para qual ambiente?'
-  :'Claro! 😊 Me conta um pouco sobre seu ambiente: você está pensando em cortina ou persiana, ou ainda está decidindo?';
+  ?'Perfeito! 😊 Vamos começar. Você procura cortina ou persiana?'
+  :'Claro! 😊 Você já sabe se prefere cortina ou persiana, ou quer ajuda para escolher?';
 const flowPrompt=choice=>choice==='quick'
- ? 'ROTEIRO ATIVO: ORÇAMENTO RÁPIDO. O cliente escolheu saber valores. Sem questionário e sem inventar preço, obtenha progressivamente produto (cortina/persiana), ambiente, largura e altura aproximadas, fotos opcionais e composição relevante (frente e forro, privacidade ou blackout, modelo, acionamento). Faça UMA pergunta útil por vez. Quando houver dados suficientes, resuma por ambiente e diga que a equipe preparará o valor para validação humana; nunca declare que gerou ou enviou orçamento. Se pedir pessoa, surgir serviço diferente ou dúvida técnica importante, responda exatamente <<ENCAMINHAR_HUMANO>>.'
+ ? 'ROTEIRO ATIVO: ORÇAMENTO RÁPIDO. O cliente escolheu saber valores. Sem questionário e sem inventar preço, obtenha progressivamente produto (cortina/persiana), ambiente, largura e altura aproximadas, fotos opcionais e composição relevante (frente e forro, privacidade ou blackout, modelo, acionamento). Faça UMA pergunta útil por mensagem e aproveite o que o cliente já informou. Quando houver dados suficientes, resuma por ambiente e diga que a equipe preparará o valor para validação humana; nunca declare que gerou ou enviou orçamento. Se pedir pessoa, surgir serviço diferente ou dúvida técnica importante, responda exatamente <<ENCAMINHAR_HUMANO>>.'
  : 'ROTEIRO ATIVO: ATENDIMENTO PERSONALIZADO. O cliente quer orientação na escolha, não só o preço. Converse de forma acolhedora, compreenda ambiente, objetivo de luz/privacidade, estética, preferências e necessidade antes de pedir medidas; uma pergunta por vez. Sugira possibilidades gerais somente quando comprovadas na base aprovada. Depois, organize uma proposta de composição de cortina ou persiana para avaliação da equipe e orçamento sujeito a aprovação. Não prometa preço, visita ou data. Se pedir pessoa, surgir serviço diferente ou dúvida técnica importante, responda exatamente <<ENCAMINHAR_HUMANO>>.';
 async function sendChoiceButtons(route,to){
   const response=await fetch('https://graph.facebook.com/'+GRAPH_VERSION+'/'+route.phoneId+'/messages',{
