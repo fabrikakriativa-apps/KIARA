@@ -107,7 +107,7 @@ export function KiaraBlindSettings(){
  const suggestedCount=Number.isFinite(w)&&w>0?Math.ceil((area==='window'?w+2*t.windowSideAllowanceCm/100:w)/t.recommendedMaxWidth):null
  const model=data.models.find(m=>m.id===modelId&&m.active)
  const dimensionOK=Number.isFinite(measuredWidth)&&measuredWidth>=manualMinimum&&measuredWidth<=t.maxPieceWidth&&h>0&&h<=t.maxPieceHeight&&count>0&&count<=t.maxPieces
- const condoBlocked=condo==='yes'&&rules==='different'
+ const condoBlocked=area==='balcony'&&condo==='yes'&&rules==='different'
  // Sem separação frente/lateral e altura de cada segmento, a geometria da varanda é incompleta.
  const reviewLarge=Number.isFinite(measuredWidth)&&measuredWidth>1.8
  const balconyBlocked=area==='balcony'&&(!photosConfirmed||Number(segments)!==1||glass==='unknown')
@@ -118,11 +118,11 @@ export function KiaraBlindSettings(){
  const price=ready?Math.round(((fabric+installation)*(1+(data.pricing.markupPercent??0)/100)+motor)*100)/100:null
  return <section className="kiara-blinds-panel">
   <h3>Persianas — configurações comerciais e triagem</h3>
-  <p>Primeiro verificar condomínio, tipo de ambiente, vidro e medidas. A estimativa é apenas interna e depende dos parâmetros comerciais preenchidos.</p>
+  <p>Primeiro identificar o ambiente. Regras de fachada do condomínio devem ser verificadas prioritariamente para sacadas e varandas, não para cortinas ou persianas internas. A estimativa é apenas interna e depende dos parâmetros comerciais preenchidos.</p>
   {loading?<p>Carregando…</p>:<>
    <p><strong>Estado:</strong> {stored?.status==='approved'?'Aprovada':stored?'Rascunho':'Sem configuração'} · Revisão {stored?.revision??'—'} {dirty?'· não salvo':''}</p>
    <h4>Triagem que a Kiara deverá seguir</h4>
-   <p>Primeiro perguntar se mora em prédio; se sim, perguntar se conferiu as regras do condomínio para modelo, cor e instalação. Uma pergunta por mensagem.</p>
+   <p>Primeiro perguntar onde será instalada a persiana. Para sacada/varanda de prédio, perguntar se conferiu as regras do condomínio para modelo, cor e instalação. Para quarto, sala ou outros ambientes internos, seguir livremente pelas preferências do cliente, sem presumir restrições de fachada. Uma pergunta por mensagem.</p>
    <p>Para varanda, pedir fotos e esclarecer frente, lateral, comprimento, largura e altura; verificar se o vidro vai do piso ao teto ou começa sobre guarda-corpo. Se não souber as regras, usar os parâmetros padrão apenas como referência provisória.</p>
    <h4>Padrões para cliente sem regras conhecidas</h4>
    <div className="kiara-pricing-form">
@@ -131,7 +131,7 @@ export function KiaraBlindSettings(){
     <label>Visibilidade padrão<input disabled={!admin} value={data.defaults.openness} onChange={e=>setDefault('openness',e.target.value)}/></label>
     <label>Forma de instalação padrão<select disabled={!admin} value={data.defaults.layout} onChange={e=>setDefault('layout',e.target.value)}><option value="overlap">Transpassada (sobreposta)</option><option value="side_by_side">Lado a lado</option></select></label>
    </div>
-   <p>Esses padrões são provisórios e sempre sujeitos à convenção do condomínio. Não afirmar que o condomínio aprovou o padrão.</p>
+   <p>O padrão rolô off-white 1% transpassada é uma referência provisória principalmente para sacadas sem especificações conhecidas. Em ambientes internos, modelo, cor e transparência devem seguir a necessidade e o gosto do cliente.</p>
    <h4>Limites técnicos e divisão</h4>
    <div className="kiara-pricing-form">
     <label>Largura máxima técnica por folha (m)<input type="number" min="0.01" step=".01" disabled={!admin} value={t.maxPieceWidth} onChange={e=>setLimit('maxPieceWidth',Number(e.target.value))}/></label>
@@ -169,8 +169,8 @@ export function KiaraBlindSettings(){
     <h4>Teste interno — triagem e persianas</h4>
     <div className="kiara-pricing-form">
      <label>Ambiente<select value={area} onChange={e=>setArea(e.target.value as Area)}><option value="window">Janela</option><option value="balcony">Varanda envidraçada</option></select></label>
-     <label>Cliente mora em prédio?<select value={condo} onChange={e=>setCondo(e.target.value)}><option value="unknown">Não informado</option><option value="yes">Sim</option><option value="no">Não</option></select></label>
-     {condo==='yes'&&<label>Conferiu as regras do condomínio?<select value={rules} onChange={e=>setRules(e.target.value)}><option value="unknown">Não sabe / ainda não conferiu</option><option value="standard">Sim, compatíveis com o padrão</option><option value="different">Sim, regras específicas</option></select></label>}
+     {area==='balcony'&&<label>Cliente mora em prédio?<select value={condo} onChange={e=>setCondo(e.target.value)}><option value="unknown">Não informado</option><option value="yes">Sim</option><option value="no">Não</option></select></label>}
+     {area==='balcony'&&condo==='yes'&&<label>Conferiu as regras do condomínio?<select value={rules} onChange={e=>setRules(e.target.value)}><option value="unknown">Não sabe / ainda não conferiu</option><option value="standard">Sim, compatíveis com o padrão</option><option value="different">Sim, regras específicas</option></select></label>}
      <label>Instalação prevista<select value={layout} onChange={e=>setLayout(e.target.value)}><option value="unknown">Não sabe — usar padrão provisório</option><option value="overlap">Transpassada (sobreposta)</option><option value="side_by_side">Lado a lado</option></select></label>
      {area==='balcony'&&<>
       <label>Vidro / guarda-corpo<select value={glass} onChange={e=>setGlass(e.target.value)}><option value="unknown">Ainda não sabe</option><option value="full">Vidro do piso ao teto</option><option value="half">Vidro sobre guarda-corpo de alvenaria</option></select></label>
@@ -183,7 +183,7 @@ export function KiaraBlindSettings(){
      <label>Quantidade de folhas<input type="number" min="1" value={pieces} onChange={e=>setPieces(e.target.value)} placeholder="Definir pela divisão"/></label>
      <label className="kiara-blinds-checkbox"><input type="checkbox" checked={motorized} onChange={e=>setMotorized(e.target.checked)}/> Motorizada</label>
     </div>
-    <p><strong>Modelo de referência se as regras não forem conhecidas:</strong> {data.defaults.model}, {data.defaults.color}, visibilidade {data.defaults.openness}, instalação {layoutName(selectedLayout)}. Sujeito à confirmação do condomínio.</p>
+    {area==='balcony'&&<p><strong>Referência provisória para sacada sem regras conhecidas:</strong> {data.defaults.model}, {data.defaults.color}, visibilidade {data.defaults.openness}, instalação {layoutName(selectedLayout)}. Sujeita à confirmação do condomínio quando aplicável.</p>}
     {suggestedCount!==null&&<p>Divisão inicial sugerida pela largura: aproximadamente {suggestedCount} folha(s), antes de conferir sobreposição e dimensões técnicas. Preferência por 0,90–1,20 m por folha, sempre que possível.</p>}
     {area==='balcony'&&<p>Em varanda, pedir foto da frente e das laterais e identificar largura, comprimento e altura de cada trecho. Se houver meia parede, não usar a altura total do piso ao teto como altura do vidro.</p>}
     {count>0&&Number.isFinite(measuredWidth)&&<p>Estimativa geométrica: {count} folha(s) com cerca de {measuredWidth.toLocaleString('pt-BR',{maximumFractionDigits:3})} m de largura fabricada cada; {selectedLayout==='overlap'?'sobreposição incluída onde aplicável':'lado a lado sem sobreposição interna'}. Conferir divisão antes do pedido.</p>}
