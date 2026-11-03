@@ -5,6 +5,9 @@ const finite=n=>typeof n==='number'&&Number.isFinite(n);
 function calculateCategoryCurtain(input,settings){
  const errors=[];
  if(settings?.methodology!=='commercial_categories_v1')errors.push('Metodologia não configurada');
+ if(input?.backCategory&&input.backCategory!=='Sem forro')errors.push('Orçar o forro como segunda face separada');
+ if(input?.drive==='motorizada')errors.push('Motorização exige revisão e simulação específica');
+ if(input?.model&&!settings?.models?.includes(input.model))errors.push('Modelo não cadastrado');
  const width=Number(input?.width),height=Number(input?.height),quantity=Number(input?.quantity??1);
  const year=Number(input?.year??settings?.referenceYear??2026);
  if(!(width>0&&width<=(settings?.technicalLimits?.maxWidth||30)))errors.push('Largura inválida');
