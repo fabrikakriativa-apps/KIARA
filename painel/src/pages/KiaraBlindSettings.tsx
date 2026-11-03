@@ -102,7 +102,7 @@ export function KiaraBlindSettings(){
  // Janela: acrescenta 10 cm em cada extremidade ao vão total, uma única vez.
  // Cada folha transpassada recebe 10 cm de cada lado, contabilizados na área.
  const baseWidth=area==='window'&&selectedLayout==='side_by_side'?w+2*t.windowSideAllowanceCm/100:w
- const eachWidth=baseWidth/count+(selectedLayout==='overlap'&&count>1?2*t.overlapCm/100:0)
+ const eachWidth=baseWidth/count+(selectedLayout==='overlap'?2*t.overlapCm/100:0)
  const measuredWidth=eachWidth
  const suggestedCount=Number.isFinite(w)&&w>0?Math.ceil((area==='window'?w+2*t.windowSideAllowanceCm/100:w)/t.recommendedMaxWidth):null
  const model=data.models.find(m=>m.id===modelId&&m.active)
