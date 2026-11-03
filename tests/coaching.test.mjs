@@ -3,7 +3,8 @@ import test from 'node:test';
 import { readFileSync } from 'node:fs';
 
 const source=readFileSync(new URL('../src/worker.js', import.meta.url),'utf8').replace("import { quoteIntakePrompt } from './quote-intake.js';",readFileSync(new URL('../src/quote-intake.js',import.meta.url),'utf8').replaceAll('export ','')).replace("import { simulateCurtainQuote } from './quote-pricing.js';",readFileSync(new URL('../src/quote-pricing.js',import.meta.url),'utf8').replaceAll('export ','')).replace("import { normalizeCurtainIntake, extractConversationInstructions } from './quote-conversation.js';",readFileSync(new URL('../src/quote-conversation.js',import.meta.url),'utf8').replaceAll('export ','')).replace("import { commercialConversationRules } from './commercial-guidance.js';",readFileSync(new URL('../src/commercial-guidance.js',import.meta.url),'utf8').replaceAll('export ',''));
-const testable=source.replace('export default {','export const __test={consumeMessage,coachingRequest,readHold,getGuidance,pendingCustomerBatch};\nexport default {');
+const usable=source.replace("import {chooseFinishImages,requestedFinishImages} from './media-reference.js';",'const chooseFinishImages=()=>[]; const requestedFinishImages=()=>[];').replace("import {sendKiaraImage} from './send-media.js';",'const sendKiaraImage=async()=>null;');
+const testable=usable.replace('export default {','export const __test={consumeMessage,coachingRequest,readHold,getGuidance,pendingCustomerBatch};\nexport default {');
 if(testable===source)throw Error('Worker entrypoint not found');
 const {__test}=await import('data:text/javascript;base64,'+Buffer.from(testable).toString('base64'));
 const wa='5511999999999',cid='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',org='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
