@@ -81,9 +81,54 @@ function priceReference(settings,category,model,position){
  return {category,model,unit,sample,scope:exact?'modelo':'categoria',
   reliability:position==='front'&&exact&&sample>=5?'model_reference':'exploratory'};
 }
+export function simulateCurtainComposition(input,config={}){
+ const settings=config.pricing;
+ if(settings?.methodology!=='commercial_categories_v1')return {ready:false,errors:['Metodologia comercial não aprovada'],customerPriceAllowed:false};
+ if(config.markup!==undefined||config.installation!==undefined)return {ready:false,errors:['Substituição de preço não autorizada'],customerPriceAllowed:false};
+ if(input?.drive==='motorizada')return {ready:false,errors:['Motorização exige análise personalizada'],customerPriceAllowed:false};
+ const faces=Array.isArray(input?.faces)?input.faces:[];
+ if(!faces.length||faces.length>2)return {ready:false,errors:['Informe uma ou duas faces de tecido'],customerPriceAllowed:false};
+ const width=Number(input.width),height=Number(input.height),quantity=Number(input.quantity??1);
+ const railType=config.railType,rails=Number(config.rails??1);
+ const errors=[];
+ if(!Number.isFinite(width)||width<=0||width>settings.technicalLimits?.maxWidth)errors.push('Largura inválida');
+ if(!Number.isFinite(height)||height<=0||height>settings.technicalLimits?.maxHeight)errors.push('Altura inválida');
+ if(!Number.isInteger(quantity)||quantity<1||quantity>settings.technicalLimits?.maxQuantity)errors.push('Quantidade inválida');
+ if(!Number.isInteger(rails)||rails<0||rails>4)errors.push('Quantidade de trilhos inválida');
+ const rail=settings.rails?.find(x=>x.id===railType&&x.active!==false);
+ if(!rail||!Number.isFinite(rail.costPerMeter)||rail.costPerMeter<0)errors.push('Trilho inválido');
+ if(rails===0&&rail&&rail.costPerMeter!==0)errors.push('Escolha Sem Trilho quando não houver trilho');
+ if(!Number.isFinite(settings.installation?.manualPerFace)||settings.installation.manualPerFace<0)errors.push('Instalação inválida');
+ if(!Number.isFinite(settings.pricing?.markupPercent)||settings.pricing.markupPercent<0||settings.pricing.markupPercent>500)errors.push('Acréscimo inválido');
+ const year=Number(input?.year??settings.referenceYear);
+ const annual=Number(settings?.annualAdjustmentPercent??0);
+ if(!Number.isInteger(year)||year<2022||year>2100||!Number.isFinite(annual)||annual<=-100||annual>100)errors.push('Reajuste ou ano inválido');
+ const details=[];
+ for(const face of faces){
+  const cat=settings.categories?.find(c=>c.name===face.category&&c.active!==false);
+  if(!cat||!Number.isFinite(cat.costPerM2)||cat.costPerM2<=0){errors.push('Categoria de tecido inválida');continue;}
+  const base=Number(cat.baseYear??settings.referenceYear);
+  if(!Number.isInteger(base)||year<base){errors.push('Ano anterior ao tecido');continue;}
+  const cost=width*height*quantity*cat.costPerM2*Math.pow(1+annual/100,year-base);
+  const installation=face.includeInstallation===false?0:quantity*settings.installation.manualPerFace;
+  details.push({category:cat.name,sample:cat.records||0,material:money(cost),installation:money(installation),total:cost+installation});
+ }
+ if(rail){const base=Number(rail.baseYear??settings.referenceYear);if(!Number.isInteger(base)||year<base)errors.push('Ano anterior ao trilho');}
+ if(errors.length||details.length!==faces.length)return {ready:false,errors,customerPriceAllowed:false};
+ const railYear=Number(rail.baseYear??settings.referenceYear);
+ const tracks=width*quantity*rails*rail.costPerMeter*Math.pow(1+annual/100,year-railYear);
+ const cost=details.reduce((v,f)=>v+f.total,0)+tracks;
+ const total=money(cost*(1+settings.pricing.markupPercent/100));
+ return {ready:true,customerPriceAllowed:false,reviewRequired:true,status:'internal_review',
+  product:'cortina',methodology:settings.methodology,configurationRevision:config.revision??null,
+  faces:details.map(({total,...face})=>face),costs:{rails:money(tracks),total:money(cost)},
+  markup:settings.pricing.markupPercent/100,internalSuggestedSale:total,
+  warnings:['Estimativa comercial interna; conferir escolha do tecido e quantidades de trilhos']};
+}
 export function simulateCurtainQuote(input,config={}){
  if(config.pricing?.methodology==='commercial_categories_v1'){
   if(config.markup!==undefined||config.installation!==undefined)return {ready:false,errors:['Alteração comercial não autorizada'],customerPriceAllowed:false};
+  if(Array.isArray(input?.faces))return simulateCurtainComposition(input,config);
   return {...calculateCategoryCurtain({...input,railType:config.railType,rails:config.rails},config.pricing),configurationRevision:config.revision??null};
  }
  const errors=[],warnings=[];
