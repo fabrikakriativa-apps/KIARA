@@ -1007,6 +1007,15 @@ async function loadCommercialHistory(env, route, sender, requiredMessageId) {
   }));
 }
 
+// Recurso opcional: apenas imagens ativas e contato de teste.
+const mediaEnabled=env=>env.KIARA_MEDIA_ENABLED==='true'&&syncActive(env)&&env.KIARA_HOLD_ENABLED==='true'&&controlActive(env);
+async function approvedFinishImages(env,text){
+ if(!mediaEnabled(env)||!requestedFinishImages(text).length)return [];
+ const rows=await dbRequest(env,'kiara_reference_images','GET',
+  '?select=id,product,model,title,storage_path,active'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
+  '&product=eq.cortina&active=is.true&limit=100');
+ return chooseFinishImages(text,rows);
+}
 async function consumeMessage(env, job) {
   const route = routeBySource(job.source, env);
   if (!route) return;
