@@ -14,3 +14,5 @@ Publicação isolada: botão Testar precificação na área de Configurações, 
 Publicar layout horizontal da precificação e forro Franzida por padrão, apenas painel isolado de homologação, sem alteração de custos e Worker.
 
 Publicar simulador com composição única frente/forro Franzida, trilhos/instalação/motorização por conjunto, painel isolado, sem alterações no Worker ou Supabase.
+
+Corrigir instalação por face na calculadora completa: 1 face manual R$60, frente+forro manual R$120, motorização conforme parâmetros por face; somente painel de homologação, sem Worker.
