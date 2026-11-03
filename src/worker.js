@@ -1214,7 +1214,7 @@ async function pricingSimulationRequest(request,env){
  // Uma revisão em rascunho pode ser simulada somente por administrador,
  // sem extração de conversa, criação de proposta ou envio ao WhatsApp.
  const draftRequested=payload?.mode==='draft';
- if(draftRequested&&(rows[0]?.role!=='admin'||payload?.conversationId))
+ if(draftRequested&&(!rows.some(x=>x.role==='admin')||payload?.conversationId))
   return reply({error:'Rascunho restrito à simulação manual do administrador'},403);
  const records=await dbRequest(env,'kiara_commercial_config','GET',
   '?select=revision,settings,status'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
