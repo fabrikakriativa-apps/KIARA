@@ -20,3 +20,5 @@ Corrigir instalação por face na calculadora completa: 1 face manual R$60, fren
 Publicar painel de parâmetros comerciais de persianas e simulação interna de rascunho; sem preços pré-definidos, sem alterar Worker, sem autorizar envios automáticos.
 
 Publicar formulario de persianas: condominio, referencias provisórias, janela e varanda envidraçada, larguras minimas e sobreposicao. Apenas painel de homologacao.
+
+Publicar regra de condominio focada em sacadas/varandas, sem aplicar restricao automaticamente a ambientes internos. Somente painel de homologacao.
