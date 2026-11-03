@@ -9,7 +9,7 @@ export function commercialConversationRules(rows){
    const models=Array.isArray(s.models)?s.models.map(cleanCommercialValue).filter(Boolean).slice(0,15):[];
    const categories=Array.isArray(s.categories)?s.categories.filter(x=>x?.active!==false).map(x=>cleanCommercialValue(x.name)).filter(Boolean).slice(0,25):[];
    if(!models.length||!categories.length)continue;
-   sections.push('CORTINAS (configuração aprovada): modelos disponíveis: '+models.join(', ')+'. Categorias comerciais: '+categories.join(', ')+'. Para frente e forro, sempre tratar o forro como Franzida. A instalação é por FACE de tecido: frente + forro são duas faces. Não calcular preços nesta conversa; encaminhar orçamento para a ferramenta interna e revisão humana.');
+   sections.push('CORTINAS (configuração aprovada): modelos disponíveis: '+models.join(', ')+'. Categorias comerciais: '+categories.join(', ')+'. Para cortina com duas faces de tecido, o forro é Franzida. Se a segunda peça for persiana, ela funciona atrás como forro, mas NÃO é segunda face de tecido. A face frontal da cortina é chamada VOIL, mesmo se for confeccionada em qualquer outro tecido. A instalação é por FACE de tecido: frente + forro são duas faces. Não calcular preços nesta conversa; encaminhar orçamento para a ferramenta interna e revisão humana.');
   }
   if(row.product==='persiana'){
    const defaults=s.defaults||{};
