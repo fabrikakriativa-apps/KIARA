@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
 const source=readFileSync(new URL('../src/worker.js',import.meta.url),'utf8').replace("import { quoteIntakePrompt } from './quote-intake.js';",readFileSync(new URL('../src/quote-intake.js',import.meta.url),'utf8').replaceAll('export ','')).replace("import { simulateCurtainQuote } from './quote-pricing.js';",readFileSync(new URL('../src/quote-pricing.js',import.meta.url),'utf8').replaceAll('export ','')).replace("import { normalizeCurtainIntake, extractConversationInstructions } from './quote-conversation.js';",readFileSync(new URL('../src/quote-conversation.js',import.meta.url),'utf8').replaceAll('export ','')).replace("import { commercialConversationRules } from './commercial-guidance.js';",readFileSync(new URL('../src/commercial-guidance.js',import.meta.url),'utf8').replaceAll('export ',''));
-const instrumented=source.replace('export default {','export const __audio={receiveMessage,consumeMessage,downloadAudio,transcribeAudio,assessAudio,handleAudioJob};\nexport default {');
+const usable=source.replace("import {chooseFinishImages,requestedFinishImages} from './media-reference.js';",'const chooseFinishImages=()=>[]; const requestedFinishImages=()=>[];').replace("import {sendKiaraImage} from './send-media.js';",'const sendKiaraImage=async()=>null;');
+const instrumented=usable.replace('export default {','export const __audio={receiveMessage,consumeMessage,downloadAudio,transcribeAudio,assessAudio,handleAudioJob};\nexport default {');
 if(instrumented===source)throw Error('Worker export not found');
 const {__audio}=await import('data:text/javascript;base64,'+Buffer.from(instrumented).toString('base64'));
 const wa='5511999999999',mid='message-voice-1',aid='123456789012';
