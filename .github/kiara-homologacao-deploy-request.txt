@@ -10,3 +10,5 @@ Republicar após corrigir a tentativa indevida de criar projeto Pages já existe
 Publicar ajuste visual dos botões de configuração comercial (adicionar, remover, salvar e aprovar), sem alterar preços ou Worker.
 
 Publicação isolada: botão Testar precificação na área de Configurações, com rascunho somente para testes internos, sem envio e sem alterar Worker.
+
+Publicar layout horizontal da precificação e forro Franzida por padrão, apenas painel isolado de homologação, sem alteração de custos e Worker.
