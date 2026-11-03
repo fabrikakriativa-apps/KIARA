@@ -102,10 +102,11 @@ export function KiaraReferenceImages(){
   if(!supabase||!admin||busy)return
   setBusy(true);setNotice('')
   const result=await supabase.from('kiara_reference_images').update({active:!row.active,updated_at:new Date().toISOString()})
-   .eq('organization_id',access!.organizationId).eq('id',row.id)
+   .eq('organization_id',access!.organizationId).eq('id',row.id).eq('active',row.active).select('id').maybeSingle()
   setBusy(false)
   if(result.error)setNotice('Falha ao alterar a imagem: '+result.error.message)
-  else{setNotice(!row.active?'Imagem aprovada na biblioteca. A disponibilidade para envio depende das configurações do atendimento.':'Imagem desativada.');setRefresh(x=>x+1)}
+  else if(!result.data)setNotice('A alteração não foi confirmada. Atualize a lista e tente novamente.')
+  else{setNotice(!row.active?'Imagem aprovada na biblioteca. O envio depende das configurações do atendimento.':'Imagem desativada.');setRefresh(x=>x+1)}
  }
  return <section className="kiara-reference-library">
   <h3>Biblioteca de imagens de referência</h3>
