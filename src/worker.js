@@ -847,7 +847,7 @@ const conversationalBreakdown=text=>{
  const t=String(text||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
  return /\b(?:nao entendi|voce nao entendeu|nao esta entendendo|ja expliquei|ja respondi|ja falei|esta repetindo|voce repetiu|estou confus[oa]|fiquei confus[oa]|nao foi isso|nao e isso que pedi|isso nao faz sentido|parece que nao me entende|nao consegue me ajudar)\b/.test(t);
 };
-const mustEscalate=text=>humanRequested(text)||outsideScope(text)||conversationalBreakdown(text);
+export const mustEscalate=text=>humanRequested(text)||outsideScope(text)||conversationalBreakdown(text);
 const outsideScope=text=>/\b(?:sofa|sofá|estofad[oa]s?|cabeceira|pap[eé]is? de parede|cadeira|poltrona|reforma|conserto|manuten[cç][aã]o|tapete|colch[aã]o)\b/i.test(text);
 function choiceFrom(message){
   if(message.type==='interactive' && message.interactive?.type==='button_reply'){
