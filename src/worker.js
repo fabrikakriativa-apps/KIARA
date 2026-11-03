@@ -1012,8 +1012,8 @@ const mediaEnabled=env=>env.KIARA_MEDIA_ENABLED==='true'&&syncActive(env)&&env.K
 async function approvedFinishImages(env,text){
  if(!mediaEnabled(env)||!requestedFinishImages(text).length)return [];
  const rows=await dbRequest(env,'kiara_reference_images','GET',
-  '?select=id,product,model,title,storage_path,active'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
-  '&product=eq.cortina&active=is.true&limit=100');
+  '?select=id,product,model,title,storage_path,active,category'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
+  '&product=eq.cortina&category=eq.modelo_confeccao&active=is.true&limit=100');
  return chooseFinishImages(text,rows);
 }
 async function sendFinishImages(env,route,sender,refs,targetId,conversation){
