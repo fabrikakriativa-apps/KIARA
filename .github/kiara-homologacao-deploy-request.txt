@@ -32,3 +32,5 @@ Ajuste importacao visual: instrucoes para ZIP simplificado de 22 fotos, selecion
 Atualizar painel de homologação: importador genérico permanente de imagens, edição por arquivo, campos em lote, textos atemporais e revisão individual; não alterar Worker de produção.
 
 Atualizar painel isolado de homologação: filtros, edição de metadados em referências inativas e confirmação de persistência. Worker e WhatsApp de produção permanecem inalterados.
+
+Publicar APENAS o painel de homologação com novo editor de preços de cortinas por categoria comercial (base planilha de 03/11/2026); sem atualizar Worker em produção e sem autorizar mensagens automáticas de preço.
