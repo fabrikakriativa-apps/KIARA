@@ -71,11 +71,11 @@ export function KiaraReferenceImages(){
    .eq('organization_id',access!.organizationId).eq('id',row.id)
   setBusy(false)
   if(result.error)setNotice('Falha ao alterar a imagem: '+result.error.message)
-  else{setNotice(!row.active?'Imagem aprovada e ativa na biblioteca; envio pelo WhatsApp ainda não está habilitado.':'Imagem desativada.');setRefresh(x=>x+1)}
+  else{setNotice(!row.active?'Imagem aprovada na biblioteca. A disponibilidade para envio depende das configurações do atendimento.':'Imagem desativada.');setRefresh(x=>x+1)}
  }
  return <section className="kiara-reference-library">
   <h3>Biblioteca de imagens de referência</h3>
-  <p>Cadastre fotos reais dos modelos e aprove individualmente. Os arquivos ficam em um espaço privado da Fábrika. A biblioteca ainda não envia imagens automaticamente no WhatsApp.</p>
+  <p>Organize e aprove referências visuais de produtos, modelos de confecção e composições. Os arquivos permanecem privados e só podem ser utilizados pela Kiara conforme as regras de atendimento e de envio habilitadas.</p>
   {admin&&<div className="kiara-reference-editor">
    <h4>Adicionar referência</h4>
    <div className="kiara-pricing-form">
@@ -91,7 +91,7 @@ export function KiaraReferenceImages(){
   {admin&&<KiaraBatchReferenceUpload onImported={()=>setRefresh(x=>x+1)}/>}
   {notice&&<p role="status">{notice}</p>}
   <h4>Referências cadastradas ({images.length})</h4>
-  {loading?<p>Carregando imagens…</p>:images.length===0?<p>Nenhuma imagem cadastrada. Comece com fotos aprovadas dos modelos mais pedidos.</p>:
+  {loading?<p>Carregando imagens…</p>:images.length===0?<p>Nenhuma referência cadastrada. Adicione imagens individualmente ou utilize a importação em lote.</p>:
    <div className="kiara-reference-grid">{images.map(row=><article className="kiara-reference-item" key={row.id}>
     {row.url?<img src={row.url} alt={row.title} loading="lazy"/>:<div className="kiara-reference-unavailable">Prévia indisponível</div>}
     <div><strong>{row.title}</strong><small>{row.product==='cortina'?'Cortina':'Persiana'} · {row.model} · {row.category==='modelo_confeccao'?'Modelo de confecção':row.category==='composicao'?'Composição':'Produto e tecido'}</small>
@@ -100,6 +100,6 @@ export function KiaraReferenceImages(){
      {admin&&<button type="button" disabled={busy} onClick={()=>void toggle(row)}>{row.active?'Desativar imagem':'Aprovar e ativar'}</button>}
     </div>
    </article>)}</div>}
-  <p><small>As imagens são referências ilustrativas, não garantias de disponibilidade ou resultado. O envio automático depende de integração específica do Worker e testes com a API do WhatsApp.</small></p>
+  <p><small>As imagens são ilustrativas, não garantias de disponibilidade ou resultado. A aprovação na biblioteca não ativa, por si só, o envio automático pelo WhatsApp.</small></p>
  </section>
 }
