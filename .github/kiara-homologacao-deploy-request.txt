@@ -36,3 +36,5 @@ Atualizar painel isolado de homologação: filtros, edição de metadados em ref
 Publicar APENAS o painel de homologação com novo editor de preços de cortinas por categoria comercial (base planilha de 03/11/2026); sem atualizar Worker em produção e sem autorizar mensagens automáticas de preço.
 
 Ajuste complementar da interface: modelos e parâmetros especiais permanecem editáveis, mas sem afetar o cálculo por média de categoria. Publicar apenas painel homologação.
+
+Atualização do simulador comercial: cálculo por faces frente/forro com trilhos compartilhados, validação de ano-base e utilização das categorias da revisão comercial. Somente painel de homologação; Worker e WhatsApp de produção inalterados.
