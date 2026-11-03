@@ -10,6 +10,12 @@ test('não envia catálogo ou imagem sem pedido visual e modelo',()=>{
  assert.deepEqual(requestedFinishImages('Pode mostrar a wave?'),['Wave']);
  assert.equal(chooseFinishImages('Pode mostrar a wave?',[ref]).length,1);
 });
+test('reconhece variações de escrita dos modelos sem sugerir catálogo',()=>{
+ assert.deepEqual(requestedFinishImages('Pode mostrar a franzida?'),['Prega franzida']);
+ assert.deepEqual(requestedFinishImages('Quero ver préga franzída e wave'),['Prega franzida','Wave']);
+ assert.deepEqual(requestedFinishImages('Me mostra prega-macho?'),['Prega macho']);
+ assert.deepEqual(requestedFinishImages('Quero comparar todas as cortinas'),[]);
+});
 test('não envia imagens inativas',()=>{
  assert.equal(chooseFinishImages('Quero imagem wave',[{...ref,active:false}]).length,0);
 });
