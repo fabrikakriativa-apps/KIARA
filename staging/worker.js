@@ -8,9 +8,9 @@ if (typeof kiara?.fetch !== 'function' || typeof kiara?.queue !== 'function') {
 }
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const noStore = {'Cache-Control':'no-store'};
-function cors(env, origin){
+function cors(env, origin, methods='GET, OPTIONS'){
   return origin && origin === env.KIARA_DASHBOARD_ORIGIN
-    ? {...noStore,'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Methods':'GET, POST, OPTIONS',
+    ? {...noStore,'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Methods':methods,
         'Access-Control-Allow-Headers':'Authorization, Content-Type','Vary':'Origin'}
     : noStore;
 }
@@ -48,7 +48,7 @@ async function authenticatedRead(request,env,url){
 // O staging continua proibido de enviar mensagens, alterar conversas ou operar filas.
 async function priceSimulation(request,env){
  const origin=request.headers.get('Origin')||'';
- const headers=cors(env,origin);
+ const headers=cors(env,origin,'POST, OPTIONS');
  if(origin!==env.KIARA_DASHBOARD_ORIGIN)return json({error:'Origem não autorizada'},403,headers);
  if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
  if(request.method!=='POST')return json({error:'Método não permitido'},405,headers);
@@ -96,7 +96,7 @@ export default {
     });
     if(url.pathname==='/kiara/pricing/simulate'){
       try{return await priceSimulation(request,env)}
-      catch(error){console.error('Staging simulation failed',String(error?.message||''));return json({error:'Simulação indisponível'},503,cors(env,request.headers.get('Origin')))}
+      catch(error){console.error('Staging simulation failed',String(error?.message||''));return json({error:'Simulação indisponível'},503,cors(env,request.headers.get('Origin'),'POST, OPTIONS'))}
     }
     if(url.pathname==='/kiara/coach' && ['GET','OPTIONS'].includes(request.method)){
       try{return await authenticatedRead(request,env,url)}
