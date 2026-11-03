@@ -22,3 +22,5 @@ Publicar painel de parâmetros comerciais de persianas e simulação interna de 
 Publicar formulario de persianas: condominio, referencias provisórias, janela e varanda envidraçada, larguras minimas e sobreposicao. Apenas painel de homologacao.
 
 Publicar regra de condominio focada em sacadas/varandas, sem aplicar restricao automaticamente a ambientes internos. Somente painel de homologacao.
+
+Publicar cadastro privado de imagens e aprovacao na biblioteca visual. Flow de abertura corrigido na branch homologacao do Worker, sem deploy operacional.
