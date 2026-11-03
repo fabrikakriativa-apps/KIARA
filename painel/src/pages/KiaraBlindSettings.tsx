@@ -109,8 +109,9 @@ export function KiaraBlindSettings(){
  const dimensionOK=Number.isFinite(measuredWidth)&&measuredWidth>=manualMinimum&&measuredWidth<=t.maxPieceWidth&&h>0&&h<=t.maxPieceHeight&&count>0&&count<=t.maxPieces
  const condoBlocked=condo==='yes'&&rules==='different'
  // Sem separação frente/lateral e altura de cada segmento, a geometria da varanda é incompleta.
+ const reviewLarge=Number.isFinite(measuredWidth)&&measuredWidth>1.8
  const balconyBlocked=area==='balcony'&&(!photosConfirmed||Number(segments)!==1||glass==='unknown')
- const ready=Boolean(stored&&!dirty&&model&&validate(data).length===0&&dimensionOK&&!condoBlocked&&!balconyBlocked)
+ const ready=Boolean(stored&&!dirty&&model&&validate(data).length===0&&dimensionOK&&!reviewLarge&&!condoBlocked&&!balconyBlocked)
  const fabric=ready?Math.max(measuredWidth*h*(model!.costPerM2??0),model!.minCost??0)*count:0
  const installation=ready?count*(motorized?data.installation.motorPerPiece??0:data.installation.manualPerPiece??0):0
  const motor=ready&&motorized?count*(data.motorization.saleSurchargePerPiece??0):0
@@ -120,6 +121,9 @@ export function KiaraBlindSettings(){
   <p>Primeiro verificar condomínio, tipo de ambiente, vidro e medidas. A estimativa é apenas interna e depende dos parâmetros comerciais preenchidos.</p>
   {loading?<p>Carregando…</p>:<>
    <p><strong>Estado:</strong> {stored?.status==='approved'?'Aprovada':stored?'Rascunho':'Sem configuração'} · Revisão {stored?.revision??'—'} {dirty?'· não salvo':''}</p>
+   <h4>Triagem que a Kiara deverá seguir</h4>
+   <p>Primeiro perguntar se mora em prédio; se sim, perguntar se conferiu as regras do condomínio para modelo, cor e instalação. Uma pergunta por mensagem.</p>
+   <p>Para varanda, pedir fotos e esclarecer frente, lateral, comprimento, largura e altura; verificar se o vidro vai do piso ao teto ou começa sobre guarda-corpo. Se não souber as regras, usar os parâmetros padrão apenas como referência provisória.</p>
    <h4>Padrões para cliente sem regras conhecidas</h4>
    <div className="kiara-pricing-form">
     <label>Modelo padrão<input disabled={!admin} value={data.defaults.model} onChange={e=>setDefault('model',e.target.value)}/></label>
@@ -184,7 +188,7 @@ export function KiaraBlindSettings(){
     {area==='balcony'&&<p>Em varanda, pedir foto da frente e das laterais e identificar largura, comprimento e altura de cada trecho. Se houver meia parede, não usar a altura total do piso ao teto como altura do vidro.</p>}
     {count>0&&Number.isFinite(measuredWidth)&&<p>Estimativa geométrica: {count} folha(s) com cerca de {measuredWidth.toLocaleString('pt-BR',{maximumFractionDigits:3})} m de largura fabricada cada; {selectedLayout==='overlap'?'sobreposição incluída onde aplicável':'lado a lado sem sobreposição interna'}. Conferir divisão antes do pedido.</p>}
     {price!==null?<p><strong>{fmt(price)}</strong> · TESTE INTERNO, SEM VALIDADE COMERCIAL. Custo: {fmt(fabric)}; instalação: {fmt(installation)}; motorização: {fmt(motor)}.</p>:
-     <p role="status">{dirty?'Salve os valores antes de testar.':condoBlocked?'Regras específicas do condomínio: solicite modelo, cor e instalação permitidos.':balconyBlocked?'Varanda com informações incompletas: solicite fotos e medidas separadas de frente e laterais.':!dimensionOK&&count>0?'Largura ou altura da folha fora dos limites para o acionamento selecionado.':'Informe modelo, divisão e medidas válidas; preços só são mostrados após cadastrar custos.'}</p>}
+     <p role="status">{dirty?'Salve os valores antes de testar.':condoBlocked?'Regras específicas do condomínio: solicite modelo, cor e instalação permitidos.':balconyBlocked?'Varanda com informações incompletas: solicite fotos e medidas separadas de frente e laterais.':reviewLarge?'Folha acima de 1,80 m: revisar divisão e fabricante antes de apresentar preço.':!dimensionOK&&count>0?'Largura ou altura da folha fora dos limites para o acionamento selecionado.':'Informe modelo, divisão e medidas válidas; preços só são mostrados após cadastrar custos.'}</p>}
    </section>
   </>}
  </section>
