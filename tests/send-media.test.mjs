@@ -31,3 +31,16 @@ test('envia por ID de mídia, sem expor token ou URL privada ao WhatsApp',async(
  const body=JSON.parse(calls[2].options.body);
  assert.equal(body.image.id,'123456');assert.equal(body.type,'image');assert.equal(body.image.link,undefined);
 });
+
+test('intervenção humana após carregar imagem impede o envio à Meta',async()=>{
+ let calls=0,allowed=true;
+ const env={SUPABASE_ORGANIZATION_ID:org,SUPABASE_URL:'https://example.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'private'};
+ const request=async(url)=>{
+  calls++;
+  if(String(url).includes('/storage/')){allowed=false;return new Response(new Blob(['x'],{type:'image/jpeg'}),{headers:{'Content-Type':'image/jpeg'}})}
+  throw Error('Não deveria alcançar Meta');
+ };
+ const result=await sendKiaraImage({env,route:{phoneId:'123',token:'meta-test'},to:'5511999999999',reference:ref,
+  guard:async()=>allowed,request});
+ assert.equal(result,null);assert.equal(calls,1);
+});
