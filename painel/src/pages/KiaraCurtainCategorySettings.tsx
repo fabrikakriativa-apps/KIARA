@@ -23,6 +23,7 @@ function validate(s:Settings):string[]{
  if(!numeric(s.annualAdjustmentPercent)||s.annualAdjustmentPercent<=-100||s.annualAdjustmentPercent>100)errors.push('Reajuste inválido')
  if(!numeric(s.pricing.markupPercent)||s.pricing.markupPercent<0||s.pricing.markupPercent>500)errors.push('Markup inválido')
  if(!numeric(s.installation.manualPerFace)||s.installation.manualPerFace<0)errors.push('Instalação inválida')
+ if(!s.models.length||s.models.some(x=>!x.trim()))errors.push('Cadastre os modelos')
  if(!s.categories.length||s.categories.some(c=>!c.name.trim()||!numeric(c.costPerM2)||c.costPerM2<=0))errors.push('Revise as categorias')
  if(!s.rails.length||s.rails.some(r=>!r.id.trim()||!r.label.trim()||!numeric(r.costPerMeter)||r.costPerMeter<0))errors.push('Revise os trilhos')
  if(new Set(s.categories.map(c=>c.name.trim().toLowerCase())).size!==s.categories.length)errors.push('Categorias com nomes duplicados')
@@ -90,6 +91,19 @@ export function KiaraCurtainCategorySettings(){
     <label>Reajuste anual (%) {number(data.annualAdjustmentPercent,n=>change({...data,annualAdjustmentPercent:n}))}</label>
     <label>Acréscimo comercial (%) {number(data.pricing.markupPercent,n=>change({...data,pricing:{...data.pricing,markupPercent:n}}))}</label>
     <label>Instalação por face (R$) {number(data.installation.manualPerFace,n=>change({...data,installation:{...data.installation,manualPerFace:n}}))}</label>
+   </div>
+   <h4>Modelos de confecção (informativos)</h4>
+   <p><small>Wave, prega macho e franzida não mudam a média comercial da categoria. Esta lista organiza o atendimento, mas não acrescenta fator de tecido ao custo.</small></p>
+   {data.models.map((item,i)=><div key={i} className="kiara-commercial-row kiara-commercial-row--model">
+    <label>Modelo<input value={item} disabled={!admin} onChange={e=>change({...data,models:data.models.map((m,j)=>j===i?e.target.value:m)})}/></label>
+    {admin&&<button className="kiara-commercial-button kiara-commercial-button--remove" type="button" onClick={()=>change({...data,models:data.models.filter((_,j)=>j!==i)})}>Remover modelo</button>}
+   </div>)}
+   {admin&&<button type="button" className="kiara-commercial-button" onClick={()=>change({...data,models:[...data.models,'']})}>Adicionar modelo</button>}
+   <h4>Motorização — parâmetros reservados para avaliação personalizada</h4>
+   <p><small>Estes parâmetros permanecem editáveis para a operação, mas não são utilizados no cálculo por categoria de uma face. Não ativam orçamento automático de cortinas motorizadas.</small></p>
+   <div className="kiara-pricing-form">
+    <label>Instalação motorizada por face (R$) {number(data.installation.motorPerFace,n=>change({...data,installation:{...data.installation,motorPerFace:n}}))}</label>
+    <label>Adicional comercial de motorização (R$) {number(data.motorization.finalSaleSurcharge,n=>change({...data,motorization:{...data.motorization,finalSaleSurcharge:n}}))}</label>
    </div>
    <h4>Categorias comerciais</h4>
    {data.categories.map((c,i)=><div key={i} className="kiara-pricing-form kiara-commercial-row kiara-commercial-row--category">
