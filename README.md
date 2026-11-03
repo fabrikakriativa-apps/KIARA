@@ -55,3 +55,13 @@ A arquitetura separa as funções:
 A simulação interna de cortinas continua no endpoint autenticado `/kiara/pricing/simulate`, com revisão aprovada, `customerPriceAllowed:false` e revisão humana obrigatória. A integração nova **não libera preços ao cliente**. Os roteiros comerciais de persianas aprovados só passam a orientar o atendimento quando a flag for habilitada e as configurações forem aprovadas.
 
 Testes: `node --check src/worker.js` e `npm test`. Não publicar este Worker em produção antes de validar controles humanos, WhatsApp e estratégia de rollback.
+
+## Biblioteca de imagens no WhatsApp (somente homologação)
+
+O painel administra imagens no bucket privado `kiara-reference-images`, tabela `kiara_reference_images`, categorizadas como `produto`, `modelo_confeccao` ou `composicao`. Upload em lote aceita os 22 arquivos previamente revisados e grava todos como **inativos**.
+
+`KIARA_MEDIA_ENABLED` está **desligada por padrão**; o Worker só tenta enviar quando essa flag, `KIARA_SYNC_ENABLED`, `KIARA_HOLD_ENABLED` e `KIARA_CONTROL_ENABLED` estão explicitamente em `true`. O destinatário continua restrito a `TEST_ALLOWED_WA_ID`; a conversa não pode estar pausada. O pedido de imagem precisa ser explícito, mencionar modelo de confecção específico e encontrar uma referência ativa de cortina na categoria `modelo_confeccao`. O limite é de duas imagens. Não se usa catálogo completo.
+
+Quando habilitado para teste, o Worker baixa a imagem de forma autenticada no Supabase, envia o arquivo à Meta para obter um ID de mídia e só depois transmite a mensagem de imagem. Não revela chave do Supabase nem URL privada ao cliente. Verifica pausa, autorização e mensagem mais recente antes de cada envio. Se o arquivo não puder ser entregue, mantém a resposta textual e registra o erro, sem reenviar o texto.
+
+**Homologação obrigatória:** testes do CI, depois número de teste no WhatsApp com intervenção humana, novas mensagens durante o upload, arquivo inválido e fotos desativadas. Não ativar a flag em produção sem aprovação explícita e plano de retorno.
