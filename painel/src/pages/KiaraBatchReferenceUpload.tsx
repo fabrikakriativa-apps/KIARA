@@ -44,12 +44,12 @@ export function KiaraBatchReferenceUpload({onImported}:{onImported:()=>void}){
  }
  return <div className="kiara-reference-editor">
   <h4>Importar imagens revisadas em lote</h4>
-  <p>Extraia o ZIP da biblioteca e selecione as imagens. Os 22 nomes revisados serão reconhecidos automaticamente, com seus modelos e descrições. Não envia nada ao WhatsApp.</p>
+  <p>Utilize o ZIP com 22 imagens em uma única pasta: extraia os arquivos, abra a pasta e selecione todos de uma vez. Os nomes serão reconhecidos automaticamente, sem precisar digitar modelos e descrições. Nenhuma imagem será enviada ao WhatsApp.</p>
   <label>Selecionar vários arquivos de imagem
    <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={!admin||busy}
     onChange={event=>setFiles(Array.from(event.target.files||[]))}/>
   </label>
-  {files.length>0&&<p>{recognized.length} de {files.length} arquivo(s) reconhecido(s) na lista. Arquivos desconhecidos não serão importados.</p>}
+  {files.length>0&&<p>{recognized.length} de {files.length} arquivo(s) reconhecido(s). {recognized.length<22?'Você pode importar os restantes depois.':''} Arquivos desconhecidos não serão importados.</p>}
   {progress&&<p role="status">{progress}</p>}
   {notice&&<p role="status">{notice}</p>}
   <button type="button" disabled={!admin||busy||!recognized.length} onClick={()=>void upload()}>
