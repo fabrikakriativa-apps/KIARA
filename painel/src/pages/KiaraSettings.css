@@ -166,3 +166,20 @@
 @media(max-width:510px){
  .kiara-blinds-panel .kiara-commercial-row--rail{grid-template-columns:1fr}
 }
+
+/* Biblioteca visual: cadastros privados e referências aprovadas */
+.kiara-reference-library{display:flex;flex-direction:column;gap:13px;min-width:0}
+.kiara-reference-library h3,.kiara-reference-library h4{margin:0}
+.kiara-reference-editor{display:flex;flex-direction:column;gap:12px;border:1px solid #e2e8f3;background:#fafbff;padding:16px;border-radius:12px}
+.kiara-reference-editor>label{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:650}
+.kiara-reference-editor textarea{padding:10px;border:1px solid #d8e1ee;border-radius:8px;font:inherit;resize:vertical}
+.kiara-reference-editor>.kiara-commercial-button{align-self:flex-start}
+.kiara-reference-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.kiara-reference-item{border:1px solid #e0e7f2;border-radius:12px;background:#fff;overflow:hidden;min-width:0}
+.kiara-reference-item>img,.kiara-reference-unavailable{width:100%;height:165px;object-fit:cover;background:#eef1f7;display:flex;align-items:center;justify-content:center;font-size:12px;color:#66738a}
+.kiara-reference-item>div:last-child{padding:12px;display:flex;flex-direction:column;gap:7px}
+.kiara-reference-item strong{font-size:13px}
+.kiara-reference-item small{font-size:11px;color:#65738f}
+.kiara-reference-item p{font-size:12px;color:#4c5a73;margin:0}
+.kiara-reference-item button{align-self:flex-start;border:1px solid #c8d3e6;border-radius:8px;padding:8px 10px;background:#f7f9ff;color:#405cbe;font-weight:700;cursor:pointer}
+.kiara-reference-item button:disabled{opacity:.6;cursor:default}
