@@ -46,9 +46,10 @@ function calculate(input:CalculationInput):Calculation|null{
  const area=width*height*quantity
  const front=area*frontCost.unit
  const lining=area*(liningCost?.unit??0)
- // Trilhos e instalação são definidos para o conjunto, não para cada tecido.
+ // Trilhos são contados pela quantidade física; instalação é cobrada por face (frente e forro).
  const rails=width*Number(rail?.costPerMeter??0)*railsPerSet*quantity
- const installationCost=includeInstallation?quantity*(motorized?installation.motorPerFace:installation.manualPerFace):0
+ const facesPerCurtain=liningCategory===null?1:2
+ const installationCost=includeInstallation?quantity*facesPerCurtain*(motorized?installation.motorPerFace:installation.manualPerFace):0
  const cost=front+lining+rails+installationCost
  const markup=cost*pricing.markupPercent/100
  const motor=motorized?motorization.finalSaleSurcharge*quantity:0
@@ -96,7 +97,7 @@ export function KiaraApprovedSimulation({draftMode=false}:{draftMode?:boolean}){
  const dimensionalException=Boolean(settings&&((positive(w)&&w>settings.technicalLimits.maxWidth)||(positive(h)&&h>settings.technicalLimits.maxHeight)||(Number.isFinite(q)&&q>settings.technicalLimits.maxQuantity)))
  return <section className="kiara-management-card">
   <h2>{draftMode?'Teste de precificação — cortinas':'Simulador de cortinas — parâmetros aprovados'}</h2>
-  <p>Composição completa, em um único cálculo. Frente e forro têm custos separados; trilhos, instalação e motorização são cobrados por conjunto. Não cria propostas nem envia mensagens pelo WhatsApp.</p>
+  <p>Composição completa, em um único cálculo. Frente e forro têm custos separados. A instalação é cobrada por face; os trilhos, pela quantidade informada. A motorização usa o adicional configurado por cortina. Não cria propostas nem envia mensagens pelo WhatsApp.</p>
   {loading?<p>Consultando configurações comerciais…</p>:error?<p role="alert">{error}</p>:!eligible?
    <p role="status">Cálculo bloqueado: {config?'a revisão '+config.revision+' está em rascunho':'não existe configuração comercial'} aprovada para cortinas. O teste de rascunho está disponível somente ao administrador em Configurações → Orçamentos.</p>:
    <div className="kiara-pricing-form">
@@ -107,10 +108,10 @@ export function KiaraApprovedSimulation({draftMode=false}:{draftMode?:boolean}){
     {withLining&&<label>Categoria do forro<select value={liningCategory} onChange={e=>setLiningCategory(e.target.value)}><option value="">Selecione</option>{categories.map(x=><option key={x.name} value={x.name}>{x.name}</option>)}</select><small>Modelo do forro: Franzida (fixo no pré-orçamento).</small></label>}
     <label>Largura (m)<input value={width} onChange={e=>setWidth(e.target.value)} inputMode="decimal" placeholder="3,30"/></label>
     <label>Altura (m)<input value={height} onChange={e=>setHeight(e.target.value)} inputMode="decimal" placeholder="2,65"/></label>
-    <label>Quantidade de conjuntos<input type="number" min="1" max={settings!.technicalLimits.maxQuantity} value={quantity} onChange={e=>setQuantity(e.target.value)}/></label>
+    <label>Quantidade de cortinas<input type="number" min="1" max={settings!.technicalLimits.maxQuantity} value={quantity} onChange={e=>setQuantity(e.target.value)}/></label>
     <label>Tipo de trilho<select value={rail} onChange={e=>setRail(e.target.value)}><option value="">Selecione o trilho</option>{rails.map(x=><option key={x.id} value={x.id}>{x.label}</option>)}</select></label>
-    <label>Quantidade de trilhos por conjunto<input type="number" min="0" max="4" value={railQuantity} onChange={e=>setRailQuantity(e.target.value)}/><small>Informe o total para frente e forro; o sistema não duplica por tecido.</small></label>
-    <label><input type="checkbox" checked={installation} onChange={e=>setInstallation(e.target.checked)}/> Incluir instalação por conjunto</label>
+    <label>Quantidade de trilhos por cortina<input type="number" min="0" max="4" value={railQuantity} onChange={e=>setRailQuantity(e.target.value)}/><small>Informe o total para frente e forro; o sistema não duplica por tecido.</small></label>
+    <label><input type="checkbox" checked={installation} onChange={e=>setInstallation(e.target.checked)}/> Incluir instalação por face (frente e forro, quando houver)</label>
     <label><input type="checkbox" checked={motorized} onChange={e=>setMotorized(e.target.checked)}/> Motorizada</label>
     {!calculation?<p role="status">{dimensionalException?'Medidas ou quantidade fora do limite. Encaminhar para atendimento personalizado.':'Informe modelo, categorias, medidas e trilhos válidos para calcular. Composições não cadastradas exigem avaliação personalizada.'}</p>:
     <div>
@@ -119,8 +120,8 @@ export function KiaraApprovedSimulation({draftMode=false}:{draftMode?:boolean}){
       <dt>Área por face</dt><dd>{(w*h*q).toLocaleString('pt-BR',{maximumFractionDigits:3})} m²</dd>
       <dt>Frente ({calculation.frontSource})</dt><dd>{money(calculation.front)}</dd>
       {withLining&&<><dt>Forro Franzida ({calculation.liningSource})</dt><dd>{money(calculation.lining)}</dd></>}
-      <dt>Trilhos ({rq} por conjunto)</dt><dd>{money(calculation.rails)}</dd>
-      <dt>Instalação (uma por conjunto)</dt><dd>{money(calculation.installation)}</dd>
+      <dt>Trilhos ({rq} por cortina)</dt><dd>{money(calculation.rails)}</dd>
+      <dt>Instalação ({withLining?'2 faces':'1 face'} por cortina)</dt><dd>{money(calculation.installation)}</dd>
       <dt>Custo total</dt><dd>{money(calculation.cost)}</dd>
       <dt>Acréscimo comercial ({settings!.pricing.markupPercent}%)</dt><dd>{money(calculation.markup)}</dd>
       <dt>Adicional final de motorização</dt><dd>{money(calculation.motor)}</dd>
