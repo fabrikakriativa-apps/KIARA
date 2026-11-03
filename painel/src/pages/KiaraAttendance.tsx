@@ -8,6 +8,7 @@ import { formatLeadResponseTime, leadResponseStats, leadAwaitingResponseMs, lead
 import { KiaraCoaching } from './KiaraCoaching'
 import { kiaraCoachConfigured, readKiaraHold, setKiaraHold } from '../lib/kiaraCoachingControl'
 import {sendKiaraToProspecting,prospectingUrl} from '../lib/kiaraProspecting'
+import {kiaraHumanMessageConfigured,sendKiaraHumanMessage} from '../lib/kiaraHumanMessage'
 import type {ReportMode,Period} from './KiaraOverview'
 import './KiaraAttendance.css'
 import './KiaraVisual.css'
@@ -26,6 +27,10 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
   const [conversations, setConversations] = useState<KiaraConversation[]>([])
   const [statusCounts,setStatusCounts]=useState({ai:0,waiting_human:0,human:0,budgets:0})
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [humanText,setHumanText]=useState('')
+  const [humanSending,setHumanSending]=useState(false)
+  const [humanFeedback,setHumanFeedback]=useState('')
+  const [humanSent,setHumanSent]=useState(false)
   const [promotionBusy,setPromotionBusy]=useState(false)
   const [promotionFeedback,setPromotionFeedback]=useState('')
   const [opportunityPhase,setOpportunityPhase]=useState('')
@@ -36,6 +41,7 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
   const [noteBusy,setNoteBusy]=useState(false)
   const [detailError,setDetailError]=useState('')
   const [detailsRevision,setDetailsRevision]=useState(0)
+  useEffect(()=>{setHumanText('');setHumanFeedback('');setHumanSent(false)},[selectedId])
   useEffect(()=>{
     setDetailTab('summary')
     setNoteDraft('')
@@ -248,6 +254,20 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
     }catch(e){setPromotionFeedback(e instanceof Error?e.message:'Não foi possível enviar à Prospecção.')}
     finally{setPromotionBusy(false)}
   }
+  const sendHuman=async()=>{
+    if(!selected||selected.status!=='human'||!humanText.trim()||humanSending||!kiaraHumanMessageConfigured)return
+    setHumanSending(true);setHumanFeedback('');setHumanSent(false)
+    try{
+      const result=await sendKiaraHumanMessage(selected.id,humanText)
+      setHumanSent(true)
+      setHumanText('')
+      setHumanFeedback(result.synchronized
+        ?'Mensagem enviada por '+result.senderName+'.'
+        :'Mensagem enviada por '+result.senderName+', mas o histórico ainda não confirmou a sincronização. Não repita antes de verificar no WhatsApp.')
+      setRefresh(n=>n+1)
+    }catch(err){setHumanFeedback(err instanceof Error?err.message:'Não foi possível confirmar o envio.')}
+    finally{setHumanSending(false)}
+  }
   const filtered = useMemo(() => conversations.filter(item => {
     const query = search.trim().toLocaleLowerCase('pt-BR')
     return (!query || [item.name, item.phone, item.campaign, item.origin, item.region].some(value => (value || '').toLocaleLowerCase('pt-BR').includes(query)))
@@ -408,11 +428,19 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
           {!selected ? <div className="kiara-chat-placeholder"><MessageCircle size={34}/><p>As mensagens recebidas, respostas da Kiara e intervenções humanas aparecerão aqui.</p></div> :
           selected.messages.length===0 && !messagesLoading ? <div className="kiara-chat-placeholder"><MessageCircle size={26}/><p>Sem mensagens registradas para esta conversa.</p></div> : selected.messages.map(msg=><div key={msg.id} className={`kiara-bubble ${msg.direction}`}><span>{msg.text}</span><small>{msg.sender === 'kiara' ? 'Kiara · ' : msg.sender === 'human' ? 'Equipe · ' : ''}{new Date(msg.createdAt).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</small>{msg.sender==='kiara'&&<button type="button" className="kiara-correct-msg" onClick={()=>{setCoachingMessage(msg);setShowCoaching(true)}}><Sparkles size={13}/> Corrigir resposta</button>}</div>)}
         </div>
-        <div className="kiara-message-composer" aria-label="Envio de mensagens indisponível na homologação">
+        <div className="kiara-message-composer" aria-label="Resposta humana identificada">
           <span className="kiara-composer-emoticon">☺</span>
-          <input type="text" disabled value="" placeholder="Envio pelo painel disponível após validação" aria-label="Envio de mensagens desativado"/>
-          <button type="button" disabled title="Envio pelo painel não habilitado" aria-label="Enviar mensagem desativado"><Send size={18}/></button>
+          <input type="text" value={humanText} maxLength={3000}
+            disabled={!selected||selected.status!=='human'||!kiaraHumanMessageConfigured||humanSending||humanSent}
+            placeholder={!kiaraHumanMessageConfigured?'Envio humano disponível após habilitação do Worker':selected?.status==='human'?'Escreva sua resposta (seu nome será incluído automaticamente)':'Assuma a conversa para responder'}
+            aria-label="Mensagem do atendente"
+            onChange={event=>setHumanText(event.target.value)}
+            onKeyDown={event=>{if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();void sendHuman()}}}/>
+          <button type="button" disabled={!selected||selected.status!=='human'||!humanText.trim()||humanSending||humanSent||!kiaraHumanMessageConfigured}
+            title="Enviar como usuário logado" aria-label="Enviar resposta humana" onClick={()=>void sendHuman()}><Send size={18}/></button>
         </div>
+        {humanFeedback&&<p className="kiara-human-send-feedback" role="status">{humanFeedback}</p>}
+        {humanSent&&<button type="button" className="kiara-human-next-message" onClick={()=>{setHumanSent(false);setHumanFeedback('')}}>Escrever outra mensagem</button>}
       </aside>
       <aside className="kiara-conversation-details" aria-label="Detalhes e ações do atendimento">
         <div className="kiara-detail-tabs" role="tablist" aria-label="Detalhes da conversa">
