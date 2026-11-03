@@ -70,6 +70,34 @@ export function KiaraReferenceImages(){
   }
   setBusy(false)
  }
+ function beginEdit(row:ImageRow){
+  if(!admin||busy||row.active)return
+  setEditingId(row.id)
+  setDraft({product:row.product,category:row.category,model:row.model,title:row.title,description:row.description||''})
+  setNotice('')
+ }
+ async function saveEdit(){
+  if(!supabase||!access||!admin||busy||!editingId||!draft)return
+  if(images.find(row=>row.id===editingId)?.active){
+   setNotice('Desative a referência antes de editar.');return
+  }
+  if(!draft.model.trim()||!draft.title.trim()){
+   setNotice('Informe o modelo e o título.');return
+  }
+  setBusy(true);setNotice('')
+  const result=await supabase.from('kiara_reference_images').update({
+   product:draft.product,category:draft.category,model:draft.model.trim(),
+   title:draft.title.trim(),description:draft.description.trim(),updated_at:new Date().toISOString()
+  }).eq('organization_id',access.organizationId).eq('id',editingId).eq('active',false).select('id').maybeSingle()
+  setBusy(false)
+  if(result.error)setNotice('Falha ao atualizar a referência: '+result.error.message)
+  else if(!result.data)setNotice('Alteração não confirmada. Confira as permissões e atualize a lista.')
+  else{
+   setEditingId(null);setDraft(null)
+   setNotice('Dados atualizados. A referência permanece inativa até aprovação.')
+   setRefresh(x=>x+1)
+  }
+ }
  async function toggle(row:ImageRow){
   if(!supabase||!admin||busy)return
   setBusy(true);setNotice('')
