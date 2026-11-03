@@ -82,7 +82,7 @@ export function KiaraBlindSettings(){
  const setDefault=(key:keyof BlindSettings['defaults'],v:string)=>change({...data,defaults:{...data.defaults,[key]:v}})
  async function save(){
   if(!supabase||!access||!admin||saving)return
-  const errors=validate(data)
+  const errors=validate(data).filter(x=>!x.startsWith('Cadastre modelos')&&!x.startsWith('Preencha custos'))
   if(errors.length){setNotice(errors.join(' '));return}
   setSaving(true);setNotice('')
   const payload={organization_id:access.organizationId,product:'persiana',settings:data,status:'draft'}
