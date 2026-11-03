@@ -470,6 +470,71 @@ async function operatorRequest(request, env) {
   }
   return respond({ok:true,action:result.action});
 }
+// Envio humano autenticado e identificado pelo perfil no Supabase.
+// Desligado até KIARA_HUMAN_SEND_ENABLED=true no Worker isolado de homologação.
+async function humanMessageRequest(request,env){
+ const origin=request.headers.get('Origin')||'';
+ const headers=dashboardHeaders(env,origin);
+ const reply=(body,status=200)=>Response.json(body,{status,headers});
+ if(!env.KIARA_DASHBOARD_ORIGIN||origin!==env.KIARA_DASHBOARD_ORIGIN)
+  return reply({error:'Origem não autorizada'},403);
+ if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
+ if(request.method!=='POST')return reply({error:'Método inválido'},405);
+ if(env.KIARA_HUMAN_SEND_ENABLED!=='true'||!syncActive(env)||!controlActive(env))
+  return reply({error:'Envio humano não habilitado neste ambiente'},503);
+ checkSupabaseConfig(env);
+ const authorization=request.headers.get('Authorization')||'';
+ if(!/^Bearer [A-Za-z0-9._~-]{50,10000}$/.test(authorization))
+  return reply({error:'Sessão necessária'},401);
+ const base=String(env.SUPABASE_URL).replace(/\\/$/,'');
+ const auth=await fetch(base+'/auth/v1/user',{headers:{Authorization:authorization,apikey:env.SUPABASE_SERVICE_ROLE_KEY}});
+ if(!auth.ok)return reply({error:'Sessão inválida'},401);
+ const user=await auth.json();
+ if(!/^[a-f0-9-]{36}$/i.test(user?.id||''))return reply({error:'Identidade inválida'},401);
+ const membership=await fetch(base+'/rest/v1/memberships?select=role&organization_id=eq.'+
+  encodeURIComponent(env.SUPABASE_ORGANIZATION_ID)+'&user_id=eq.'+encodeURIComponent(user.id)+
+  '&active=is.true&limit=2',{headers:{Authorization:authorization,apikey:env.SUPABASE_SERVICE_ROLE_KEY}});
+ if(!membership.ok)return reply({error:'Não foi possível verificar a permissão'},503);
+ const roles=await membership.json();
+ if(!Array.isArray(roles)||!roles.some(x=>x.role==='admin'||x.role==='comercial'))
+  return reply({error:'Usuário sem permissão de atendimento'},403);
+ let payload;try{payload=await request.json()}catch{return reply({error:'Mensagem inválida'},400)}
+ const id=String(payload?.conversationId||'');
+ const message=typeof payload?.text==='string'?payload.text.trim():'';
+ if(!/^[a-f0-9-]{36}$/i.test(id)||!message||message.length>3000)
+  return reply({error:'Conversa ou texto inválido'},400);
+ const profiles=await dbRequest(env,'profiles','GET','?select=full_name'+queryEq('id',user.id)+'&limit=1');
+ const name=String(profiles?.[0]?.full_name||'').replace(/[\\r\\n:]+/g,' ').trim().slice(0,80);
+ if(name.length<2)return reply({error:'Cadastre seu nome no perfil antes de responder'},422);
+ const records=await dbRequest(env,'kiara_conversations','GET',
+  '?select=id,source,phone_number_id,contact_wa_id,status,last_customer_message_at'+
+  queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+queryEq('id',id)+'&limit=1');
+ const chat=records?.[0];
+ if(!chat)return reply({error:'Conversa não encontrada'},404);
+ if(chat.status!=='human')return reply({error:'Assuma a conversa antes de responder'},409);
+ const route=routeBySource(chat.source,env);
+ if(!route||String(route.phoneId)!==String(chat.phone_number_id)||
+   digits(route.allowed)!==digits(chat.contact_wa_id)||!route.token)
+  return reply({error:'Destino não autorizado na homologação'},403);
+ const last=Date.parse(chat.last_customer_message_at||'');
+ if(!Number.isFinite(last)||Date.now()-last>23.5*60*60*1000)
+  return reply({error:'Fora da janela de resposta do WhatsApp. Necessário modelo aprovado.'},409);
+ // O servidor monta o prefixo em TODAS as mensagens humanas enviadas pelo painel.
+ const outbound=name+': '+message;
+ let whatsappId;
+ try{whatsappId=await sendMessage(route,chat.contact_wa_id,outbound)}
+ catch{return reply({error:'WhatsApp não confirmou o envio; nenhum sucesso foi registrado'},502)}
+ // O envio já foi confirmado: falha de espelhamento não autoriza reenvio.
+ let synchronized=true;
+ try{
+  await saveMessage(env,id,whatsappId,'outgoing','human',outbound,new Date().toISOString());
+  await dbRequest(env,'kiara_conversations','PATCH',
+   '?id=eq.'+encodeURIComponent(id)+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID),
+   {last_business_message_at:new Date().toISOString()});
+ }catch(error){synchronized=false;console.error('Human WhatsApp sent, sync pending',String(error?.message||''))}
+ return reply({ok:true,whatsappMessageId:whatsappId,senderName:name,synchronized},200);
+}
+
 // Coaching is independently gated. A hold does NOT assume the human conversation.
 async function coachingRequest(request, env) {
   const origin = request.headers.get('Origin') || '';
@@ -1294,6 +1359,10 @@ export default {
   },
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    if (url.pathname === '/kiara/human-message') {
+      try {return await humanMessageRequest(request,env);}
+      catch(error){console.error('Human message endpoint error',String(error?.message||''));return Response.json({error:'Envio humano indisponível'},{status:503});}
+    }
     if (url.pathname === '/kiara/pricing/simulate') {
       try { return await pricingSimulationRequest(request,env); }
       catch(error){console.error('Quote simulation failed',error.message);return Response.json({error:'Simulation unavailable'},{status:503});}
