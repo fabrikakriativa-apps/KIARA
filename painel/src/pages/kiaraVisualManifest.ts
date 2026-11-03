@@ -1,7 +1,7 @@
 // Manifesto das 22 referências revisadas pela Fábrika.
 // Nomes são chaves de importação; não são mostrados automaticamente a clientes.
 export type ReferencePreset={filename:string;product:'cortina'|'persiana';category:'produto'|'modelo_confeccao'|'composicao';model:string;title:string;description:string}
-const entries:ReferencePreset[]=[
+const entries:[string,ReferencePreset['product'],ReferencePreset['category'],string,string,string][]=[
  ['cortina-blackout-com-face-frontal.jpg','cortina','produto','Composição de cortina','Blackout com camada frontal','Cortina com duas camadas de tecido. Confirmar composição.'],
  ['cortina-blackout-off-white.png','cortina','produto','Blackout','Blackout off-white','Exemplo de cortina blackout em tom claro.'],
  ['cortina-gaze-de-linho.png','cortina','produto','Gaze de linho','Gaze de linho','Tecido leve com textura natural.'],
@@ -24,5 +24,5 @@ const entries:ReferencePreset[]=[
  ['cortina-prega_macho.jpg','cortina','modelo_confeccao','Prega macho','Cortina — prega macho','Pregas estruturadas com desenho marcado.'],
  ['cortina-prega_franzida.jpg','cortina','modelo_confeccao','Prega franzida','Cortina — prega franzida','Franzimento distribuído e caimento clássico.'],
  ['cortina-wave.jpg','cortina','modelo_confeccao','Wave','Cortina — wave','Ondas contínuas e regulares.'],
-].map(([filename,product,category,model,title,description])=>({filename,product,category,model,title,description})) as ReferencePreset[]
-export const kiaraVisualManifest=entries
+]
+export const kiaraVisualManifest:ReferencePreset[]=entries.map(([filename,product,category,model,title,description])=>({filename,product,category,model,title,description}))
