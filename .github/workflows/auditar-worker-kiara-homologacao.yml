@@ -29,7 +29,7 @@ jobs:
                       return response.status,json.load(response)
               except urllib.error.HTTPError as e:
                   return e.code,{}
-          for worker in ('fabrika-atendimento-ia-homologacao',):
+          for worker in ('fabrika-atendimento-ia-homologacao','fabrika-atendimento-ia'):
               status,data=fetch('/workers/scripts/'+worker+'/settings')
               if status!=200:
                   print('Worker '+worker+': consulta de bindings indisponível (HTTP '+str(status)+')')
