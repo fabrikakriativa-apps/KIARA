@@ -32,3 +32,12 @@ test('não usa imagens externas ao cadastro e preserva travas no Worker',()=>{
  assert.match(w,/KIARA_MEDIA_ENABLED/);
  assert.match(w,/active=is.true/);
 });
+
+test('pedido curto de imagem pode usar o assunto da última resposta',()=>{
+ const r=chooseProductImages('Você pode mostrar fotos?',images,'Para cortinas, a gaze de linho tem aparência leve.');
+ assert.ok(r.length>0);
+ assert.ok(r.every(x=>x.product==='cortina'));
+});
+test('assunto ambíguo não provoca envio de fotos aleatórias',()=>{
+ assert.deepEqual(chooseProductImages('Me mostre fotos',images,'A cortina e a persiana são duas possibilidades.'),[]);
+});
