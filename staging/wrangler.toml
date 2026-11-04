@@ -1,4 +1,4 @@
-# HOMOLOGAÇÃO isolada: Worker real importado sem webhook, queue ou KV.
+# HOMOLOGAÇÃO isolada: Worker real importado sem webhook ou queue; KV exclusivo apenas para controles de teste.
 name = "fabrika-atendimento-ia-homologacao"
 main = "./worker.js"
 compatibility_date = "2026-11-02"
@@ -9,4 +9,8 @@ SUPABASE_URL = "https://dpowbyexrcdcwwqysgzp.supabase.co"
 SUPABASE_PUBLISHABLE_KEY = "sb_publishable_5R2zVzcZQVAGGd72zXayFQ_zCp_tJkU"
 KIARA_DASHBOARD_ORIGIN = "https://kiara-painel-homologacao.pages.dev"
 SUPABASE_ORGANIZATION_ID = "0e398095-cc22-421b-ae34-7bf0df8ad7b2"
-# Não incluir service_role, token WhatsApp, OpenAI, fila ou KV.
+# Não incluir service_role, token WhatsApp, OpenAI ou fila.
+
+[[kv_namespaces]]
+binding = "KIARA_CONTROLES"
+id = "64e0916fb8a04a2ca75b0220f1fb991b"
