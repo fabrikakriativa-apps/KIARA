@@ -31,8 +31,9 @@ jobs:
           if not obj.get('success'):sys.exit('Configuracao indisponivel')
           b={item.get('name'):item for item in obj['result']['bindings']}
           if b.get('EASY_PHONE_NUMBER_ID',{}).get('text')!='989677610885915':sys.exit('Bloqueado: Business diferente')
-          sender=b.get('TEST_ALLOWED_WA_ID',{}).get('text','')
-          if not sender.endswith('5185') or not sender.isdigit():sys.exit('Bloqueado: contato diferente')
+          raw=b.get('TEST_ALLOWED_WA_ID',{}).get('text','')
+          sender=''.join(ch for ch in raw if ch.isdigit())
+          if not sender.endswith('5185') or len(sender) not in (12,13):sys.exit('Bloqueado: contato diferente')
           if b.get('KIARA_ADS_ROUTING_ENABLED',{}).get('text')=='true':sys.exit('Bloqueado: campanha requer validacao adicional')
           kv=b.get('CONVERSAS',{})
           ns=kv.get('namespace_id') or kv.get('id')
