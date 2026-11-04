@@ -5,17 +5,17 @@ import staging from '../staging/worker.js';
 // Todos os recursos abaixo são falsos. Nenhuma chamada externa é realizada.
 const provisioned = {
   KIARA_STAGING_LIVE_ENABLED: 'true',
+  KIARA_STAGING_PROVIDER: 'easy',
   KIARA_SYNC_ENABLED: 'true',
   KIARA_CONTROL_ENABLED: 'true',
   KIARA_HOLD_ENABLED: 'true',
   KIARA_SYNC_ALL_CONTACTS: 'false',
   CONVERSAS: { get: async () => null, put: async () => {}, delete: async () => {} },
   KIARA_QUEUE: { send: async () => {} },
-  META_PHONE_NUMBER_ID: '1234567890123',
+  EASY_PHONE_NUMBER_ID: '1234567890123',
+  EASY_WEBHOOK_KEY: 'test-key-only-not-live-1234567890',
   TEST_ALLOWED_WA_ID: '5511999999999',
-  META_ACCESS_TOKEN: 'fake-token',
-  META_APP_SECRET: 'fake-secret',
-  META_VERIFY_TOKEN: 'fake-verify',
+  EASY_ACCESS_TOKEN: 'fake-easy-token',
   OPENAI_API_KEY: 'fake-ai-key',
   SUPABASE_SERVICE_ROLE_KEY: 'fake-database-key',
 };
@@ -43,9 +43,11 @@ test('ativação exige controles de conversa, retenção e sincronização', asy
 test('ativação rejeita sincronização de todos os contatos e exige recursos isolados', async () => {
   const variations = [
     { KIARA_SYNC_ALL_CONTACTS: 'true' },
-    { META_PHONE_NUMBER_ID: 'not-a-number' },
+    { EASY_PHONE_NUMBER_ID: 'not-a-number' },
+    { KIARA_STAGING_PROVIDER: 'meta' },
+    { EASY_WEBHOOK_KEY: 'short' },
+    { EASY_ACCESS_TOKEN: undefined },
     { TEST_ALLOWED_WA_ID: 'not-a-number' },
-    { META_APP_SECRET: undefined },
     { SUPABASE_SERVICE_ROLE_KEY: undefined },
     { CONVERSAS: {} },
     { KIARA_QUEUE: {} },
@@ -75,4 +77,23 @@ test('diagnóstico de recursos exige origem do painel e sessão Supabase', async
     headers: { Origin: env.KIARA_DASHBOARD_ORIGIN },
   }), env);
   assert.equal(anonymous.status, 401);
+});
+
+test('webhook direto Meta é bloqueado mesmo com recursos completos', async () => {
+  const response = await staging.fetch(new Request('https://staging.invalid/webhook', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:'{}',
+  }), provisioned);
+  assert.equal(response.status,404);
+});
+
+test('chave Easy não abre webhook quando ativação está desligada', async () => {
+  const response = await staging.fetch(new Request(
+    'https://staging.invalid/webhook/'+provisioned.EASY_WEBHOOK_KEY, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:'{}',
+    }), {...provisioned, KIARA_STAGING_LIVE_ENABLED:'false'});
+  assert.equal(response.status,404);
 });
