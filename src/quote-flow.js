@@ -4,7 +4,7 @@ import {simulateCurtainQuote} from './quote-pricing.js';
 const normalize=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 export function expressesQuoteIntent(text){
  const s=normalize(text);
- return /\b(?:orcament|preco|precificacao|estimativa|cotacao|valor(?:es)?|quanto cust|quanto fic|quanto sai)\b/.test(s);
+ return /\b(?:orcament\w*|preco|precificacao|estimativa|cotacao|valor(?:es)?|quanto custa|quanto fica|quanto sai)\b/.test(s);
 }
 export function confirmsQuoteSummary(text){
  const s=normalize(text).trim();
