@@ -34,6 +34,7 @@ jobs:
           VITE_SUPABASE_URL: https://dpowbyexrcdcwwqysgzp.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_5R2zVzcZQVAGGd72zXayFQ_zCp_tJkU
           VITE_KIARA_CONTROL_URL: https://fabrika-atendimento-ia-homologacao.fabrikakriativa.workers.dev/kiara/control
+          VITE_KIARA_CAPABILITIES_URL: https://fabrika-atendimento-ia-homologacao.fabrikakriativa.workers.dev/kiara/capabilities
           VITE_KIARA_COACH_URL: https://fabrika-atendimento-ia-homologacao.fabrikakriativa.workers.dev/kiara/coach
           VITE_KIARA_PRICE_SIMULATION_URL: https://fabrika-atendimento-ia-homologacao.fabrikakriativa.workers.dev/kiara/pricing/simulate
           VITE_KIARA_HUMAN_MESSAGE_URL: https://fabrika-atendimento-ia-homologacao.fabrikakriativa.workers.dev/kiara/human-message
