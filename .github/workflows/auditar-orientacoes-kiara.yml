@@ -25,7 +25,7 @@ jobs:
           if bindings.get('EASY_PHONE_NUMBER_ID',{}).get('text')!='989677610885915':sys.exit('Worker inesperado')
           number=''.join(x for x in bindings.get('TEST_ALLOWED_WA_ID',{}).get('text','') if x.isdigit())
           if not number.endswith('5185'):sys.exit('Contato inesperado')
-          for flag in ['KIARA_KNOWLEDGE_ENABLED','KIARA_GUIDANCE_ENABLED','KIARA_SYNC_ENABLED','KIARA_COMMERCIAL_GUIDANCE_ENABLED','KIARA_CUSTOMER_QUALIFICATION_ENABLED']:
+          for flag in ['KIARA_KNOWLEDGE_ENABLED','KIARA_GUIDANCE_ENABLED','KIARA_SYNC_ENABLED','KIARA_COMMERCIAL_GUIDANCE_ENABLED','KIARA_CUSTOMER_QUALIFICATION_ENABLED','KIARA_MEDIA_ENABLED','KIARA_HOLD_ENABLED','KIARA_CONTROL_ENABLED','KIARA_AUDIO_MODE','KIARA_HUMAN_SEND_ENABLED','KIARA_ADS_ROUTING_ENABLED','KIARA_QUOTE_SIMULATION_ENABLED','KIARA_HANDOFF_NOTICE_ENABLED','KIARA_SYNC_ALL_CONTACTS']:
             b=bindings.get(flag,{})
             print(flag+': '+(b.get('text') if b.get('type')=='plain_text' else 'unset_or_secret'))
           print('CONVERSAS_KV:',bindings.get('CONVERSAS',{}).get('type','missing'))
