@@ -107,6 +107,7 @@ jobs:
 
 # Publicação restrita ao projeto kiara-painel-homologacao; não modifica o Worker.
 # Atualização da interface: diagnóstico técnico somente em Configurações > Integrações, recolhido por padrão.
+# Republicar com aviso de simulação de controles KV, sem efeito sobre produção.
 
       - name: Conferir qual branch alimenta o endereço fixo do painel
         env:
