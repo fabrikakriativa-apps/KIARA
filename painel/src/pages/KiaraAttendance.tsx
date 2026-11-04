@@ -133,25 +133,26 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
   const [messagesError, setMessagesError] = useState('')
   const [controlReady, setControlReady] = useState(false)
   const [kiaraEnabled, setKiaraEnabled] = useState(false)
+  const [controlSimulated, setControlSimulated] = useState(false)
   const [controlBusy, setControlBusy] = useState(false)
   const [controlFeedback, setControlFeedback] = useState('')
   useEffect(() => {
     if (!kiaraControlConfigured || !access || !['admin','comercial'].includes(access.role)) return
     let cancelled=false
-    void readKiaraControl().then(result=>{if(!cancelled){setControlReady(true);setKiaraEnabled(result.enabled);setControlFeedback('')}})
+    void readKiaraControl().then(result=>{if(!cancelled){setControlReady(true);setKiaraEnabled(result.enabled);setControlSimulated(result.simulated===true);setControlFeedback('')}})
       .catch(()=>{if(!cancelled){setControlReady(false);setControlFeedback('Controle operacional indisponível. Nenhuma ação foi habilitada.')}})
     return ()=>{cancelled=true}
   },[access?.organizationId,access?.role,refresh])
   const runCommand = async (action:KiaraOperatorAction,id?:string) => {
     if(!controlReady || controlBusy) return
-    if(action==='pause_all' && !window.confirm('Parar todas as respostas automáticas da Kiara, inclusive as que estiverem na fila?')) return
-    if(action==='resume_all' && !window.confirm('Reativar o atendimento automático da Kiara para conversas liberadas?')) return
+    if(action==='pause_all' && !window.confirm(controlSimulated?'SIMULAÇÃO: pausar somente o estado do KV de homologação? Nada será pausado no WhatsApp.':'Parar todas as respostas automáticas da Kiara, inclusive as que estiverem na fila?')) return
+    if(action==='resume_all' && !window.confirm(controlSimulated?'SIMULAÇÃO: reativar somente o estado do KV de homologação? Nada será reativado no WhatsApp.':'Reativar o atendimento automático da Kiara para conversas liberadas?')) return
     setControlBusy(true);setControlFeedback('')
     try {
       await commandKiara(action,id)
       if(action==='pause_all') setKiaraEnabled(false)
       if(action==='resume_all') setKiaraEnabled(true)
-      setControlFeedback('Comando confirmado pelo servidor.')
+      setControlFeedback(controlSimulated?'Simulação registrada no KV de homologação. Nenhuma conversa real foi alterada.':'Comando confirmado pelo servidor.')
       setRefresh(value=>value+1)
     } catch(error){setControlFeedback(error instanceof Error ? error.message : 'Não foi possível confirmar a alteração.')}
     finally{setControlBusy(false)}
@@ -306,8 +307,8 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
       <div className="kiara-control-card">
         <div className="kiara-avatar" aria-label="Avatar oficial da Kiara"><img src={import.meta.env.BASE_URL+'kiara-avatar.webp'} alt="Kiara, atendente virtual da Fábrika Kriativa" /></div>
         <div className="kiara-control-copy">
-          <div className="kiara-name-line"><h2><Sparkles size={20}/> Kiara</h2><span className={controlReady && kiaraEnabled?'kiara-live-pill':'kiara-preview-badge'}><span className="kiara-pill-dot"/> {controlReady ? (kiaraEnabled ? 'Kiara ativa' : 'Kiara pausada') : 'Controle em homologação'}</span></div>
-          <p>Sua atendente digital acolhe, qualifica e direciona os leads da Fábrika Kriativa.</p>
+          <div className="kiara-name-line"><h2><Sparkles size={20}/> Kiara</h2><span className={controlReady && kiaraEnabled?'kiara-live-pill':'kiara-preview-badge'}><span className="kiara-pill-dot"/> {controlReady ? (controlSimulated ? (kiaraEnabled ? 'Simulação ativa' : 'Simulação pausada') : (kiaraEnabled ? 'Kiara ativa' : 'Kiara pausada')) : 'Controle em homologação'}</span></div>
+          <p>{controlSimulated ? 'AMBIENTE DE TESTES: os botões simulam ações no KV separado. Não alteram o WhatsApp nem o estado das conversas reais.' : 'Sua atendente digital acolhe, qualifica e direciona os leads da Fábrika Kriativa.'}</p>
 
           {controlFeedback&&<small role="status">{controlFeedback}</small>}
         </div>
