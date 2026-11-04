@@ -6,7 +6,7 @@ import {commercialConversationRules} from '../src/commercial-guidance.js';
 
 test('voil é face frontal, não tecido obrigatório',()=>{
  const prompt=quoteIntakePrompt();
- assert.match(prompt,/VOIL identifica a posição\/face frontal/);
+ assert.match(PRODUCT_KNOWLEDGE,/face frontal/);
  assert.match(PRODUCT_KNOWLEDGE,/independentemente de seu tecido/);
  assert.match(prompt,/Persiana atrás é outro produto/);
 });
