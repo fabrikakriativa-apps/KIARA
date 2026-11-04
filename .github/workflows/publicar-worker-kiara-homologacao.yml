@@ -137,3 +137,5 @@ jobs:
           test "$code" = 204
 
 # 2ª etapa homologação: observar comandos e retenção somente no KV separado.
+
+# Sincronização segura da revisão EasyCoexistence, mantendo tráfego bloqueado.
