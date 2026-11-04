@@ -15,27 +15,28 @@ function cors(env, origin, methods='GET, OPTIONS'){
     : noStore;
 }
 function json(body,status=200,headers=noStore){return Response.json(body,{status,headers});}
-function liveTestActive(env){return env.KIARA_STAGING_LIVE_ENABLED==='true';}
-// Ativação em estágios: todas as proteções precisam estar explicitamente ligadas.
-// A presença de secrets, isoladamente, nunca pode ativar o canal de WhatsApp.
+// A ponte de homologação aceita somente EasyCoexistence, jamais o webhook Meta
+// original. Credenciais presentes não habilitam tráfego por conta própria.
 function stagingReadiness(env){
   const checks={
     enabled: env.KIARA_STAGING_LIVE_ENABLED === 'true',
+    providerEasy: env.KIARA_STAGING_PROVIDER === 'easy',
     synchronization: env.KIARA_SYNC_ENABLED === 'true',
     operatorControl: env.KIARA_CONTROL_ENABLED === 'true',
     humanHold: env.KIARA_HOLD_ENABLED === 'true',
     limitedContacts: env.KIARA_SYNC_ALL_CONTACTS === 'false',
     kv: Boolean(env.CONVERSAS?.get && env.CONVERSAS?.put && env.CONVERSAS?.delete),
     queue: Boolean(env.KIARA_QUEUE?.send),
-    testPhoneId: /^\d{6,30}$/.test(String(env.META_PHONE_NUMBER_ID||'')),
+    easyPhoneId: /^\d{6,30}$/.test(String(env.EASY_PHONE_NUMBER_ID||'')),
     testRecipient: /^\d{8,30}$/.test(String(env.TEST_ALLOWED_WA_ID||'')),
-    metaCredentials: Boolean(env.META_ACCESS_TOKEN && env.META_APP_SECRET && env.META_VERIFY_TOKEN),
+    easyWebhookKey: /^[A-Za-z0-9_-]{24,256}$/.test(String(env.EASY_WEBHOOK_KEY||'')),
+    easyCredential: Boolean(env.EASY_ACCESS_TOKEN),
     aiCredential: Boolean(env.OPENAI_API_KEY),
     supabaseServerCredential: Boolean(env.SUPABASE_SERVICE_ROLE_KEY),
   };
-  return { ready: Object.values(checks).every(Boolean), checks };
+  return {ready:Object.values(checks).every(Boolean),checks};
 }
-function liveTestReady(env){ return stagingReadiness(env).ready; }
+function liveTestReady(env){return stagingReadiness(env).ready;}
 function requireConfig(env){
   const url=String(env.SUPABASE_URL||'');
   const key=String(env.SUPABASE_PUBLISHABLE_KEY||'');
@@ -231,8 +232,12 @@ export default {
       external_integrations:liveTestReady(env)?'test_only':'blocked',
       supabase_read:'authenticated_only'
     });
-    if(liveTestReady(env) && (url.pathname==='/webhook' ||
-      ['/kiara/control','/kiara/coach','/kiara/human-message'].includes(url.pathname))) {
+    // Somente a rota com chave EasyCoexistence pode alcançar o handler real.
+    // /webhook (Meta direto) permanece sempre bloqueado nesta homologação.
+    if(liveTestReady(env) && (
+      url.pathname==='/webhook/'+env.EASY_WEBHOOK_KEY ||
+      ['/kiara/control','/kiara/coach','/kiara/human-message'].includes(url.pathname)
+    )) {
       return kiara.fetch(request,env,ctx);
     }
     if(url.pathname==='/kiara/control'){
