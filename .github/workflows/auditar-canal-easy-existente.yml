@@ -39,5 +39,18 @@ jobs:
           import re
           digits=re.sub(r'\\D','',str(allowed.get('text') or '')) if allowed.get('type')=='plain_text' else ''
           print('Número autorizado de teste termina em:',digits[-4:] if len(digits)>=8 else 'não verificável')
+          print('Tipos dos bindings:',sorted(set(str(x.get('type')) for x in bindings)))
+          queues=[x for x in bindings if x.get('type')=='queue']
+          print('Fila producer identificada:',bool(queues),'nome disponível:',all(bool(x.get('queue_name')) for x in queues))
+          kv=[x for x in bindings if x.get('type')=='kv_namespace']
+          print('KV completo:',bool(kv) and all(bool(x.get('namespace_id')) for x in kv))
+          req=urllib.request.Request('https://api.cloudflare.com/client/v4/accounts/'+account+'/queues?per_page=100',headers={'Authorization':'Bearer '+token,'Accept':'application/json'})
+          with urllib.request.urlopen(req,timeout=25) as response:
+            qresult=json.load(response).get('result') or []
+          qlist=qresult if isinstance(qresult,list) else qresult.get('queues',[])
+          for q in qlist:
+            consumers=q.get('consumers') or []
+            if any(x.get('script_name')=='fabrika-atendimento-ia' for x in consumers):
+              print('Fila original com consumidor Worker:',True,'quantidade total:',len(consumers))
           print('Nada foi alterado.')
           PY
