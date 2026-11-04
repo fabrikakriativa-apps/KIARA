@@ -1,23 +1,23 @@
 // A IA identifica informações espontaneamente; o código valida evidências,
 // sem tentar compreender frases usando expressões regulares de nomes/bairros.
 // Somente textos do cliente são fontes válidas para dados pessoais.
-const KEYS=['firstName','lastName','neighborhood','city'];
-const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('pt-BR').replace(/\s+/g,' ').trim();
-const clean=s=>typeof s==='string'?s.trim().replace(/\s+/g,' ').slice(0,90):'';
+const QUALIFICATION_KEYS=['firstName','lastName','neighborhood','city'];
+const qualificationNorm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('pt-BR').replace(/\s+/g,' ').trim();
+const qualificationClean=s=>typeof s==='string'?s.trim().replace(/\s+/g,' ').slice(0,90):'';
 export function validateExtractedQualification(candidate,history=[],current={}){
  const fields={};
  const customer=history.filter(m=>m.role==='user').map(m=>String(m.content||''));
  const existing={...current};
  if(!candidate || typeof candidate!=='object')return fields;
- for(const key of KEYS){
-  if(clean(existing[key]))continue;
+ for(const key of QUALIFICATION_KEYS){
+  if(qualificationClean(existing[key]))continue;
   const item=candidate[key];
-  const value=clean(item?.value);
-  const evidence=clean(item?.evidence);
+  const value=qualificationClean(item?.value);
+  const evidence=qualificationClean(item?.evidence);
   if(!value || !evidence || value.length<2 || value.length>80)continue;
   // Exige prova textual. A IA pode interpretar o contexto, mas não inventar dados.
-  if(!customer.some(t=>norm(t).includes(norm(evidence))))continue;
-  if(!norm(evidence).includes(norm(value)))continue;
+  if(!customer.some(t=>qualificationNorm(t).includes(qualificationNorm(evidence))))continue;
+  if(!qualificationNorm(evidence).includes(qualificationNorm(value)))continue;
   if(/[\d@<>]/.test(value))continue;
   fields[key]=value;
  }
