@@ -143,3 +143,5 @@ jobs:
 # Proteção final de preços, sumário por ambientes e revisão humana em etapa separada do envio.
 
 # Teste completo de orçamento: coleta consultiva, resumo, cálculo interno e revisão administrativa antes do envio.
+
+# Reinício de teste limpa rascunho conversacional e aceita confirmação natural das especificações.
