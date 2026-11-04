@@ -29,6 +29,24 @@ jobs:
                       return response.status,json.load(response)
               except urllib.error.HTTPError as e:
                   return e.code,{}
+          # Token ativo pode pertencer a outra conta; não imprimir identificadores.
+          def probe(url):
+              req=urllib.request.Request(url,headers={'Authorization':'Bearer '+token,'Accept':'application/json'})
+              try:
+                  with urllib.request.urlopen(req,timeout=25) as response:
+                      return response.status,json.load(response)
+              except urllib.error.HTTPError as e:
+                  return e.code,{}
+          status,verification=probe('https://api.cloudflare.com/client/v4/user/tokens/verify')
+          print('Validação da credencial: HTTP',status,'estado',str((verification.get('result') or {}).get('status') or 'não disponível'))
+          status,account_data=fetch('')
+          print('Acesso à conta indicada em CLOUDFLARE_ACCOUNT_ID: HTTP',status)
+          status,account_data=probe('https://api.cloudflare.com/client/v4/accounts?per_page=100')
+          if status==200:
+              accounts=account_data.get('result') or []
+              print('Quantidade de contas visíveis ao token:',len(accounts))
+              print('A conta cadastrada no GitHub está visível:',any(a.get('id')==account for a in accounts))
+          else:print('Listagem de contas indisponível, HTTP',status)
           for worker in ('fabrika-atendimento-ia-homologacao','fabrika-atendimento-ia'):
               status,data=fetch('/workers/scripts/'+worker+'/settings')
               if status!=200:
