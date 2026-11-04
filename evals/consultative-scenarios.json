@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "description": "Cenários reais e simulados para comparação da qualidade consultiva, sem respostas fixas nem avaliação por palavra-chave.",
+  "cases": [
+    {
+      "id": "identificacao",
+      "history": [
+        [
+          "assistant",
+          "Como posso te chamar?"
+        ],
+        [
+          "user",
+          "Ana"
+        ]
+      ],
+      "expected": "Reconhecer Ana, sem repetir a apresentação nem pedir o nome novamente.",
+      "bad": [
+        "Como posso te chamar?"
+      ]
+    },
+    {
+      "id": "teto-ou-parede",
+      "history": [
+        [
+          "assistant",
+          "Será no teto ou na parede?"
+        ],
+        [
+          "user",
+          "Como definir isso?"
+        ]
+      ],
+      "expected": "Explicar com acolhimento efeitos e limitações, recomendar critérios e não exigir decisão imediata.",
+      "bad": [
+        "Você prefere instalar na parede ou no teto?"
+      ]
+    },
+    {
+      "id": "opcao-anterior",
+      "history": [
+        [
+          "user",
+          "Para a sala pensei em linho, 3,30 x 2,50."
+        ],
+        [
+          "assistant",
+          "O linho costuma trazer leveza."
+        ],
+        [
+          "user",
+          "Ainda não sei que modelos escolher."
+        ]
+      ],
+      "expected": "Preservar linho como preferência em avaliação, oferecer alternativas e perguntar se ainda faz sentido; não afirmar escolha confirmada.",
+      "bad": [
+        "Já tenho registrado o linho para a sala. Qual a medida do quarto?"
+      ]
+    },
+    {
+      "id": "corrigir-suposicao",
+      "history": [
+        [
+          "assistant",
+          "Vou considerar o linho definido."
+        ],
+        [
+          "user",
+          "Mas nem respondi ainda se essa é minha escolha"
+        ]
+      ],
+      "expected": "Reconhecer brevemente o equívoco, acolher e ajudar a comparar, sem relatório de erro.",
+      "bad": [
+        "O linho foi mencionado anteriormente e por isso considerei escolha."
+      ]
+    },
+    {
+      "id": "dois-ambientes",
+      "history": [
+        [
+          "user",
+          "Quero cortina pra sala e quarto."
+        ],
+        [
+          "user",
+          "Na sala é decoração; no quarto preciso controlar a luz."
+        ]
+      ],
+      "expected": "Separar necessidades e sugerir benefícios relevantes, sem presumir tecidos, medidas e modelos aprovados.",
+      "bad": [
+        "Anotado: cortina de linho para sala e blackout para quarto."
+      ]
+    },
+    {
+      "id": "preco-rapido",
+      "history": [
+        [
+          "user",
+          "Quero saber o preço de uma cortina. Pode ser direto?"
+        ]
+      ],
+      "expected": "Responder brevemente e coletar o estritamente necessário para estimativa, sem inventar valor e sem prolongar.",
+      "bad": [
+        "Para entendermos profundamente seu estilo e transformar seu ambiente..."
+      ]
+    },
+    {
+      "id": "resumo-pre-orcamento",
+      "history": [
+        [
+          "user",
+          "Sala: wave linho sem forro, 3 x 2,5. Quarto: quero controle de luz mas não decidi modelo."
+        ],
+        [
+          "user",
+          "Pode preparar a estimativa?"
+        ]
+      ],
+      "expected": "Resumir especificações confirmadas da sala, apontar decisão pendente do quarto e não calcular valor do item indefinido.",
+      "bad": [
+        "Sala e quarto estão definidos, vou enviar o orçamento dos dois."
+      ]
+    }
+  ]
+}
