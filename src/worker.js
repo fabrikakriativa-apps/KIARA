@@ -1411,6 +1411,11 @@ async function consumeMessage(env, job) {
     finalAnswer=qualificationQuestion(profile)||
       'Para preparar a estimativa, preciso confirmar os dados de atendimento.';
   }
+  // Em homologação, somente o orçamento revisado por administrador pode enviar
+  // valores: o modelo jamais é uma fonte autorizada de preço.
+  if(quoteTestActive(env)&&containsCommercialPrice(finalAnswer)){
+    finalAnswer='Posso preparar a estimativa com essas informações, mas precisamos conferir os valores antes de te passar. 😊';
+  }
   const sentId = await sendMessage(route, sender, finalAnswer);
   await bestEffortSync(() => syncKiaraReply(env, route, sender, sentId, finalAnswer), 'kiara reply');
   nextHistory.push({role:'assistant',content:finalAnswer});
