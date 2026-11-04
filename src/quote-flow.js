@@ -28,13 +28,14 @@ export function normalizeQuoteItems(raw,settings){
  if(new Set(names).size!==names.length)errors.push('Há dois itens para o mesmo ambiente; separar as composições manualmente');
  return {ready:errors.length===0,items,errors};
 }
+const categoryLabel=s=>String(s||'').replace(/\\s*-\\s*PREÇO MÉDIO$/i,'').replace(/\\s*\\([^)]*\\)/g,'').trim().toLocaleLowerCase('pt-BR');
 export function summarizeQuoteItems(items){
  return items.map((x,i)=>[
   (i+1)+'. '+x.environment+': cortina '+x.model,
   'medidas aproximadas '+x.width.toLocaleString('pt-BR')+' × '+x.height.toLocaleString('pt-BR')+' m',
-  'tecido '+x.frontCategory,
-  x.backCategory==='Sem forro'?'sem forro':'com forro '+x.backCategory,
-  x.quantity+' conjunto(s)'
+  'tecido '+categoryLabel(x.frontCategory),
+  x.backCategory==='Sem forro'?'sem forro':'com forro '+categoryLabel(x.backCategory),
+  x.quantity===1?'um conjunto':x.quantity+' conjuntos'
  ].join(', ')).join('\n');
 }
 export function calculateQuotePreview(items,settings,revision,options={}){
