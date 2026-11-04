@@ -73,7 +73,7 @@ jobs:
               raise SystemExit('Worker de homologação não localizado na conta autorizada (HTTP '+str(status)+'). Nenhum deploy.')
           print('Conta e Worker de homologação confirmados. Publicação autorizada.')
           PY
-      - name: Publicar somente Worker read-only de homologação
+      - name: Publicar somente Worker KV isolado de homologação
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -84,7 +84,7 @@ jobs:
           CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: python3 staging/validate-kv.py
-      - name: Confirmar simulação protegida sem enviar mensagens
+      - name: Confirmar controles simulados e bloqueio de mensagens reais
         env:
           WORKER_URL: https://fabrika-atendimento-ia-homologacao.fabrikakriativa.workers.dev
           PANEL_ORIGIN: https://kiara-painel-homologacao.pages.dev
@@ -95,6 +95,18 @@ jobs:
           code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST -H "Origin: $PANEL_ORIGIN" "$WORKER_URL/kiara/pricing/simulate")
           echo "Simulação sem sessão: $code"
           test "$code" = 401
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -X OPTIONS -H "Origin: $PANEL_ORIGIN" "$WORKER_URL/kiara/control")
+          echo "Preflight controle simulado: $code"
+          test "$code" = 204
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -X GET -H "Origin: $PANEL_ORIGIN" "$WORKER_URL/kiara/control")
+          echo "Controle sem sessão: $code"
+          test "$code" = 401
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST -H "Origin: $PANEL_ORIGIN" "$WORKER_URL/kiara/control")
+          echo "Alteração sem sessão: $code"
+          test "$code" = 401
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -X GET -H "Origin: https://attacker.example" "$WORKER_URL/kiara/control")
+          echo "Origem não autorizada: $code"
+          test "$code" = 403
           code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST -H "Origin: $PANEL_ORIGIN" "$WORKER_URL/kiara/human-message")
           echo "Envio humano desativado: $code"
           test "$code" = 404
