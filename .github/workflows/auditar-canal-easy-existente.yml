@@ -1,0 +1,35 @@
+name: Kiara - auditoria canal existente de testes (sem alteracoes)
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/auditar-canal-easy-existente.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diagnosticar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Verificar nomes de credenciais e flags sem exibir dados
+        run: |
+          python3 - <<'PY'
+          import os,urllib.request,json
+          token=os.environ.get('CF_TOKEN','')
+          account=os.environ.get('CF_ACCOUNT','')
+          url='https://api.cloudflare.com/client/v4/accounts/'+account+'/workers/scripts/fabrika-atendimento-ia/settings'
+          req=urllib.request.Request(url,headers={'Authorization':'Bearer '+token,'Accept':'application/json'})
+          with urllib.request.urlopen(req,timeout=25) as response:
+            bindings=json.load(response)['result']['bindings']
+          names={b.get('name') for b in bindings}
+          print('Worker existente encontrado. Apenas presença, nenhum valor de segredo:')
+          for n in ['EASY_PHONE_NUMBER_ID','EASY_ACCESS_TOKEN','EASY_WEBHOOK_KEY','TEST_ALLOWED_WA_ID','META_VERIFY_TOKEN','OPENAI_API_KEY','SUPABASE_SERVICE_ROLE_KEY','KIARA_QUEUE','CONVERSAS']:
+            print(n, 'PRESENTE' if n in names else 'AUSENTE')
+          for n in ['KIARA_CONTROL_ENABLED','KIARA_SYNC_ENABLED','KIARA_HOLD_ENABLED','KIARA_SYNC_ALL_CONTACTS']:
+            b=next((x for x in bindings if x.get('name')==n),{})
+            print(n,'configurado' if b.get('type')=='plain_text' else 'nao configurado')
+          print('Nada foi alterado.')
+          PY
