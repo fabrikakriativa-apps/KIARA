@@ -29,8 +29,8 @@ test('health confirms authenticated Supabase read-only mode',async()=>{
  assert.deepEqual(await res.json(),{service:'kiara-homologacao',status:'ok',worker_code:'integrado',external_integrations:'blocked',supabase_read:'authenticated_only'});
 });
 
-test('webhooks and POST coaching remain unavailable',async()=>{
- for(const path of ['/webhook','/webhook/test-secret','/kiara/coach','/']){
+test('webhooks and unmatched POST routes remain unavailable',async()=>{
+ for(const path of ['/webhook','/webhook/test-secret','/']){
   const res=await staging.fetch(new Request('https://staging.workers.dev'+path,{method:'POST',body:'{}'}),env);
   assert.equal(res.status,404,path);
  }
@@ -41,13 +41,13 @@ test('staging rejects unauthorized origin before contacting Supabase',async()=>{
  assert.equal(res.status,403); assert.equal(res.headers.get('access-control-allow-origin'),null);
 });
 
-test('CORS preflight is limited to dashboard origin and read methods',async()=>{
+test('CORS preflight permits GET and POST for authenticated coaching',async()=>{
  const req=new Request(url,{method:'OPTIONS',headers:{Origin:origin,'Access-Control-Request-Method':'GET'}});
  const res=await staging.fetch(req,env);
  assert.equal(res.status,204);
  assert.equal(res.headers.get('access-control-allow-origin'),origin);
  assert.match(res.headers.get('access-control-allow-methods'),/GET/);
- assert.doesNotMatch(res.headers.get('access-control-allow-methods'),/POST/);
+ assert.match(res.headers.get('access-control-allow-methods'),/POST/);
 });
 
 test('GET without bearer returns 401 with no Supabase calls',async()=>{
@@ -60,24 +60,38 @@ test('GET with invalid conversation returns 400',async()=>{
  assert.equal(res.status,400);
 });
 
-test('authenticated RLS read passes user JWT and scopes to organization',async()=>{
- const original=globalThis.fetch,requested=[];
+test('authenticated coaching state is sandbox-only and scoped by Supabase RLS',async()=>{
+ const original=globalThis.fetch,requested=[],records=new Map();
  globalThis.fetch=async(input,init={})=>{
-  const uri=new URL(input);requested.push({uri,headers:init.headers});
-  if(uri.pathname==='/auth/v1/user')return Response.json({id:'operator'});
-  if(uri.pathname==='/rest/v1/kiara_conversations')return Response.json([{reply_held:true,status:'human'}]);
+  const uri=new URL(input);requested.push({uri,headers:init.headers,method:init.method||'GET'});
+  if(uri.pathname==='/auth/v1/user')return Response.json({id:'ed76d5b6-1e10-4b84-bf31-b9290d1a5465'});
+  if(uri.pathname==='/rest/v1/memberships')return Response.json([{role:'admin'}]);
+  if(uri.pathname==='/rest/v1/kiara_conversations')return Response.json([{id,status:'human'}]);
   throw Error('Unexpected request');
  };
+ const testEnv={...env,KIARA_CONTROLES:{
+  get:async k=>records.get(k)||null,
+  put:async(k,v)=>{records.set(k,v)}
+ }};
  try{
   const token='Bearer '+'a'.repeat(100);
-  const res=await staging.fetch(new Request(url,{headers:{Origin:origin,Authorization:token}}),env);
+  const request=(method,body)=>staging.fetch(new Request(url,{
+   method,headers:{Origin:origin,Authorization:token,'Content-Type':'application/json'},
+   ...(body?{body:JSON.stringify(body)}:{})
+  }),testEnv);
+  let res=await request('GET');
   assert.equal(res.status,200);
-  assert.deepEqual(await res.json(),{held:true,status:'human',writable:false,environment:'homologacao'});
-  assert.equal(requested.length,2);
-  assert.equal(requested[0].headers.Authorization,token);
-  assert.equal(requested[1].headers.Authorization,token);
-  assert.equal(requested[1].uri.searchParams.get('organization_id'),'eq.'+env.SUPABASE_ORGANIZATION_ID);
-  assert.equal(requested[1].uri.searchParams.get('id'),'eq.'+id);
+  assert.deepEqual(await res.json(),{held:false,status:'human',writable:true,
+    simulated:true,productionConnected:false,environment:'homologacao_isolada'});
+  res=await request('POST',{conversationId:id,action:'hold'});
+  assert.equal(res.status,200);assert.equal((await res.json()).held,true);
+  res=await request('GET');
+  assert.equal((await res.json()).held,true);
+  assert.ok([...records.keys()].every(k=>k.startsWith('staging:control:')));
+  assert.ok(requested.every(x=>x.method==='GET'));
+  const scoped=requested.filter(x=>x.uri.pathname==='/rest/v1/kiara_conversations');
+  assert.equal(scoped[0].uri.searchParams.get('organization_id'),'eq.'+env.SUPABASE_ORGANIZATION_ID);
+  assert.equal(scoped[0].uri.searchParams.get('id'),'eq.'+id);
  }finally{globalThis.fetch=original}
 });
 
@@ -85,16 +99,16 @@ test('invalid session is refused',async()=>{
  const original=globalThis.fetch;
  globalThis.fetch=async()=>Response.json({error:'invalid'},{status:401});
  try{
-  const res=await staging.fetch(new Request(url,{headers:{Origin:origin,Authorization:'Bearer '+'a'.repeat(100)}}),env);
+  const res=await staging.fetch(new Request(url,{headers:{Origin:origin,Authorization:'Bearer '+'a'.repeat(100)}}),{...env,KIARA_CONTROLES:{get:async()=>null,put:async()=>{}}});
   assert.equal(res.status,401);
  }finally{globalThis.fetch=original}
 });
 
 test('RLS-hidden conversation remains undisclosed',async()=>{
  const original=globalThis.fetch;
- globalThis.fetch=async(input)=>new URL(input).pathname==='/auth/v1/user'?Response.json({id:'user'}):Response.json([]);
+ globalThis.fetch=async(input)=>{const path=new URL(input).pathname;if(path==='/auth/v1/user')return Response.json({id:'ed76d5b6-1e10-4b84-bf31-b9290d1a5465'});if(path==='/rest/v1/memberships')return Response.json([{role:'admin'}]);return Response.json([])};
  try{
-  const res=await staging.fetch(new Request(url,{headers:{Origin:origin,Authorization:'Bearer '+'a'.repeat(100)}}),env);
+  const res=await staging.fetch(new Request(url,{headers:{Origin:origin,Authorization:'Bearer '+'a'.repeat(100)}}),{...env,KIARA_CONTROLES:{get:async()=>null,put:async()=>{}}});
   assert.equal(res.status,404);
  }finally{globalThis.fetch=original}
 });
