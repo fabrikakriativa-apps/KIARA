@@ -12,9 +12,9 @@ test('customer wording about fabric layers avoids internal faces, ratios and rai
  const prompt=quoteIntakePrompt();
  const question=quoteNextQuestion('cortina',{ambiente:'Sala',modelo:'wave',largura:'3',altura:'2.5'});
  assert.match(question,/apenas um tecido ou com dois tecidos/);
- assert.match(prompt,/Nunca perguntar quantidade de faces/);
- assert.match(prompt,/proporção de tecido/);
- assert.match(prompt,/trilho/);
+ assert.match(prompt,/Não perguntar ao cliente quantidade de faces/);
+ assert.match(prompt,/fator de franzimento/);
+ assert.match(prompt,/detalhes técnicos/);
 });
 test('blind needs material and light control before quote',()=>{
  const values={ambiente:'Quarto',modelo:'rolo',largura:'1.5',altura:'2',controle_luz:'blackout'};
@@ -24,7 +24,7 @@ test('blind needs material and light control before quote',()=>{
 test('unknown product triggers clarification and not fabricated quote',()=>{
  assert.deepEqual(quoteMissing('unknown',{}),['produto']);
  assert.match(quoteNextQuestion('unknown',{}),/cortina ou persiana/);
- assert.match(quoteIntakePrompt(),/NÃO crie estimativa com modelo indefinido/);
+ assert.match(quoteIntakePrompt(),/dados que o cliente confirmou/);
 });
 test('visual model choices have stable identifiers and do not include pricing',()=>{
  for(const type of ['cortina','persiana']){
