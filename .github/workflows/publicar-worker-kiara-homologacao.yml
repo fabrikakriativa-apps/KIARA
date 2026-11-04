@@ -26,7 +26,20 @@ jobs:
           grep -q '^name = "fabrika-atendimento-ia-homologacao"$' staging/wrangler.toml
           grep -q '^main = "./worker.js"$' staging/wrangler.toml
           grep -q '^KIARA_DASHBOARD_ORIGIN = "https://kiara-painel-homologacao.pages.dev"$' staging/wrangler.toml
-          grep -q '^binding = "KIARA_CONTROLES"
+          grep -q '^binding = "KIARA_CONTROLES"$' staging/wrangler.toml
+          grep -q '^binding = "CONVERSAS"$' staging/wrangler.toml
+          grep -q '^id = "88c357b564b743fcbc85204ccbf5e636"$' staging/wrangler.toml
+          grep -q '^binding = "KIARA_QUEUE"$' staging/wrangler.toml
+          grep -q '^queue = "kiara-homologacao-respostas"$' staging/wrangler.toml
+          grep -q '^KIARA_STAGING_LIVE_ENABLED = "false"$' staging/wrangler.toml
+          grep -q '^KIARA_SYNC_ENABLED = "false"$' staging/wrangler.toml
+          grep -q '^KIARA_CONTROL_ENABLED = "false"$' staging/wrangler.toml
+          grep -q '^KIARA_HOLD_ENABLED = "false"$' staging/wrangler.toml
+          grep -q '^KIARA_HUMAN_SEND_ENABLED = "false"$' staging/wrangler.toml
+          grep -q '^KIARA_SYNC_ALL_CONTACTS = "false"$' staging/wrangler.toml
+          test "$(grep -c '^\[\[kv_namespaces\]\]$' staging/wrangler.toml)" = 2
+          test "$(grep -c '^\[\[queues.producers\]\]$' staging/wrangler.toml)" = 1
+          test "$(grep -c '^\[\[queues.consumers\]\]$' staging/wrangler.toml || true)" = 0
           test -f staging/validate-kv.py
           test ! -e wrangler.toml
           test ! -e .dev.vars
