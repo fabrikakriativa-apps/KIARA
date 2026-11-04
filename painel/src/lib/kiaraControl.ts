@@ -30,6 +30,6 @@ async function operator<T>(method: 'GET'|'POST', body?: unknown): Promise<T> {
   return response.json() as Promise<T>
 }
 
-export const readKiaraControl = () => operator<{enabled:boolean}>('GET')
+export const readKiaraControl = () => operator<{enabled:boolean;simulated?:boolean;productionConnected?:boolean}>('GET')
 export const commandKiara = (action:KiaraOperatorAction,conversationId?:string) =>
   operator<{ok:boolean;action:string}>('POST',{action,conversationId:conversationId||null})
