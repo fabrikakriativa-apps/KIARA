@@ -36,7 +36,7 @@ export function extractQualification(message,{expectingFirstName=false,expecting
     if(name)result.lastName=clean(text);
   }
   const bairro=text.match(/(?:bairro|no bairro|moro no|moro na)\s+([\p{L}0-9 .'-]{2,60}?)(?=\s*(?:[,;]|\s+(?:e\s+)?(?:cidade|em\s+|munic[ií]pio))|$)/iu);
-  const cidade=text.match(/(?:cidade(?:\s+de)?|munic[ií]pio(?:\s+de)?|em\s+)([\p{L} .'-]{2,60})(?:$|[,;])/iu);
+  const cidade=text.match(/(?:cidade(?:\s+de)?|munic[ií]pio(?:\s+de)?|moro em\s+|fica em\s+)([\p{L} .'-]{2,60})(?:$|[,;])/iu);
   if(bairro)result.neighborhood=clean(bairro[1]);
   else if(expectingNeighborhood && /^[\p{L}][\p{L}0-9 .'-]{1,59}$/u.test(text))result.neighborhood=text;
   if(cidade)result.city=clean(cidade[1]);
