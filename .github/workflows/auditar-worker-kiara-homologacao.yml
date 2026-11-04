@@ -49,6 +49,13 @@ jobs:
               resources=data.get('result') or []
               print('Namespaces KV no total da conta:',len(resources),'(não altera nem cria)')
           else:print('Consulta namespaces KV indisponível, HTTP',status)
+          status,data=fetch('/workers/scripts?per_page=100')
+          if status==200:
+              result=data.get('result') or []
+              scripts=result if isinstance(result,list) else result.get('scripts') or []
+              relevant=[str(x.get('id') or x.get('name')) for x in scripts if any(v in str(x.get('id') or x.get('name')).lower() for v in ('fabrika','kiara','atendimento'))]
+              print('Workers relevantes encontrados (somente nomes):',relevant)
+          else:print('Consulta da lista de Workers indisponível, HTTP',status)
           status,data=fetch('/queues?per_page=100')
           if status==200:
               result=data.get('result') or []
