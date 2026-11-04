@@ -13,7 +13,7 @@ const baseline=oldMatch[1].replace(/\\n/g,'\n')+
   'Quando a pessoa estiver indecisa, oriente sem impor escolha; não recite o histórico.\n'+
   'Em caso de frustração persistente, pedir apoio humano. Não inventar valores.';
 const revised=[CONSULTATIVE_IDENTITY,PRODUCT_KNOWLEDGE,OPERATIONAL_POLICY,
-  'Identificação: solicite o primeiro nome cedo se não informado; nome completo, bairro e cidade são necessários antes de apresentar valores, sem interromper orientação útil.'].join('\n\n');
+  'Os dados de identificação são necessários antes de apresentar valores, não antes de orientar. Se não houver primeiro nome, pergunte em momento natural; colete os demais dados aos poucos, quando o orçamento for pertinente.'].join('\n\n');
 const key=process.env.OPENAI_API_KEY;
 if(!key){console.log('COMPARAÇÃO NÃO EXECUTADA: OPENAI_API_KEY ausente no ambiente isolado.');process.exit(78);}
 const model=process.env.KIARA_EVAL_MODEL||'gpt-6-luna';
