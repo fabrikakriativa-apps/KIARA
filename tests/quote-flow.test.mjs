@@ -13,6 +13,7 @@ test('pedido de orçamento inicia o fluxo, sem ser confundido com conversa comum
  assert.equal(expressesQuoteIntent('Quanto fica essa cortina?'),true);
  assert.equal(expressesQuoteIntent('Quero saber mais sobre o linho'),false);
  assert.equal(confirmsQuoteSummary('Tudo certo'),true);
+ assert.equal(confirmsQuoteSummary('Sim, pode seguir'),true);
 });
 test('duas composições preservam ambientes e medidas',()=>{
  const x=normalizeQuoteItems({items:[sala,quarto]},settings);
