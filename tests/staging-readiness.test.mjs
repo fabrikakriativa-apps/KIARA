@@ -16,6 +16,7 @@ const provisioned = {
   EASY_WEBHOOK_KEY: 'test-key-only-not-live-1234567890',
   TEST_ALLOWED_WA_ID: '5511999999999',
   EASY_ACCESS_TOKEN: 'fake-easy-token',
+  META_VERIFY_TOKEN: 'fake-verify-token',
   OPENAI_API_KEY: 'fake-ai-key',
   SUPABASE_SERVICE_ROLE_KEY: 'fake-database-key',
 };
@@ -47,6 +48,7 @@ test('ativação rejeita sincronização de todos os contatos e exige recursos i
     { KIARA_STAGING_PROVIDER: 'meta' },
     { EASY_WEBHOOK_KEY: 'short' },
     { EASY_ACCESS_TOKEN: undefined },
+    { META_VERIFY_TOKEN: undefined },
     { TEST_ALLOWED_WA_ID: 'not-a-number' },
     { SUPABASE_SERVICE_ROLE_KEY: undefined },
     { CONVERSAS: {} },
