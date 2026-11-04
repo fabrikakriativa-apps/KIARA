@@ -125,3 +125,5 @@ jobs:
 # Reset comportamental minimalista: homologação por WhatsApp exclusivamente no contato autorizado, com segurança comercial preservada.
 
 # Ativar orientação aprovada do Supabase por atendimento no contato de teste; não habilitar cache opcional.
+
+# Acolhimento natural e exemplos úteis: publicar na homologação após CI aprovado; manter orientações Supabase ativas.
