@@ -78,6 +78,7 @@ jobs:
           check POST /kiara/human-message
 
 # Publicação restrita ao projeto kiara-painel-homologacao; não modifica o Worker.
+# Atualização da interface: diagnóstico técnico somente em Configurações > Integrações, recolhido por padrão.
 
       - name: Conferir qual branch alimenta o endereço fixo do painel
         env:
