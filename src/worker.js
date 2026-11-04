@@ -1,3 +1,4 @@
+import { OPERATIONAL_POLICY } from './operational-policy.js';
 import { CONSULTATIVE_IDENTITY } from './consultative-identity.js';
 import { PRODUCT_KNOWLEDGE } from './product-knowledge.js';
 import { quoteIntakePrompt } from './quote-intake.js';
@@ -33,14 +34,7 @@ const MEMORY_TTL = 7 * 24 * 60 * 60;
 const RESPONSE_DELAY_SECONDS = 15;
 const MAX_CONTEXT_ITEMS = 20;
 // A identidade consultiva é única; dados técnicos ficam no conhecimento.
-const INSTRUCTIONS = CONSULTATIVE_IDENTITY + '\n\n' + PRODUCT_KNOWLEDGE + `
-LIMITES OPERACIONAIS (não são roteiro de conversa)
-- A calculadora é interna. Nunca invente preços, estimativas, descontos ou condições.
-- Não apresente valores sem autorização das validações comerciais do sistema.
-- Não prometa prazos, garantias, visitas ou compatibilidades sem fonte aprovada.
-- Não solicite dados bancários nem documentos.
-- Respeite transferências e intervenção humana; não afirme que a equipe já assumiu sem confirmação.
-`;
+const INSTRUCTIONS = [CONSULTATIVE_IDENTITY,PRODUCT_KNOWLEDGE,OPERATIONAL_POLICY].join('\n\n');
 
 function digits(value) {
   return String(value || "").replace(/\D/g, "");
