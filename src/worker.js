@@ -1219,7 +1219,8 @@ async function consumeMessage(env, job) {
         {status:'ai',reply_held:false,reply_held_since:null,reply_held_by:null});
     }
     if (!(await isAuthorizedToSend(env, route, sender))) return;
-    const text = 'Conversa reiniciada! 😊 Como posso ajudar?';
+    const text = 'Conversa reiniciada! 😊 Sou a Kiara, assistente digital da Fábrika Kriativa. Como posso te chamar?';
+    await saveQualification(env,route,sender,{...blankQualification(),pendingField:'firstName'});
     const sentId = await sendMessage(route, sender, text);
     await bestEffortSync(() => syncKiaraReply(env, route, sender, sentId, text), 'reset reply');
     await env.CONVERSAS.put(completedKey, '1', {expirationTtl: MEMORY_TTL});
@@ -1382,9 +1383,20 @@ async function pricingSimulationRequest(request,env){
    return reply({error:'Invalid conversation identifier'},400);
   // Scope to the session organization; never read another tenant's conversation.
   const found=await dbRequest(env,'kiara_conversations','GET',
-   '?select=id,contact_wa_id'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
+   '?select=id,contact_wa_id,source,phone_number_id'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
    queryEq('id',payload.conversationId)+'&limit=1');
   if(!found?.length)return reply({error:'Conversation not found'},404);
+  // Sem nome e sobrenome, bairro e cidade, não calcular valores para o cliente.
+  const route=routeBySource(found[0].source,env);
+  if(!route || String(route.phoneId)!==String(found[0].phone_number_id) ||
+     digits(route.allowed)!==digits(found[0].contact_wa_id))
+    return reply({ready:false,customerPriceAllowed:false,
+      errors:['Conversa não autorizada para orçamento']},422);
+  const registration=await loadQualification(env,route,found[0].contact_wa_id);
+  const check=evaluateCustomerQualification(registration);
+  if(!check.qualified) return reply({ready:false,customerPriceAllowed:false,
+    missingCustomerData:check.missing,
+    errors:['Antes do orçamento, confirmar nome completo, bairro e cidade do cliente']},422);
   const messages=await dbRequest(env,'kiara_messages','GET',
    '?select=direction,sender,text_body,occurred_at,created_at'+
    queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
@@ -1403,6 +1415,12 @@ async function pricingSimulationRequest(request,env){
   if(!extracted.ready)return reply({...extracted,customerPriceAllowed:false},422);
   intake=extracted.intake;
  }
+ if(!payload?.conversationId && !draftRequested)
+
+   return reply({ready:false,customerPriceAllowed:false,
+
+     errors:['Conversa e identificação do cliente obrigatórias para gerar orçamento']},422);
+
  // O painel não envia custos, instalação, motorização nem margem.
  // Usar exclusivamente revisão comercial aprovada no banco da organização.
 
