@@ -128,3 +128,5 @@ jobs:
           if branch!='feat/painel-independente':
               print('::warning::O endereço fixo pode apontar para versão diferente da publicada no branch de homologação.')
           PY
+
+# Homologação: painel atualiza simulações de status e segurar/liberar.
