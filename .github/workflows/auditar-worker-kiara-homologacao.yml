@@ -61,12 +61,18 @@ jobs:
               haskv=any(b.get('type')=='kv_namespace' and b.get('name')=='CONVERSAS' for b in bindings)
               hasqueue=any(b.get('type')=='queue' for b in bindings)
               print('CONVERSAS presente:',haskv)
+              if worker=='fabrika-atendimento-ia-homologacao':
+                  print('KV de controle exclusivo vinculado:',any(b.get('type')=='kv_namespace' and b.get('name')=='KIARA_CONTROLES' for b in bindings))
+                  print('Bindings da ponte preparada: KV conversas=',haskv,'fila=',hasqueue)
               print('Fila de mensagens presente:',hasqueue)
               print('Transportes Meta/OpenAI: NÃO validados por este diagnóstico (somente metadados)')
           status,data=fetch('/storage/kv/namespaces?per_page=100')
           if status==200:
               resources=data.get('result') or []
               print('Namespaces KV no total da conta:',len(resources),'(não altera nem cria)')
+              titles={n.get('title'):n.get('id') for n in resources}
+              print('KV de controle de homologação presente:',bool(titles.get('kiara-homologacao-controles')))
+              print('KV de conversas de homologação presente:',any(n.get('id')=='88c357b564b743fcbc85204ccbf5e636' for n in resources))
           else:print('Consulta namespaces KV indisponível, HTTP',status)
           status,data=fetch('/workers/scripts?per_page=100')
           if status==200:
@@ -80,6 +86,7 @@ jobs:
               result=data.get('result') or []
               qs=result if isinstance(result,list) else result.get('queues') or []
               print('Filas na conta:',len(qs),'(não altera nem cria)')
+              print('Fila exclusiva de homologação encontrada:',any(q.get('queue_name')=='kiara-homologacao-respostas' or q.get('name')=='kiara-homologacao-respostas' for q in qs))
           else:print('Consulta filas indisponível, HTTP',status)
           PY
 # Auditoria após atualização do token Cloudflare no GitHub — sem mutações nem exibição de segredos.
