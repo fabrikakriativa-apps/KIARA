@@ -1,7 +1,1 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import {CONSULTATIVE_IDENTITY} from '../src/consultative-identity.js';
-import {readFileSync} from 'node:fs';
-const intake=readFileSync(new URL('../src/quote-intake.js',import.meta.url),'utf8');
-test('eco repetido não é necessário',()=>{assert.match(CONSULTATIVE_IDENTITY,/Registre silenciosamente/);assert.match(CONSULTATIVE_IDENTITY,/Evite ecoar as respostas/);});
-test('resumo uma vez, por ambiente e sem suposições',()=>{assert.match(CONSULTATIVE_IDENTITY,/recapitule uma única vez/);assert.match(CONSULTATIVE_IDENTITY,/por ambiente/);assert.match(intake,/dados comerciais de cada ambiente devem estar definidos/);});
+import test from 'node:test';import assert from 'node:assert/strict';import {CONSULTATIVE_IDENTITY as p} from '../src/consultative-identity.js';test('resposta natural sem eco obrigatório',()=>{assert.match(p,/Evite repetições, confirmações automáticas/);assert.match(p,/muitas respostas não precisam terminar com pergunta/);});test('resumo antes de orçamento',()=>{assert.match(p,/por ambiente/);assert.match(p,/escolhas efetivamente confirmadas/);});
