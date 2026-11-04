@@ -19,7 +19,7 @@ export function chooseFinishImages(text,rows){
  * Nunca interpreta uma menção simples como autorização de envio.
  * Mantém no máximo duas fotos e não fornece URL privada ao modelo.
  */
-export function chooseProductImages(text,rows=[]){
+export function chooseProductImages(text,rows=[],context=''){
  const input=normalize(text);
  const ask=/(foto|fotos|imagem|imagens|mostr|ver |visualiz|ilustr)/.test(input);
  if(!ask||!Array.isArray(rows))return [];
@@ -28,7 +28,10 @@ export function chooseProductImages(text,rows=[]){
  if(!eligible.length)return [];
  const curtains=/\b(cortina|cortinas|tecido|linho|voil|gaze|wave|prega)\b/.test(input);
  const blinds=/\b(persiana|persianas|rolo|rol[oô]|romana|double vision|madeira|silonew|vig blind)\b/.test(input);
- const product=curtains&&!blinds?'cortina':blinds&&!curtains?'persiana':null;
+ const contextText=normalize(context);
+ const contextualCurtain=/\b(cortina|cortinas|tecido|linho|voil|gaze|wave|prega)\b/.test(contextText);
+ const contextualBlind=/\b(persiana|persianas|rolo|rol[oô]|romana|double vision)\b/.test(contextText);
+ const product=curtains&&!blinds?'cortina':blinds&&!curtains?'persiana':(!curtains&&!blinds&&contextualCurtain!==contextualBlind?(contextualCurtain?'cortina':'persiana'):null);
  if(!product)return [];
  const terms=[
    ['gaze de linho',/gaze/],['linho fresh',/fresh/],['linho morea',/morea/],
