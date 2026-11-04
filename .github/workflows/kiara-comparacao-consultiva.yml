@@ -1,0 +1,38 @@
+name: Kiara - comparacao consultiva isolada
+on:
+  push:
+    branches: [homologacao]
+    paths:
+      - 'evals/compare-live.mjs'
+      - '.github/workflows/kiara-comparacao-consultiva.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  comparar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      KIARA_EVAL_MODEL: gpt-6-luna
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verificar credencial de avaliação sem revelar segredo
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "::error::OPENAI_API_KEY não está disponível como segredo neste repositório. Não houve comparação de respostas reais."
+            exit 1
+          fi
+      - name: Executar respostas de referência e reorganizadas
+        run: node evals/compare-live.mjs
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: kiara-comparacao-consultiva
+          path: evals/compare-results.json
+          retention-days: 7
