@@ -538,8 +538,8 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
           </div>
           {controlSimulated && selected && <p role="status" className="kiara-security">Status do teste no KV: {simulatedConversationStatus===null?'Ainda não simulado':simulatedConversationStatus==='human'?'Assumida (simulação)':'Devolvida à IA (simulação)'} — status real preservado.</p>}
           <div className="kiara-chat-actions">
-            <button type="button" disabled={!selected || !controlReady || controlBusy || selected.status==='human'} onClick={()=>selected && void runCommand('assume',selected.id)}><Hand size={16}/> Assumir</button>
-            <button type="button" disabled={!selected || !controlReady || controlBusy || selected.status==='ai'} onClick={()=>selected && void runCommand('return_to_ai',selected.id)}><RefreshCcw size={16}/> Devolver à Kiara</button>
+            <button type="button" disabled={!selected || !controlReady || controlBusy || (controlSimulated ? simulatedConversationStatus==='human' : selected.status==='human')} onClick={()=>selected && void runCommand('assume',selected.id)}><Hand size={16}/> Assumir</button>
+            <button type="button" disabled={!selected || !controlReady || controlBusy || (controlSimulated ? simulatedConversationStatus==='ai' : selected.status==='ai')} onClick={()=>selected && void runCommand('return_to_ai',selected.id)}><RefreshCcw size={16}/> Devolver à Kiara</button>
           </div>
           {showCoaching&&<div className="kiara-details-coaching"><KiaraCoaching conversationId={selectedId} selectedMessage={coachingMessage} clearSelectedMessage={()=>setCoachingMessage(null)}/></div>}
           <p className="kiara-security"><ShieldAlert size={15}/> Comandos disponíveis somente após autorização do servidor.</p>
