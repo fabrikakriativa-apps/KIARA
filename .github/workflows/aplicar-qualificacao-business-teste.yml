@@ -59,7 +59,7 @@ jobs:
             'main_module':'kiara-business-test.mjs',
             'compatibility_date':open('/tmp/compatibility_date.txt').read().strip(),
             'keep_bindings':['secret_text','plain_text','kv_namespace','queue'],
-            'bindings':[{'type':'plain_text','name':'KIARA_CUSTOMER_QUALIFICATION_ENABLED','text':'true'}, {'type':'plain_text','name':'KIARA_GUIDANCE_ENABLED','text':'true'}, {'type':'plain_text','name':'KIARA_MEDIA_ENABLED','text':'true'}],
+            'bindings':[{'type':'plain_text','name':'KIARA_CUSTOMER_QUALIFICATION_ENABLED','text':'true'}, {'type':'plain_text','name':'KIARA_GUIDANCE_ENABLED','text':'true'}, {'type':'plain_text','name':'KIARA_MEDIA_ENABLED','text':'true'}, {'type':'plain_text','name':'KIARA_BUDGET_WORKFLOW_ENABLED','text':'true'}],
             'annotations':{'workers/message':'Qualificação obrigatória do contato de teste - nome completo, bairro e cidade'}
           }
           open('/tmp/kiara-metadata.json','w').write(json.dumps(metadata))
@@ -92,6 +92,8 @@ jobs:
           if guidance!='true':sys.exit('ERRO: orientações aprovadas não ativadas')
           media=next((x.get('text') for x in b if x.get('name')=='KIARA_MEDIA_ENABLED'),None)
           if media!='true':sys.exit('ERRO: biblioteca de imagens não ativada')
+          budget=next((x.get('text') for x in b if x.get('name')=='KIARA_BUDGET_WORKFLOW_ENABLED'),None)
+          if budget!='true':sys.exit('ERRO: fluxo de pré-orçamento não habilitado')
           print('Todos os bindings preservados; qualificação ativada para o destinatário de teste.')
           PY
           curl -fsS --max-time 20 "https://fabrika-atendimento-ia.fabrikakriativa.workers.dev/" >/tmp/kiara-health.json
@@ -135,3 +137,5 @@ jobs:
 # Seleção visual contextual sem envios automáticos: versão final homologada por testes.
 
 # Voz da Kiara em primeira pessoa do plural, como integrante da equipe, sem apresentacao institucional repetida.
+
+# Orçamento somente para contato autorizado: resumo e cálculo interno, revisão administrativa separada do envio Meta.
