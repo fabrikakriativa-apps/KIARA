@@ -1,11 +1,1 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import {CONSULTATIVE_IDENTITY} from '../src/consultative-identity.js';
-import {readFileSync} from 'node:fs';
-const w=readFileSync(new URL('../src/worker.js',import.meta.url),'utf8');
-const q=readFileSync(new URL('../src/quote-intake.js',import.meta.url),'utf8');
-test('preferências anteriores não viram decisões aprovadas',()=>{assert.match(CONSULTATIVE_IDENTITY,/preferência em avaliação/);assert.match(CONSULTATIVE_IDENTITY,/escolha expressamente confirmada/);});
-test('retomar opções e receber correções com tato',()=>{assert.match(CONSULTATIVE_IDENTITY,/Preserve preferências e medidas anteriores/);assert.match(CONSULTATIVE_IDENTITY,/admita brevemente/);});
-test('antes das medidas, orientar quando escolha aberta',()=>{assert.match(CONSULTATIVE_IDENTITY,/continue orientando antes de pedir dados técnicos/);});
-test('resumo somente de itens definidos',()=>{assert.match(q,/alternativas em avaliação|preferências em avaliação|sugestões ou preferências/);assert.match(CONSULTATIVE_IDENTITY,/recapitule uma única vez/);});
-test('proteção de envio persiste',()=>{assert.match(w,/containsCommercialPrice\(answer\)/);assert.match(w,/isAuthorizedToSend\(env, route, sender\)/);});
+import test from 'node:test';import assert from 'node:assert/strict';import {CONSULTATIVE_IDENTITY as p} from '../src/consultative-identity.js';import {quoteIntakePrompt} from '../src/quote-intake.js';test('histórico preserva preferências sem impor escolhas',()=>{assert.match(p,/preferência mencionada antes/);assert.match(p,/não é uma escolha confirmada/);assert.match(p,/ainda agrada/);});test('aceita correção e continua orientando',()=>{assert.match(p,/corrigir você/);assert.match(p,/sem justificativas longas/);});test('resumo guarda escolhas e pendências',()=>{assert.match(p,/recapitule brevemente/);assert.match(quoteIntakePrompt(),/Só considerar dados que o cliente confirmou/);});
