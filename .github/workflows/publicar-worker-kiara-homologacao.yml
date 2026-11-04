@@ -107,6 +107,12 @@ jobs:
           code=$(curl -sS -o /dev/null -w '%{http_code}' -X GET -H "Origin: https://attacker.example" "$WORKER_URL/kiara/control")
           echo "Origem não autorizada: $code"
           test "$code" = 403
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -X OPTIONS -H "Origin: $PANEL_ORIGIN" "$WORKER_URL/kiara/coach")
+          echo "Preflight segurar/liberar simulado: $code"
+          test "$code" = 204
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST -H "Origin: $PANEL_ORIGIN" "$WORKER_URL/kiara/coach")
+          echo "Segurar sem sessão: $code"
+          test "$code" = 401
           code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST -H "Origin: $PANEL_ORIGIN" "$WORKER_URL/kiara/human-message")
           echo "Envio humano desativado: $code"
           test "$code" = 404
@@ -116,3 +122,5 @@ jobs:
           code=$(curl -sS -o /dev/null -w '%{http_code}' -X OPTIONS -H "Origin: $PANEL_ORIGIN" "$WORKER_URL/kiara/capabilities")
           echo "Diagnóstico CORS: $code"
           test "$code" = 204
+
+# 2ª etapa homologação: observar comandos e retenção somente no KV separado.
