@@ -1,12 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {quoteIntakePrompt} from '../src/quote-intake.js';
+import {PRODUCT_KNOWLEDGE} from '../src/product-knowledge.js';
 import {commercialConversationRules} from '../src/commercial-guidance.js';
 
 test('voil é face frontal, não tecido obrigatório',()=>{
  const prompt=quoteIntakePrompt();
  assert.match(prompt,/VOIL identifica a posição\/face frontal/);
- assert.match(prompt,/independentemente de seu tecido/);
+ assert.match(PRODUCT_KNOWLEDGE,/independentemente de seu tecido/);
  assert.match(prompt,/Persiana atrás é outro produto/);
 });
 test('persiana não é segunda face de tecido',()=>{
