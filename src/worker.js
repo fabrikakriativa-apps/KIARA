@@ -1366,7 +1366,9 @@ async function consumeMessage(env, job) {
     'TRANSFERÊNCIA HUMANA: Se houver pedido explícito de humano, frustração persistente, necessidade técnica fora das informações aprovadas ou insegurança real, responda exatamente <<ENCAMINHAR_HUMANO>>. Uma dúvida comum, mudança de preferência ou resposta curta não exige transferência.'
   ].filter(Boolean).join('\n\n');
   const quoteInstruction=quoteStep?.kind==='collecting'
-   ?'O cliente iniciou um pedido de orçamento. Continue a orientação de forma natural, peça somente uma informação faltante por mensagem e não apresente preço.'
+   ?'O cliente iniciou um pedido de orçamento. Estas são as informações técnicas necessárias para prepará-lo, NÃO um roteiro de perguntas: '+quoteIntakePrompt()+
+    ' Use o histórico, não repita perguntas já respondidas e escolha apenas UMA informação faltante por mensagem. '+(quoteStep.missing?.[0]||'')+
+    ' Não mencione preços, margens ou custos internos.'
    :'';
   const answer=quoteStep?.text || await generateReply(env,nextHistory,[contextInstructions,quoteInstruction].filter(Boolean).join('\n\n'));
   if(answer.includes('<<ENCAMINHAR_HUMANO>>')){
