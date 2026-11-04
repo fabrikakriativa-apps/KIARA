@@ -43,6 +43,34 @@ jobs:
         run: |
           test -n "$CF_TOKEN" || { echo "::error::Token Cloudflare indisponível"; exit 1; }
           test -n "$CF_ACCOUNT" || { echo "::error::Conta Cloudflare indisponível"; exit 1; }
+      - name: Validar conta Cloudflare da Kiara antes de qualquer publicação
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          python3 - <<'PY'
+          import os, json, urllib.request, urllib.error
+          token=os.environ['CF_TOKEN']
+          account=os.environ['CF_ACCOUNT']
+          if not token or not account:
+              raise SystemExit('Credenciais do Cloudflare não configuradas.')
+          headers={'Authorization':'Bearer '+token,'Accept':'application/json'}
+          def get(url):
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(url,headers=headers),timeout=20) as res:
+                      return res.status,json.load(res)
+              except urllib.error.HTTPError as error:
+                  return error.code,{}
+          status,accounts=get('https://api.cloudflare.com/client/v4/accounts?per_page=100')
+          if status!=200:
+              raise SystemExit('Não foi possível validar conta autorizada (HTTP '+str(status)+'). Nenhum deploy.')
+          if not any(a.get('id')==account for a in accounts.get('result',[])):
+              raise SystemExit('Token Cloudflare pertence a outra conta: atualize a autorização do token no Cloudflare; não altere o Account ID às cegas. Nenhum deploy.')
+          status,worker=get('https://api.cloudflare.com/client/v4/accounts/'+account+'/workers/scripts/fabrika-atendimento-ia-homologacao/settings')
+          if status!=200:
+              raise SystemExit('Worker de homologação não localizado na conta autorizada (HTTP '+str(status)+'). Nenhum deploy.')
+          print('Conta e Worker de homologação confirmados. Publicação autorizada.')
+          PY
       - name: Publicar somente Worker read-only de homologação
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
