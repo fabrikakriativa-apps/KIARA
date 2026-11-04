@@ -9,7 +9,6 @@ import { KiaraCoaching } from './KiaraCoaching'
 import { kiaraCoachConfigured, readKiaraHold, setKiaraHold } from '../lib/kiaraCoachingControl'
 import {sendKiaraToProspecting,prospectingUrl} from '../lib/kiaraProspecting'
 import {kiaraHumanMessageConfigured,sendKiaraHumanMessage} from '../lib/kiaraHumanMessage'
-import {KiaraReadiness} from './KiaraReadiness'
 import type {ReportMode,Period} from './KiaraOverview'
 import './KiaraAttendance.css'
 import './KiaraVisual.css'
@@ -300,8 +299,6 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
         <button type="button" className="kiara-top-refresh" onClick={()=>setRefresh(value=>value+1)} aria-label="Atualizar dados" title="Atualizar dados"><RefreshCcw size={18}/></button>
       </div>
     </header>
-
-    <KiaraReadiness/>
 
     {activeReportMode&&<div className="kiara-conversation-filter-chip"><Filter size={16}/> Indicador: <strong>{activeReportMode==='started'?'Conversas iniciadas':activeReportMode==='ad_unanswered'?'Sem interação após anúncio':'Atendimento humano'}</strong><button type="button" onClick={()=>{setActiveReportMode(null);setConversationLimit(100)}}>Ver todas as conversas</button></div>}
     {status!=='all'&&<div className="kiara-conversation-filter-chip"><Filter size={16}/> Exibindo somente: <strong>{labels[status as KiaraConversation['status']]||status}</strong><button type="button" onClick={()=>setStatus('all')}>Limpar filtro</button></div>}
