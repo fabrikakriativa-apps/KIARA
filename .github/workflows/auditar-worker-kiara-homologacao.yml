@@ -46,6 +46,7 @@ jobs:
               accounts=account_data.get('result') or []
               print('Quantidade de contas visíveis ao token:',len(accounts))
               print('A conta cadastrada no GitHub está visível:',any(a.get('id')==account for a in accounts))
+              print('Nomes das contas autorizadas no token:',[str(a.get('name','(sem nome)')) for a in accounts])
           else:print('Listagem de contas indisponível, HTTP',status)
           for worker in ('fabrika-atendimento-ia-homologacao','fabrika-atendimento-ia'):
               status,data=fetch('/workers/scripts/'+worker+'/settings')
