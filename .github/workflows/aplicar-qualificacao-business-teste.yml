@@ -59,7 +59,7 @@ jobs:
             'main_module':'kiara-business-test.mjs',
             'compatibility_date':open('/tmp/compatibility_date.txt').read().strip(),
             'keep_bindings':['secret_text','plain_text','kv_namespace','queue'],
-            'bindings':[{'type':'plain_text','name':'KIARA_CUSTOMER_QUALIFICATION_ENABLED','text':'true'}],
+            'bindings':[{'type':'plain_text','name':'KIARA_CUSTOMER_QUALIFICATION_ENABLED','text':'true'}, {'type':'plain_text','name':'KIARA_GUIDANCE_ENABLED','text':'true'}],
             'annotations':{'workers/message':'Qualificação obrigatória do contato de teste - nome completo, bairro e cidade'}
           }
           open('/tmp/kiara-metadata.json','w').write(json.dumps(metadata))
@@ -88,6 +88,8 @@ jobs:
           if not expected.issubset(names):sys.exit('ERRO: bindings anteriores não estão completos')
           flag=next((x.get('text') for x in b if x.get('name')=='KIARA_CUSTOMER_QUALIFICATION_ENABLED'),None)
           if flag!='true':sys.exit('ERRO: qualificação não ativada')
+          guidance=next((x.get('text') for x in b if x.get('name')=='KIARA_GUIDANCE_ENABLED'),None)
+          if guidance!='true':sys.exit('ERRO: orientações aprovadas não ativadas')
           print('Todos os bindings preservados; qualificação ativada para o destinatário de teste.')
           PY
           curl -fsS --max-time 20 "https://fabrika-atendimento-ia.fabrikakriativa.workers.dev/" >/tmp/kiara-health.json
@@ -121,3 +123,5 @@ jobs:
 # Corrigir falso encaminhamento de pedido de esclarecimento, exclusivamente no contato autorizado.
 
 # Reset comportamental minimalista: homologação por WhatsApp exclusivamente no contato autorizado, com segurança comercial preservada.
+
+# Ativar orientação aprovada do Supabase por atendimento no contato de teste; não habilitar cache opcional.
