@@ -36,5 +36,8 @@ jobs:
           print('Numero Easy coincide com Business de testes:',phone.get('text')=='989677610885915' if phone.get('type')=='plain_text' else 'indeterminado')
           allowed=next((b for b in bindings if b.get('name')=='TEST_ALLOWED_WA_ID'),{})
           print('Contato teste tipo:',allowed.get('type','ausente'))
+          import re
+          digits=re.sub(r'\\D','',str(allowed.get('text') or '')) if allowed.get('type')=='plain_text' else ''
+          print('Número autorizado de teste termina em:',digits[-4:] if len(digits)>=8 else 'não verificável')
           print('Nada foi alterado.')
           PY
