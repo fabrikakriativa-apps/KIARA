@@ -1099,7 +1099,7 @@ async function loadCommercialHistory(env, route, sender, requiredMessageId) {
 // Mídia pode operar em homologação sem habilitar controles humanos ainda não homologados.
 // A autorização estrita do contato de teste permanece no consumo e no envio.
 const mediaEnabled=env=>env.KIARA_MEDIA_ENABLED==='true'&&syncActive(env)&&env.TEST_ALLOWED_WA_ID;
-async function approvedFinishImages(env,text){
+async function approvedFinishImages(env,text,context=''){
  if(!mediaEnabled(env))return [];
  const visualRequest=/(foto|imagem|mostr|ver |visualiz|ilustr)/i.test(String(text||''));
  if(!visualRequest)return [];
@@ -1107,7 +1107,7 @@ async function approvedFinishImages(env,text){
   '?select=id,product,model,title,storage_path,active,category'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
   '&active=is.true&limit=100');
  const finishing=chooseFinishImages(text,rows);
- return finishing.length?finishing:chooseProductImages(text,rows);
+ return finishing.length?finishing:chooseProductImages(text,rows,context);
 }
 async function sendFinishImages(env,route,sender,refs,targetId,conversation){
  for(const ref of refs){
@@ -1248,7 +1248,7 @@ async function consumeMessage(env, job) {
   await saveQualification(env,route,sender,profile);
 
   let references=[];
-  try { references=await approvedFinishImages(env,String(inputText||'')); }
+  try { const latestAssistant=nextHistory.slice(0,-1).filter(x=>x.role==='assistant').slice(-1).map(x=>x.content).join(' '); references=await approvedFinishImages(env,String(inputText||''),latestAssistant); }
   catch(err) { console.warn('Biblioteca indisponível; seguir por texto',String(err?.message||'')); }
   const guidance = await getGuidance(env, route, sender);
   const approvedCommercial = await approvedCommercialConversationRules(env);
