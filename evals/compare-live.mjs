@@ -36,3 +36,5 @@ writeFileSync('evals/compare-results.json',JSON.stringify(out,null,2));
 console.log('Comparação concluída, total de cenários',out.cases.length);
 
 // Segunda rodada: observar preservação de contexto e perguntas únicas.
+
+// Reset comportamental: comparar identidade minimalista nos oito cenários, sem enviar mensagens.
