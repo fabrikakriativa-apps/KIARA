@@ -178,19 +178,25 @@ async function interpretCustomerQualification(env,history,current){
       instructions:qualificationExtractionInstructions()+
         '\\nCampos já confirmados (não substitua): '+JSON.stringify(current),
       input:recent,
-      text:{format:{type:'json_object'}},
-      max_output_tokens:300,
+      max_output_tokens:700,
       reasoning:{effort:'none'},
       store:false
     })
   });
-  if(!response.ok)throw new Error('Falha na interpretação do cadastro');
+  if(!response.ok){console.warn('Extração de identificação HTTP',response.status);throw new Error('Falha na interpretação do cadastro')}
   const data=await response.json();
   const raw=(data.output||[]).flatMap(item=>item.content||[])
     .filter(x=>x.type==='output_text').map(x=>x.text).join('').trim();
   let parsed;
-  try{parsed=JSON.parse(raw)}catch{return {}}
-  return validateExtractedQualification(parsed,recent,current);
+  try{parsed=JSON.parse(raw)}catch{
+    // Algumas respostas trazem o objeto delimitado por bloco Markdown.
+    const match=raw.match(/\{[\s\S]*\}/);
+    if(!match){console.warn('Extração sem JSON completo');return {}}
+    try{parsed=JSON.parse(match[0])}catch{console.warn('Extração JSON inválido');return {}}
+  }
+  const accepted=validateExtractedQualification(parsed,recent,current);
+  console.log('Qualificação interpretada: campos validados',Object.keys(accepted).join(',')||'nenhum');
+  return accepted;
 }
 const qualificationStateKey=(route,sender)=>route.source+':qualification:'+digits(sender);
 async function loadQualification(env,route,sender){
