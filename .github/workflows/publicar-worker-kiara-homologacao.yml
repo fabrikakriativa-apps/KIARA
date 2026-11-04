@@ -63,3 +63,9 @@ jobs:
           code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST -H "Origin: $PANEL_ORIGIN" "$WORKER_URL/kiara/human-message")
           echo "Envio humano desativado: $code"
           test "$code" = 404
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -H "Origin: $PANEL_ORIGIN" "$WORKER_URL/kiara/capabilities")
+          echo "Diagnóstico sem autenticação: $code"
+          test "$code" = 401
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -X OPTIONS -H "Origin: $PANEL_ORIGIN" "$WORKER_URL/kiara/capabilities")
+          echo "Diagnóstico CORS: $code"
+          test "$code" = 204
