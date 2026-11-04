@@ -115,3 +115,5 @@ jobs:
 # Evitar confundir propostas anteriores com escolhas confirmadas em novos pedidos consultivos.
 
 # Melhorar retorno acolhedor à correção e confirmar com tato se uma opção anterior ainda interessa.
+
+# Homologação consultiva: publicar versão testada no contato Business autorizado após avaliação real e CI aprovado.
