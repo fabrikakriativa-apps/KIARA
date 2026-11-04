@@ -7,13 +7,14 @@ const base = import.meta.env.VITE_KIARA_CONTROL_URL?.trim() || ''
 
 export const kiaraControlConfigured = Boolean(base && /^https:\/\//.test(base))
 
-async function operator<T>(method: 'GET'|'POST', body?: unknown): Promise<T> {
+async function operator<T>(method: 'GET'|'POST', body?: unknown, conversationId?:string): Promise<T> {
   if (!kiaraControlConfigured || !supabase) {
     throw new Error('O controle da Kiara ainda não foi habilitado.')
   }
   const {data: { session }, error} = await supabase.auth.getSession()
   if (error || !session?.access_token) throw new Error('Entre novamente no SISTEMA para continuar.')
-  const response=await fetch(base,{
+  const endpoint=method==='GET'&&conversationId?base+'?conversationId='+encodeURIComponent(conversationId):base
+  const response=await fetch(endpoint,{
     method,
     headers:{
       Authorization: `Bearer ${session.access_token}`,
@@ -30,6 +31,6 @@ async function operator<T>(method: 'GET'|'POST', body?: unknown): Promise<T> {
   return response.json() as Promise<T>
 }
 
-export const readKiaraControl = () => operator<{enabled:boolean;simulated?:boolean;productionConnected?:boolean}>('GET')
+export const readKiaraControl = (conversationId?:string) => operator<{enabled:boolean;simulated?:boolean;productionConnected?:boolean;simulatedStatus?:'ai'|'human'|null}>('GET',undefined,conversationId)
 export const commandKiara = (action:KiaraOperatorAction,conversationId?:string) =>
   operator<{ok:boolean;action:string}>('POST',{action,conversationId:conversationId||null})
