@@ -1254,7 +1254,7 @@ async function consumeMessage(env, job) {
   const clientContext='DADOS CONFIRMADOS PELO CLIENTE (cadastro): '+
     JSON.stringify({firstName:profile.firstName,lastName:profile.lastName,neighborhood:profile.neighborhood,city:profile.city})+
     '. CAMPOS DE CADASTRO PENDENTES: '+evaluateCustomerQualification(profile).missing.join(', ')+
-    '. Peça o primeiro nome cedo quando ainda não o tiver; sobrenome, bairro e cidade são necessários antes de um valor, sem interromper uma orientação útil.';
+    '. O cadastro é exigido antes de apresentar valores, não para esclarecer dúvidas. Se o primeiro nome ainda faltar, peça-o na primeira oportunidade natural; depois colete dados faltantes de modo gradual, sem listar todos nem interromper a consultoria.';
   const contextInstructions=[
     clientContext,
     mediaHint,
