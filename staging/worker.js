@@ -94,6 +94,45 @@ export default {
       service:'kiara-homologacao',status:'ok',worker_code:'integrado',external_integrations:'blocked',
       supabase_read:'authenticated_only'
     });
+    if(url.pathname==='/kiara/capabilities'){
+      const origin=request.headers.get('Origin')||'';
+      const headers=cors(env,origin);
+      if(origin!==env.KIARA_DASHBOARD_ORIGIN)return json({error:'Origem não autorizada'},403,headers);
+      if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
+      if(request.method!=='GET')return json({error:'Método não permitido'},405,headers);
+      const authorization=request.headers.get('Authorization')||'';
+      if(!/^Bearer [A-Za-z0-9._~-]{50,10000}$/.test(authorization))
+        return json({error:'Sessão necessária'},401,headers);
+      try{
+        const {url:base,key,org}=requireConfig(env);
+        const sessionHeaders={apikey:key,Authorization:authorization};
+        const userResponse=await fetch(base+'/auth/v1/user',{headers:sessionHeaders});
+        if(!userResponse.ok)return json({error:'Sessão inválida'},401,headers);
+        const user=await userResponse.json();
+        if(!uuid.test(user?.id||''))return json({error:'Identidade inválida'},401,headers);
+        const q=new URLSearchParams({select:'role',organization_id:'eq.'+org,user_id:'eq.'+user.id,active:'is.true',limit:'5'});
+        const membership=await fetch(base+'/rest/v1/memberships?'+q,{headers:sessionHeaders});
+        if(!membership.ok)return json({error:'Permissões indisponíveis'},503,headers);
+        const rows=await membership.json();
+        if(!Array.isArray(rows)||!rows.some(row=>row.role==='admin'||row.role==='comercial'))
+          return json({error:'Sem permissão'},403,headers);
+        return json({
+          environment:'homologacao_isolada',
+          transport:'disabled',productionConnected:false,
+          capabilities:{
+            pricingSimulation:{enabled:true,label:'Simulação de preços interna'},
+            conversationRead:{enabled:true,label:'Consulta de conversas'},
+            conversationControl:{enabled:false,label:'Assumir, devolver e pausar',reason:'Worker sem KV e sincronização de conversa'},
+            humanMessages:{enabled:false,label:'Envio humano pelo painel',reason:'Worker sem credenciais Meta e número de teste'},
+            automaticReplies:{enabled:false,label:'Respostas automáticas no WhatsApp',reason:'Worker sem fila, KV e canal Meta'},
+            coachingWrite:{enabled:false,label:'Segurar e liberar resposta',reason:'Worker isolado somente para leitura'}
+          }
+        },200,headers);
+      }catch(error){
+        console.error('Capabilities unavailable',String(error?.message||''));
+        return json({error:'Diagnóstico indisponível'},503,headers);
+      }
+    }
     if(url.pathname==='/kiara/pricing/simulate'){
       try{return await priceSimulation(request,env)}
       catch(error){console.error('Staging simulation failed',String(error?.message||''));return json({error:'Simulação indisponível'},503,cors(env,request.headers.get('Origin'),'POST, OPTIONS'))}
