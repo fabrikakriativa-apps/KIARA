@@ -1219,8 +1219,11 @@ async function consumeMessage(env, job) {
         {status:'ai',reply_held:false,reply_held_since:null,reply_held_by:null});
     }
     if (!(await isAuthorizedToSend(env, route, sender))) return;
-    const text = 'Conversa reiniciada! 😊 Sou a Kiara, assistente digital da Fábrika Kriativa. Como posso te chamar?';
-    await saveQualification(env,route,sender,{...blankQualification(),pendingField:'firstName'});
+    const text = env.KIARA_CUSTOMER_QUALIFICATION_ENABLED==='true' ?
+      'Conversa reiniciada! 😊 Sou a Kiara, assistente digital da Fábrika Kriativa. Como posso te chamar?' :
+      'Conversa reiniciada! 😊 Como posso ajudar?';
+    if(env.KIARA_CUSTOMER_QUALIFICATION_ENABLED==='true')
+      await saveQualification(env,route,sender,{...blankQualification(),pendingField:'firstName'});
     const sentId = await sendMessage(route, sender, text);
     await bestEffortSync(() => syncKiaraReply(env, route, sender, sentId, text), 'reset reply');
     await env.CONVERSAS.put(completedKey, '1', {expirationTtl: MEMORY_TTL});
@@ -1250,7 +1253,7 @@ async function consumeMessage(env, job) {
   });
   profile=mergeQualification(profile,extracted);
   if(profile.pendingField && extracted[profile.pendingField])profile.pendingField='';
-  if(!profile.firstName){
+  if(env.KIARA_CUSTOMER_QUALIFICATION_ENABLED==='true' && !profile.firstName){
     const prompt=qualificationQuestion(profile,{initial:true});
     profile.pendingField='firstName';
     await saveQualification(env,route,sender,profile);
@@ -1311,7 +1314,7 @@ async function consumeMessage(env, job) {
 
   // Proteção final contra valor comercial sem cadastro completo, mesmo se o modelo errar.
   let finalAnswer=answer;
-  if(containsCommercialPrice(answer) && !evaluateCustomerQualification(profile).qualified){
+  if(env.KIARA_CUSTOMER_QUALIFICATION_ENABLED==='true' && containsCommercialPrice(answer) && !evaluateCustomerQualification(profile).qualified){
     const pending=evaluateCustomerQualification(profile).missing[0];
     const prompt=qualificationQuestion(profile);
     profile.pendingField=pending;
