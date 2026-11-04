@@ -103,7 +103,7 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
     try{
       const result=await setKiaraHold(selectedId,!replyHeld)
       setReplyHeld(result.held)
-      setHoldFeedback(result.held?'Kiara aguardando sua orientação.':'Resposta liberada para a fila da Kiara.')
+      setHoldFeedback(result.held?'Simulação: próxima resposta marcada como retida no KV de testes.':'Simulação: retenção retirada do KV de testes. Nada foi alterado no WhatsApp.')
     }catch(err){setHoldFeedback(err instanceof Error?err.message:'Não foi possível confirmar a alteração.')}
     finally{setHoldBusy(false)}
   }
@@ -518,9 +518,9 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
             <button type="button" className="kiara-details-guide" onClick={()=>setShowCoaching(value=>!value)} disabled={!selected}><Sparkles size={17}/> {showCoaching?'Fechar orientação':'Orientar Kiara'} <span>Interno</span></button>
             <div className="kiara-coach-control">
               <button type="button" disabled={!selected || !holdReady || holdBusy} className={replyHeld?'kiara-hold-on':''} onClick={()=>void toggleHold()}>
-                <PauseCircle size={17}/>{replyHeld?'Liberar resposta':'Segurar próxima resposta'}
+                <PauseCircle size={17}/>{replyHeld?'Liberar (teste)':'Segurar resposta (teste)'}
               </button>
-              {replyHeld&&<strong className="kiara-hold-warning">Resposta automática suspensa nesta conversa</strong>}
+              {replyHeld&&<strong className="kiara-hold-warning">Retenção simulada nesta conversa — WhatsApp não foi pausado</strong>}
               {holdFeedback&&<small role="status">{holdFeedback}</small>}
             </div>
           </div>
