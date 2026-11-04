@@ -5,6 +5,7 @@ import {supabase} from '../lib/supabase'
 import {kiaraControlConfigured,readKiaraControl} from '../lib/kiaraControl'
 import {KiaraCommercialSettings} from './KiaraCommercialSettings'
 import {KiaraReferenceImages} from './KiaraReferenceImages'
+import {KiaraReadiness} from './KiaraReadiness'
 import type {KiaraSection} from './KiaraOverview'
 import './KiaraSettings.css'
 
@@ -27,6 +28,7 @@ const navigation:Partial<Record<Section,KiaraSection>>={
 export function KiaraSettings({onNavigate}:{onNavigate:(section:KiaraSection)=>void}){
  const access=useAccess()
  const [selected,setSelected]=useState<Section|null>(null)
+ const [showDiagnostics,setShowDiagnostics]=useState(false)
  const [aiState,setAiState]=useState<'checking'|'active'|'paused'|'unavailable'>('checking')
  const [people,setPeople]=useState<{user_id:string;role:string}[]>([])
  const [error,setError]=useState('')
@@ -76,6 +78,12 @@ export function KiaraSettings({onNavigate}:{onNavigate:(section:KiaraSection)=>v
     <button type="button" onClick={()=>onNavigate('conversations')}>Abrir controles de atendimento <ArrowRight size={15}/></button>
    </div>}
    {selected==='integrations'&&<div className="kiara-settings-info">
+    {access?.role==='admin'&&<div className="kiara-diagnostics-entry">
+     <button type="button" onClick={()=>setShowDiagnostics(value=>!value)} aria-expanded={showDiagnostics}>
+      {showDiagnostics?'Ocultar diagnóstico técnico':'Ver diagnóstico técnico'}
+     </button>
+     {showDiagnostics&&<KiaraReadiness/>}
+    </div>}
     <h3>Conexões do painel</h3>
     <div className="kiara-settings-status"><Cloud size={19}/><div><strong>Supabase</strong><small>{supabase?'Cliente configurado neste painel.':'Cliente não configurado neste painel.'}</small></div></div>
     <div className="kiara-settings-status"><PlugZap size={19}/><div><strong>WhatsApp Business</strong><small>Acompanhamento de mensagens sincronizadas na área Conversas. O estado da integração externa exige verificação específica no Worker.</small></div></div>
