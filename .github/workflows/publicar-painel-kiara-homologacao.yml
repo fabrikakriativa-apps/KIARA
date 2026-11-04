@@ -72,7 +72,7 @@ jobs:
             fi
           }
           check GET /kiara/control
-          check GET /kiara/coach
+          check GET '/kiara/coach?conversationId=5453d08e-eb3f-4699-8d77-16d5da956aaf'
           check POST /kiara/pricing/simulate
           check POST /kiara/human-message
 
