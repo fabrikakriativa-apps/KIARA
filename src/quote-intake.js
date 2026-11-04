@@ -63,29 +63,14 @@ export function quoteNextQuestion(product,values={},mode='quick'){
  return null;
 }
 export function quoteIntakePrompt(){
- return 'MATRIZ DE COLETA PARA PRÉ-ORÇAMENTO: somente cortinas e persianas. '+
-  'A composição altera o preço, portanto NÃO crie estimativa com modelo indefinido. '+
-  'Campos essenciais: produto, ambiente, modelo, largura e altura aproximadas; '+
-  'cortina exige identificar se o cliente deseja somente um tecido ou dois tecidos (frente e forro), e o tipo de tecido; '+
-  'Nunca perguntar quantidade de faces, proporção de tecido, fator de franzimento ou tipo técnico de trilho ao cliente. '+
-  'Trate faces/camadas como composição interna: uma camada de tecido ou duas camadas (frente e forro). '+
-  'Não confundir número de camadas com quantidade de janelas, peças ou aberturas. '+
-  'Para pré-orçamento, contar instalação por face de tecido, nunca por folha de abertura. '+
-  'Não perguntar ao cliente abertura central/lateral nem número de folhas ou motores para formar valor inicial; reservar detalhes para visita técnica ou negociação avançada. '+
-  'Se o cliente mencionar cortina frontal (voil) com FORRO DE TECIDO blackout, registrar duas faces de tecido; se a peça atrás for PERSIANA, registrar persiana como produto separado e a cortina com apenas uma face de tecido. '+
-  'Persiana exige finalidade de controle de luz e material/tecido quando aplicável. '+
-  'A Kiara pode sugerir COMPOSIÇÃO de PERSIANA atrás na função do forro e CORTINA na frente, cuja face frontal é chamada de VOIL no vocabulário de composição da Fábrika. VOIL identifica a posição/face frontal, e NÃO obriga a usar tecido voil: o cliente pode escolher qualquer tecido adequado. Registrar cortina e persiana como produtos distintos, separados na formação de preços, sem somar duas faces de tecido na cortina nem inventar preço combinado. '+
-  'Se o cliente informou apenas o tamanho da JANELA (não o tamanho final da peça), considerar preliminarmente mais 10 cm em CADA lateral e 10 cm na ALTURA para instalação convencional na parede, ou mais 50 cm de ALTURA para instalação no teto, substituindo os 10 cm de altura. Confirmar tipo de instalação, não duplicar esses acréscimos e não aplicar regra de janela em medida final da peça ou vidro de sacada. '+
-  'Para cortinas, somente trilho suíço ou varão trilho, instalados no teto ou parede. Não oferecer ilhós. ' +
-  'Acionamento, acabamento e instalação são condicionais ao modelo. '+
-  'Antes da estimativa, os dados comerciais de cada ambiente devem estar definidos; não transforme sugestões ou preferências em escolhas confirmadas. '+
-  'Se houver pendências, a ferramenta de orçamento deve recusar o cálculo; a conversa consultiva pode continuar. '+
-  'Se houver DÚVIDA sobre acabamento de confecção (prega macho, prega franzida ou wave), a Kiara pode explicar a diferença brevemente. Primeiro identifique a dúvida; quando a comparação visual ajudar, ofereça uma referência de imagem aprovada, ou no máximo duas para comparação a pedido do cliente. NÃO apresente catálogo completo, lista de nomes técnicos ou três imagens automaticamente. '+
-  'A seleção de imagens deve usar apenas referências ATIVAS, com modelo confirmado e finalidade adequada. Se não houver integração de mídia homologada ou foto ativa, oriente somente em texto e NÃO afirme que enviou imagem. '+
-  'Se não souber o modelo, ofereça escolha visual de estilos quando houver recurso homologado, '+
-  'ou peça uma foto de referência, sem adivinhar o modelo. '+
-  'Sem imagens oficiais aprovadas, não invente fotos ou disponibilidade. '+
-  'Não invente preços, garantias, prazos, especificações ou compatibilidade; '+
-  'ao surgir dúvida técnica, peça atendimento humano. '+
-  'Ao completar a coleta, gere resumo estruturado e solicite conferência humana do orçamento.';
+ return [
+  'DADOS TÉCNICOS PARA PRÉ-ORÇAMENTO (não é um roteiro de conversa):',
+  'Para cortinas: ambiente, modelo, largura e altura, tecido frontal e decisão de forro.',
+  'Para persianas: ambiente, modelo, largura e altura, tecido/material e finalidade de controle de luminosidade.',
+  'Só considerar dados que o cliente confirmou. Diferenciar alternativas ainda em avaliação; não aplicar dados de um ambiente a outro.',
+  'Cortina com frente e forro de tecido tem duas faces para cálculo. Persiana atrás é outro produto, não uma face adicional.',
+  'Não perguntar ao cliente quantidade de faces, fator de franzimento, número de folhas, motores ou detalhes técnicos usados apenas internamente.',
+  'Antes do orçamento, oferecer síntese breve das especificações confirmadas e pendências; a formação de valores exige validação comercial e humana.',
+  'Não inventar valores, produtos, garantias, prazos ou especificações.'
+ ].join(' ');
 }
