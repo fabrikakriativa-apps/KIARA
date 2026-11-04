@@ -23,26 +23,55 @@ function requireConfig(env){
     throw new Error('Homologação sem configuração Supabase válida');
   return {url,key,org};
 }
-async function authenticatedRead(request,env,url){
+// Estado de orientação totalmente isolado do atendimento real.
+// Exige sessão válida, associação à organização e RLS da conversa.
+async function stagingCoach(request,env,url){
   const origin=request.headers.get('Origin')||'';
-  const headers=cors(env,origin);
-  if(origin!==env.KIARA_DASHBOARD_ORIGIN)return json({error:'Origin not allowed'},403,headers);
+  const headers=cors(env,origin,'GET, POST, OPTIONS');
+  if(origin!==env.KIARA_DASHBOARD_ORIGIN)return json({error:'Origem não autorizada'},403,headers);
   if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
-  if(request.method!=='GET')return json({error:'Read-only staging'},405,headers);
-  const conversationId=url.searchParams.get('conversationId')||'';
-  if(!uuid.test(conversationId))return json({error:'Invalid conversation'},400,headers);
-  const token=request.headers.get('Authorization')||'';
-  if(!/^Bearer [A-Za-z0-9._~-]{50,10000}$/.test(token))return json({error:'Authentication required'},401,headers);
+  if(!['GET','POST'].includes(request.method))return json({error:'Método inválido'},405,headers);
+  const authorization=request.headers.get('Authorization')||'';
+  if(!/^Bearer [A-Za-z0-9._~-]{50,10000}$/.test(authorization))
+    return json({error:'Sessão necessária'},401,headers);
   const {url:base,key,org}=requireConfig(env);
-  const authHeaders={apikey:key,Authorization:token};
-  const verified=await fetch(base+'/auth/v1/user',{headers:authHeaders});
-  if(!verified.ok)return json({error:'Invalid session'},401,headers);
-  const qs=new URLSearchParams({select:'reply_held,status',organization_id:'eq.'+org,id:'eq.'+conversationId,limit:'1'});
-  const db=await fetch(base+'/rest/v1/kiara_conversations?'+qs,{headers:authHeaders});
-  if(!db.ok)return json({error:'Read not available'},db.status===401||db.status===403?403:503,headers);
+  if(!env.KIARA_CONTROLES?.get || !env.KIARA_CONTROLES?.put)
+    return json({error:'KV de homologação indisponível'},503,headers);
+  const sessionHeaders={apikey:key,Authorization:authorization};
+  const verified=await fetch(base+'/auth/v1/user',{headers:sessionHeaders});
+  if(!verified.ok)return json({error:'Sessão inválida'},401,headers);
+  const user=await verified.json();
+  if(!uuid.test(user?.id||''))return json({error:'Identidade inválida'},401,headers);
+  const membershipQuery=new URLSearchParams({select:'role',organization_id:'eq.'+org,user_id:'eq.'+user.id,active:'is.true',limit:'5'});
+  const membership=await fetch(base+'/rest/v1/memberships?'+membershipQuery,{headers:sessionHeaders});
+  if(!membership.ok)return json({error:'Permissões indisponíveis'},503,headers);
+  const memberships=await membership.json();
+  if(!Array.isArray(memberships)||!memberships.some(x=>x.role==='admin'||x.role==='comercial'))
+    return json({error:'Sem permissão'},403,headers);
+  let conversationId,action;
+  if(request.method==='GET')conversationId=url.searchParams.get('conversationId');
+  else {
+    let body;
+    try{body=await request.json()}catch{return json({error:'JSON inválido'},400,headers)}
+    conversationId=body?.conversationId;
+    action=body?.action;
+    if(!['hold','release'].includes(action))return json({error:'Ação inválida'},400,headers);
+  }
+  if(!uuid.test(conversationId||''))return json({error:'Conversa inválida'},400,headers);
+  const qs=new URLSearchParams({select:'id,status',organization_id:'eq.'+org,id:'eq.'+conversationId,limit:'1'});
+  const db=await fetch(base+'/rest/v1/kiara_conversations?'+qs,{headers:sessionHeaders});
+  if(!db.ok)return json({error:'Conversa indisponível'},db.status===401||db.status===403?403:503,headers);
   const rows=await db.json();
-  if(!Array.isArray(rows)||rows.length===0)return json({error:'Conversation unavailable'},404,headers);
-  return json({held:rows[0].reply_held===true,status:rows[0].status,writable:false,environment:'homologacao'},200,headers);
+  if(!Array.isArray(rows)||rows.length!==1)return json({error:'Conversa não encontrada'},404,headers);
+  const stateKey='staging:control:'+org+':hold:'+conversationId;
+  if(request.method==='POST'){
+    const held=action==='hold';
+    await env.KIARA_CONTROLES.put(stateKey,held?'true':'false',{expirationTtl:60*60*24*7});
+    return json({ok:true,held,simulated:true,productionConnected:false,environment:'homologacao_isolada'},200,headers);
+  }
+  const saved=await env.KIARA_CONTROLES.get(stateKey);
+  return json({held:saved==='true',status:rows[0].status,writable:true,
+    simulated:true,productionConnected:false,environment:'homologacao_isolada'},200,headers);
 }
 // Simulação comercial com token do usuário e RLS, sem service_role.
 // O staging continua proibido de enviar mensagens, alterar conversas ou operar filas.
@@ -193,7 +222,7 @@ export default {
             conversationControl:{enabled:true,label:'Simular assumir, devolver e pausar',mode:'sandbox',reason:'Grava apenas no KV exclusivo da homologação; não interfere no WhatsApp'},
             humanMessages:{enabled:false,label:'Envio humano pelo painel',reason:'Worker sem credenciais Meta e número de teste'},
             automaticReplies:{enabled:false,label:'Respostas automáticas no WhatsApp',reason:'Worker sem fila, KV e canal Meta'},
-            coachingWrite:{enabled:false,label:'Segurar e liberar resposta',reason:'Worker isolado somente para leitura'}
+            coachingWrite:{enabled:true,label:'Simular segurar e liberar resposta',mode:'sandbox',reason:'Salvo apenas no KV exclusivo de homologação; não altera a fila real'}
           }
         },200,headers);
       }catch(error){
@@ -205,9 +234,9 @@ export default {
       try{return await priceSimulation(request,env)}
       catch(error){console.error('Staging simulation failed',String(error?.message||''));return json({error:'Simulação indisponível'},503,cors(env,request.headers.get('Origin'),'POST, OPTIONS'))}
     }
-    if(url.pathname==='/kiara/coach' && ['GET','OPTIONS'].includes(request.method)){
-      try{return await authenticatedRead(request,env,url)}
-      catch(error){console.error('Staging read failed',error?.message);return json({error:'Read unavailable'},503,cors(env,request.headers.get('Origin')))}
+    if(url.pathname==='/kiara/coach' && ['GET','POST','OPTIONS'].includes(request.method)){
+      try{return await stagingCoach(request,env,url)}
+      catch(error){console.error('Staging read failed',error?.message);return json({error:'Controle de orientação indisponível'},503,cors(env,request.headers.get('Origin'),'GET, POST, OPTIONS'))}
     }
     return json({error:'Rota desativada na homologação isolada'},404);
   }
