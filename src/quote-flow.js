@@ -8,7 +8,7 @@ export function expressesQuoteIntent(text){
 }
 export function confirmsQuoteSummary(text){
  const s=normalize(text).trim();
- return /^(?:sim|isso|correto|confirmo|pode seguir|pode preparar|esta certo|tudo certo|pode fazer)[.!\s]*$/.test(s);
+ return /^(?:(?:sim|isso|correto|confirmo|esta certo|tudo certo)(?:[,.! ]+(?:pode seguir|pode preparar|pode fazer))?|pode seguir|pode preparar|pode fazer)[.!\s]*$/.test(s);
 }
 export function cancelsQuoteSummary(text){
  return /\b(?:alterar|corrigir|mudar|nao|desist|rever|espera)\b/.test(normalize(text));
