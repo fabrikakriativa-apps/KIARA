@@ -31,6 +31,7 @@ function stagingReadiness(env){
     testRecipient: /^\d{8,30}$/.test(String(env.TEST_ALLOWED_WA_ID||'')),
     easyWebhookKey: /^[A-Za-z0-9_-]{24,256}$/.test(String(env.EASY_WEBHOOK_KEY||'')),
     easyCredential: Boolean(env.EASY_ACCESS_TOKEN),
+    webhookVerification: Boolean(env.META_VERIFY_TOKEN),
     aiCredential: Boolean(env.OPENAI_API_KEY),
     supabaseServerCredential: Boolean(env.SUPABASE_SERVICE_ROLE_KEY),
   };
