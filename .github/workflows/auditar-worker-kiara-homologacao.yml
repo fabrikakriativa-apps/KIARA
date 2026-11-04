@@ -84,3 +84,5 @@ jobs:
 # Auditoria após atualização do token Cloudflare no GitHub — sem mutações nem exibição de segredos.
 
 # Verificação de credenciais atualizadas para homologação; somente leitura.
+
+# Revalidar escopo após correção da conta autorizada no token.
