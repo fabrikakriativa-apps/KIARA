@@ -1,3 +1,4 @@
+import {expressesQuoteIntent,confirmsQuoteSummary,cancelsQuoteSummary,normalizeQuoteItems,summarizeQuoteItems,calculateQuotePreview,buildInternalBudget,approvedQuoteText} from './quote-flow.js';
 import { OPERATIONAL_POLICY } from './operational-policy.js';
 import { CONSULTATIVE_IDENTITY } from './consultative-identity.js';
 import { PRODUCT_KNOWLEDGE } from './product-knowledge.js';
@@ -1135,6 +1136,96 @@ async function sendFinishImages(env,route,sender,refs,targetId,conversation){
   await bestEffortSync(()=>syncKiaraReply(env,route,sender,sent,'[Imagem de referência: '+ref.title+']'),'visual reference');
  }
 }
+// Orçamento de homologação: sem preço automático ao cliente. O cálculo é
+// produzido somente por motor determinístico e permanece pendente de aprovação.
+const quoteTestActive=env=>env.KIARA_BUDGET_WORKFLOW_ENABLED==='true'&&syncActive(env);
+const quoteStateKey=(route,sender)=>route.source+':budget-flow:'+digits(sender);
+async function extractBudgetItems(env,history,settings){
+ const models=(settings.models||[]).filter(x=>typeof x==='string');
+ const categories=(settings.categories||[]).filter(x=>x.active!==false).map(x=>x.name);
+ const instructions=[
+   'Extração INTERNA de pré-orçamento. Não é mensagem para cliente. Retorne apenas JSON válido com a chave items (array de até 4 objetos).',
+   'Cada objeto: product (cortina), environment (ambiente), model, width (m), height (m), quantity, frontCategory, backCategory (categoria ou Sem forro), drive (manual ou motorizada).',
+   'Modelos aprovados: '+models.join('; ')+'. Categorias comerciais: '+categories.join('; ')+'.',
+   'Use apenas informações que o CLIENTE declarou e confirmou. Não trate sugestões da atendente como escolhas.',
+   'Categorias comerciais podem representar o tecido informado pelo cliente (por exemplo linho), mas não suponha modelos, alturas, larguras, quantidades, forro ou motorização.',
+   'Pode haver mais de um ambiente. Nunca leve medidas ou escolhas de um para outro. Se uma informação estiver indefinida, retorne null. Não invente nada.',
+   'Saída: {"items":[...]}; sem markdown, texto adicional, valores monetários ou cálculo.'
+ ].join('\n');
+ const response=await fetch('https://api.openai.com/v1/responses',{
+   method:'POST',headers:{Authorization:'Bearer '+env.OPENAI_API_KEY,'Content-Type':'application/json'},
+   body:JSON.stringify({model:MODEL,instructions,input:history.slice(-55),max_output_tokens:1400,reasoning:{effort:'none'},store:false})
+ });
+ if(!response.ok)throw Error('Extração do orçamento indisponível');
+ const payload=await response.json();
+ const raw=(payload.output||[]).flatMap(x=>x.content||[]).filter(x=>x.type==='output_text').map(x=>x.text).join('').trim();
+ let parsed;try{parsed=JSON.parse(raw)}catch{throw Error('Especificações não estruturadas')}
+ return normalizeQuoteItems(parsed,settings);
+}
+async function quoteFlowStep(env,route,sender,targetId,history,profile,text){
+ if(!quoteTestActive(env))return null;
+ const key=quoteStateKey(route,sender);
+ let state=await env.CONVERSAS.get(key,'json');
+ if(!state&&!expressesQuoteIntent(text))return null;
+ if(state?.status==='awaiting_review'){
+  return {kind:'review',text:'Organizamos as informações para uma estimativa e ela está aguardando nossa conferência. Assim que estiver validada, seguimos com os valores. 😊'};
+ }
+ if(state?.status==='summary'){
+  if(cancelsQuoteSummary(text)){
+   await env.CONVERSAS.delete(key);
+   return {kind:'continue'};
+  }
+  if(confirmsQuoteSummary(text)){
+   const matches=await dbRequest(env,'kiara_conversations','GET',
+     '?select=id'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
+     queryEq('source',route.source)+queryEq('phone_number_id',route.phoneId)+
+     queryEq('contact_wa_id',digits(sender))+'&limit=1');
+   if(!matches?.[0]?.id)throw Error('Conversa de orçamento não localizada');
+   const records=await dbRequest(env,'kiara_commercial_config','GET',
+     '?select=status,revision,settings'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
+     '&product=eq.cortina&limit=1');
+   const config=records?.[0];
+   if(!config||!['draft','approved'].includes(config.status))return {kind:'continue'};
+   const rail=config.settings.rails?.find(r=>/trilho max refor[cç]ado branco/i.test(r.label||'')&&r.active!==false);
+   if(!rail)return {kind:'continue'};
+   const preview=calculateQuotePreview(state.items,config.settings,config.revision,{railType:rail.id,rails:1});
+   if(!preview.ready){console.warn('Pré-orçamento sem cálculo seguro',preview.errors?.join('; '));return {kind:'continue'};}
+   const budget=buildInternalBudget({items:state.items,preview,sourceMessageId:targetId,revision:config.revision,configStatus:config.status,railType:rail.id});
+   // Evitar criar duas propostas da mesma confirmação após reprocessamento da fila.
+   const previous=await dbRequest(env,'kiara_budget_drafts','GET',
+      '?select=id,structured_budget,status'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
+      queryEq('conversation_id',matches[0].id)+'&order=created_at.desc&limit=15');
+   if(!(previous||[]).some(x=>x.structured_budget?.source_message_id===targetId)){
+    await dbRequest(env,'kiara_budget_drafts','POST','', {
+      organization_id:env.SUPABASE_ORGANIZATION_ID,conversation_id:matches[0].id,
+      structured_budget:budget,customer_message:approvedQuoteText(budget),status:'pending_review'
+    });
+   }
+   await env.CONVERSAS.put(key,JSON.stringify({status:'awaiting_review',source_message_id:targetId}),
+      {expirationTtl:MEMORY_TTL});
+   return {kind:'review',text:'Obrigada por confirmar! 😊 Preparei a estimativa com essas informações e encaminhei para nossa conferência. O valor só será enviado depois da aprovação.'};
+  }
+  // Cliente trouxe outras informações: revisar as escolhas antes de gerar orçamento.
+  state=null;
+ }
+ if(!state){state={status:'collecting'};await env.CONVERSAS.put(key,JSON.stringify(state),{expirationTtl:MEMORY_TTL});}
+ const qualification=evaluateCustomerQualification(profile);
+ if(!qualification.qualified)return {kind:'collecting'};
+ const records=await dbRequest(env,'kiara_commercial_config','GET',
+   '?select=status,revision,settings'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
+   '&product=eq.cortina&limit=1');
+ const config=records?.[0];
+ if(!config||!['approved','draft'].includes(config.status))return {kind:'collecting'};
+ let extracted;
+ try{extracted=await extractBudgetItems(env,history,config.settings)}
+ catch(error){console.warn('Coleta de orçamento em andamento',String(error?.message||''));return {kind:'collecting'}}
+ if(!extracted.ready)return {kind:'collecting',missing:extracted.errors};
+ await env.CONVERSAS.put(key,JSON.stringify({status:'summary',items:extracted.items,revision:config.revision}),
+   {expirationTtl:MEMORY_TTL});
+ return {kind:'summary',text:'Antes de prepararmos os valores, quero conferir se entendi tudo direitinho:\n\n'+
+   summarizeQuoteItems(extracted.items)+'\n\nEssas especificações estão corretas?'};
+}
+
 async function consumeMessage(env, job) {
   const route = routeBySource(job.source, env);
   if (!route) return;
@@ -1250,6 +1341,11 @@ async function consumeMessage(env, job) {
   let references=[];
   try { const latestAssistant=nextHistory.slice(0,-1).filter(x=>x.role==='assistant').slice(-1).map(x=>x.content).join(' '); references=await approvedFinishImages(env,String(inputText||''),latestAssistant); }
   catch(err) { console.warn('Biblioteca indisponível; seguir por texto',String(err?.message||'')); }
+  let quoteStep=null;
+  if(quoteTestActive(env)){
+   try{quoteStep=await quoteFlowStep(env,route,sender,targetId,nextHistory,profile,String(inputText||''))}
+   catch(err){console.warn('Orçamento aguardando revisão',String(err?.message||''))}
+  }
   const guidance = await getGuidance(env, route, sender);
   const approvedCommercial = await approvedCommercialConversationRules(env);
   const routing=adsRoutingEnabled(env)?await loadRouteState(env,route,sender):null;
@@ -1269,7 +1365,10 @@ async function consumeMessage(env, job) {
     routing?.status==='selected' ? quoteIntakePrompt() : '',
     'TRANSFERÊNCIA HUMANA: Se houver pedido explícito de humano, frustração persistente, necessidade técnica fora das informações aprovadas ou insegurança real, responda exatamente <<ENCAMINHAR_HUMANO>>. Uma dúvida comum, mudança de preferência ou resposta curta não exige transferência.'
   ].filter(Boolean).join('\n\n');
-  const answer = await generateReply(env,nextHistory,contextInstructions);
+  const quoteInstruction=quoteStep?.kind==='collecting'
+   ?'O cliente iniciou um pedido de orçamento. Continue a orientação de forma natural, peça somente uma informação faltante por mensagem e não apresente preço.'
+   :'';
+  const answer=quoteStep?.text || await generateReply(env,nextHistory,[contextInstructions,quoteInstruction].filter(Boolean).join('\n\n'));
   if(answer.includes('<<ENCAMINHAR_HUMANO>>')){
     await humanRoute(env,route,sender,targetId,'A Kiara solicitou análise humana');
     return;
