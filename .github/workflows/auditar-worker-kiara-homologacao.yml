@@ -64,3 +64,5 @@ jobs:
           else:print('Consulta filas indisponível, HTTP',status)
           PY
 # Auditoria após atualização do token Cloudflare no GitHub — sem mutações nem exibição de segredos.
+
+# Verificação de credenciais atualizadas para homologação; somente leitura.
