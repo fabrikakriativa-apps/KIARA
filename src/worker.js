@@ -1101,7 +1101,7 @@ async function loadCommercialHistory(env, route, sender, requiredMessageId) {
 const mediaEnabled=env=>env.KIARA_MEDIA_ENABLED==='true'&&syncActive(env)&&env.TEST_ALLOWED_WA_ID;
 async function approvedFinishImages(env,text){
  if(!mediaEnabled(env))return [];
- const visualRequest=/(foto|imagem|mostr|ver |visualiz|exempl|op[cç][oõ]es|modelos|compar)/i.test(String(text||''));
+ const visualRequest=/(foto|imagem|mostr|ver |visualiz|ilustr)/i.test(String(text||''));
  if(!visualRequest)return [];
  const rows=await dbRequest(env,'kiara_reference_images','GET',
   '?select=id,product,model,title,storage_path,active,category'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
