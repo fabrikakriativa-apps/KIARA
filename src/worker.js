@@ -1259,7 +1259,9 @@ async function consumeMessage(env, job) {
   // O nome do perfil WhatsApp nunca é tratado como uma apresentação explícita.
   let profile=await loadQualification(env,route,sender);
   const extracted=extractQualification(inputText,{
-    expectingFirstName:profile.pendingField==='firstName',
+    // Não depender exclusivamente da marcação de etapa no KV: a resposta curta
+    // "Ana" deve ser reconhecida mesmo se o estado anterior não estiver visível.
+    expectingFirstName:!profile.firstName || profile.pendingField==='firstName',
     expectingLastName:profile.pendingField==='lastName',
     expectingNeighborhood:profile.pendingField==='neighborhood',
     expectingCity:profile.pendingField==='city'
