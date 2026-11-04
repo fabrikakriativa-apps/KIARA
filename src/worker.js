@@ -851,16 +851,12 @@ const adsRoutingEnabled = env => env.KIARA_ADS_ROUTING_ENABLED === 'true';
 const greeting = 'Olá! 👋 Seja bem-vindo(a) à Fábrika Kriativa!\n\nSou a Kiara, assistente de atendimento. 😊\n\nPara te ajudar da melhor forma, me conta como prefere começar:\n\n*Orçamento rápido*\nJá sabe o que procura? Vamos reunir algumas informações para preparar uma estimativa inicial.\n\n*Atendimento personalizado*\nPrecisa de ajuda para escolher? Podemos conversar sobre modelos, tecidos e acabamentos para encontrar a melhor composição para seu ambiente.\n\nÉ só escolher uma das opções abaixo. 😊';
 const routeStateKey=(route,sender)=>route.source+':ad-route:'+digits(sender);
 const adReferralValid=ref=>ref&&ref.source_type==='ad'&&/^[0-9]{5,40}$/.test(String(ref.source_id||''));
-const humanRequested=text=>/(?:falar|conversar|atender|atendimento|preciso|quero|prefiro|chamar|transferir).{0,48}(?:pessoa|humano|humana|atendente|consultor|consultora|equipe|algu[eé]m da loja)|(?:^|\s)consultivo(?:\s|$)/i.test(text);
-// Esclarecimentos e correções são parte normal de uma conversa consultiva.
-// A transferência automática fica reservada a pedido humano explícito,
-// assunto fora do escopo ou ruptura grave e reiterada.
-const conversationalBreakdown=text=>{
- const t=String(text||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
- return /\b(?:ja expliquei varias vezes|ja falei varias vezes|voce continua sem entender|nao consegue me ajudar de jeito nenhum|pela terceira vez|pela quarta vez)\b/.test(t);
-};
-export const mustEscalate=text=>humanRequested(text)||outsideScope(text)||conversationalBreakdown(text);
-const outsideScope=text=>/\b(?:sofa|sofá|estofad[oa]s?|cabeceira|pap[eé]is? de parede|cadeira|poltrona|reforma|conserto|manuten[cç][aã]o|tapete|colch[aã]o)\b/i.test(text);
+// Encaminhamento automático determinístico somente por pedido humano explícito.
+// Dúvidas, correções, estilo consultivo e referências a outros produtos não são
+// classificadas por palavras-chave: a IA interpreta o contexto e pode encaminhar
+// pelo mecanismo <<ENCAMINHAR_HUMANO>> quando o assunto realmente exigir.
+const humanRequested=text=>/(?:falar|conversar|atender|atendimento|preciso|quero|prefiro|chamar|transferir).{0,48}(?:pessoa|humano|humana|atendente|consultor|consultora|equipe|algu[eé]m da loja)/i.test(String(text||''));
+export const mustEscalate=text=>humanRequested(text);
 function choiceFrom(message){
   if(message.type==='interactive' && message.interactive?.type==='button_reply'){
     const id=message.interactive.button_reply?.id;
