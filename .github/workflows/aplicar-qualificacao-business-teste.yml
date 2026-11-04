@@ -1,0 +1,99 @@
+name: Kiara - aplicar qualificação no número Business de testes
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/aplicar-qualificacao-business-teste.yml']
+permissions:
+  contents: read
+concurrency:
+  group: kiara-business-test-deploy
+  cancel-in-progress: false
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      TARGET: fabrika-atendimento-ia
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: homologacao
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validar suíte completa
+        run: npm test
+      - name: Verificar escopo e configurações do Worker existente
+        run: |
+          python3 - <<'PY'
+          import os,urllib.request,json,sys
+          t=os.environ['CF_TOKEN'];account=os.environ['CF_ACCOUNT'];name=os.environ['TARGET']
+          u=f'https://api.cloudflare.com/client/v4/accounts/{account}/workers/scripts/{name}/settings'
+          req=urllib.request.Request(u,headers={'Authorization':'Bearer '+t})
+          with urllib.request.urlopen(req,timeout=25) as r: result=json.load(r)['result']
+          b={x.get('name'):x for x in result.get('bindings',[])}
+          required=['EASY_PHONE_NUMBER_ID','EASY_ACCESS_TOKEN','EASY_WEBHOOK_KEY','TEST_ALLOWED_WA_ID','META_VERIFY_TOKEN','OPENAI_API_KEY','SUPABASE_SERVICE_ROLE_KEY','CONVERSAS','KIARA_QUEUE']
+          if any(k not in b for k in required):sys.exit('BLOQUEIO: recursos essenciais ausentes')
+          if b['EASY_PHONE_NUMBER_ID'].get('text')!='989677610885915':sys.exit('BLOQUEIO: número Business incorreto')
+          if not str(b['TEST_ALLOWED_WA_ID'].get('text','')).endswith('5185'):sys.exit('BLOQUEIO: outro destinatário')
+          if b['KIARA_SYNC_ENABLED'].get('text')!='true':sys.exit('BLOQUEIO: sincronização desligada')
+          if b['KIARA_CONTROL_ENABLED'].get('text')!='false':sys.exit('BLOQUEIO: controles reais ativos')
+          if b['KIARA_SYNC_ALL_CONTACTS'].get('text')!='false':sys.exit('BLOQUEIO: múltiplos contatos permitidos')
+          if set(x.get('type') for x in result.get('bindings',[]))-{'secret_text','plain_text','kv_namespace','queue'}:
+            sys.exit('BLOQUEIO: binding inesperado')
+          open('/tmp/expected_names.json','w').write(json.dumps(sorted(b.keys())))
+          open('/tmp/compatibility_date.txt','w').write(str(result.get('compatibility_date') or '2026-11-02'))
+          print('Pré-requisitos confirmados sem expor segredos.')
+          PY
+      - name: Compilar Worker em módulo único
+        run: |
+          npx --yes esbuild@0.25.12 src/worker.js --bundle --format=esm --platform=browser --target=es2022 --outfile=/tmp/kiara-business-test.mjs
+          node --check /tmp/kiara-business-test.mjs
+      - name: Aplicar código preservando todos os bindings e segredos
+        run: |
+          python3 - <<'PY'
+          import json
+          metadata={
+            'main_module':'kiara-business-test.mjs',
+            'compatibility_date':open('/tmp/compatibility_date.txt').read().strip(),
+            'keep_bindings':['secret_text','plain_text','kv_namespace','queue'],
+            'bindings':[{'type':'plain_text','name':'KIARA_CUSTOMER_QUALIFICATION_ENABLED','text':'true'}],
+            'annotations':{'workers/message':'Qualificação obrigatória do contato de teste - nome completo, bairro e cidade'}
+          }
+          open('/tmp/kiara-metadata.json','w').write(json.dumps(metadata))
+          PY
+          HTTP_CODE=$(curl -sS --max-time 90 -o /tmp/kiara-upload-response.json -w '%{http_code}' \
+            -X PUT "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/workers/scripts/$TARGET" \
+            -H "Authorization: Bearer $CF_TOKEN" \
+            -F "metadata=@/tmp/kiara-metadata.json;type=application/json" \
+            -F "kiara-business-test.mjs=@/tmp/kiara-business-test.mjs;type=application/javascript+module")
+          python3 - <<'PY'
+          import json,os,sys
+          response=json.load(open('/tmp/kiara-upload-response.json'))
+          if not response.get('success'):sys.exit('Publicação não autorizada ou rejeitada pelo Cloudflare: '+str([x.get('code') for x in response.get('errors',[])]))
+          print('Cloudflare confirmou atualização do código.')
+          PY
+      - name: Auditar bindings preservados e endpoint
+        run: |
+          python3 - <<'PY'
+          import os,urllib.request,json,sys
+          token=os.environ['CF_TOKEN'];account=os.environ['CF_ACCOUNT'];name=os.environ['TARGET']
+          u=f'https://api.cloudflare.com/client/v4/accounts/{account}/workers/scripts/{name}/settings'
+          req=urllib.request.Request(u,headers={'Authorization':'Bearer '+token})
+          with urllib.request.urlopen(req,timeout=25) as r:b=json.load(r)['result']['bindings']
+          names={x['name'] for x in b}
+          expected=set(json.load(open('/tmp/expected_names.json')))
+          if not expected.issubset(names):sys.exit('ERRO: bindings anteriores não estão completos')
+          flag=next((x.get('text') for x in b if x.get('name')=='KIARA_CUSTOMER_QUALIFICATION_ENABLED'),None)
+          if flag!='true':sys.exit('ERRO: qualificação não ativada')
+          print('Todos os bindings preservados; qualificação ativada para o destinatário de teste.')
+          PY
+          curl -fsS --max-time 20 "https://fabrika-atendimento-ia.fabrikakriativa.workers.dev/" >/tmp/kiara-health.json
+          python3 - <<'PY'
+          import json,sys
+          data=json.load(open('/tmp/kiara-health.json'))
+          if data.get('status')!='online':sys.exit('Health check falhou')
+          print('Worker online. Nenhuma mensagem enviada.')
+          PY
