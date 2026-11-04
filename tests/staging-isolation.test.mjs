@@ -10,13 +10,16 @@ const env={KIARA_DASHBOARD_ORIGIN:origin,SUPABASE_URL:'https://example.supabase.
  SUPABASE_PUBLISHABLE_KEY:'sb_publishable_dummy',SUPABASE_ORGANIZATION_ID:'0e398095-cc22-421b-ae34-7bf0df8ad7b2'};
 const url='https://staging.workers.dev/kiara/coach?conversationId='+id;
 
-test('isolated Worker has no queue and no production bindings',()=>{
+test('isolated Worker has only the exclusive staging KV and no production bindings',()=>{
  assert.equal(typeof staging.fetch,'function');
  assert.equal('queue' in staging,false);
  assert.match(config,/name = "fabrika-atendimento-ia-homologacao"/);
  assert.match(config,/main = "\.\/worker.js"/);
  assert.doesNotMatch(config,/^\s*(routes?|kv_namespaces|queues|services|account_id)\s*=/m);
- assert.doesNotMatch(config,/^\s*\[\[(queues|kv_namespaces|services)/m);
+ assert.doesNotMatch(config,/^\s*\[\[(queues|services)/m);
+ assert.equal((config.match(/^\s*\[\[kv_namespaces\]\]/gm)||[]).length,1);
+ assert.match(config,/binding = "KIARA_CONTROLES"/);
+ assert.match(config,/id = "64e0916fb8a04a2ca75b0220f1fb991b"/);
  assert.doesNotMatch(config,/SUPABASE_SERVICE_ROLE_KEY|OPENAI_API_KEY|META_ACCESS_TOKEN|EASY_ACCESS_TOKEN/);
 });
 
