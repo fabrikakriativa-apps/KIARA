@@ -119,3 +119,5 @@ jobs:
 # Homologação consultiva: publicar versão testada no contato Business autorizado após avaliação real e CI aprovado.
 
 # Corrigir falso encaminhamento de pedido de esclarecimento, exclusivamente no contato autorizado.
+
+# Reset comportamental minimalista: homologação por WhatsApp exclusivamente no contato autorizado, com segurança comercial preservada.
