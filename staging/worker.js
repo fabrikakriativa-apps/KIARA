@@ -1,5 +1,5 @@
 // HOMOLOGAÇÃO: importa Kiara real para validar compilação, mas NÃO chama
-// handlers de webhook/queue, não cria KV e não possui credenciais Meta/OpenAI.
+// handlers de webhook/queue e usa exclusivamente o KV de testes, sem Meta/OpenAI.
 import kiara from '../src/worker.js';
 import {simulateCurtainQuote} from '../src/quote-pricing.js';
 
@@ -87,6 +87,70 @@ async function priceSimulation(request,env){
  });
  return json({...result,customerPriceAllowed:false,configurationStatus:records[0].status,environment:'homologacao'},result.ready?200:422,headers);
 }
+
+/**
+ * Controles de HOMOLOGAÇÃO. Todos os estados ficam exclusivamente no KV
+ * KIARA_CONTROLES; nunca escrevem em conversas Supabase, em filas, nem no Meta.
+ * Os IDs são apenas referências da interface; ações NÃO controlam a produção.
+ */
+async function stagingOperator(request,env){
+  const origin=request.headers.get('Origin')||'';
+  const headers=cors(env,origin,'GET, POST, OPTIONS');
+  if(origin!==env.KIARA_DASHBOARD_ORIGIN)return json({error:'Origem não autorizada'},403,headers);
+  if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
+  if(!['GET','POST'].includes(request.method))return json({error:'Método inválido'},405,headers);
+  const bearer=request.headers.get('Authorization')||'';
+  if(!/^Bearer [A-Za-z0-9._~-]{50,10000}$/.test(bearer))return json({error:'Sessão necessária'},401,headers);
+  const {url:base,key,org}=requireConfig(env);
+  if(!env.KIARA_CONTROLES?.get || !env.KIARA_CONTROLES?.put)
+    return json({error:'KV de homologação indisponível'},503,headers);
+  const sessionHeaders={apikey:key,Authorization:bearer};
+  const userResponse=await fetch(base+'/auth/v1/user',{headers:sessionHeaders});
+  if(!userResponse.ok)return json({error:'Sessão inválida'},401,headers);
+  const user=await userResponse.json();
+  if(!uuid.test(user?.id||''))return json({error:'Identidade inválida'},401,headers);
+  const q=new URLSearchParams({select:'role',organization_id:'eq.'+org,user_id:'eq.'+user.id,active:'is.true',limit:'5'});
+  const membership=await fetch(base+'/rest/v1/memberships?'+q,{headers:sessionHeaders});
+  if(!membership.ok)return json({error:'Permissões indisponíveis'},503,headers);
+  const rows=await membership.json();
+  if(!Array.isArray(rows)||!rows.some(r=>r.role==='admin'||r.role==='comercial'))
+    return json({error:'Sem permissão'},403,headers);
+  const globalKey='staging:control:'+org+':enabled';
+  if(request.method==='GET'){
+    const saved=await env.KIARA_CONTROLES.get(globalKey);
+    return json({enabled:saved==='true',environment:'homologacao_isolada',
+      simulated:true,productionConnected:false,
+      description:'Ações simuladas apenas no KV de homologação; não controlam o WhatsApp.'},200,headers);
+  }
+  let body;
+  try{body=await request.json()}catch{return json({error:'JSON inválido'},400,headers)}
+  const action=body?.action;
+  if(!['pause_all','resume_all','assume','return_to_ai'].includes(action))
+    return json({error:'Ação não permitida'},400,headers);
+  if(['pause_all','resume_all'].includes(action)){
+    if(!rows.some(r=>r.role==='admin'))return json({error:'Ação restrita ao administrador'},403,headers);
+    await env.KIARA_CONTROLES.put(globalKey,action==='resume_all'?'true':'false');
+    return json({ok:true,action,enabled:action==='resume_all',simulated:true,
+      environment:'homologacao_isolada',productionConnected:false},200,headers);
+  }
+  const conversationId=body?.conversationId;
+  if(!uuid.test(conversationId||''))return json({error:'Conversa inválida'},400,headers);
+  // Existência e acesso conferidos sob a sessão do operador e RLS da organização.
+  const convQuery=new URLSearchParams({select:'id',id:'eq.'+conversationId,
+    organization_id:'eq.'+org,limit:'1'});
+  const conv=await fetch(base+'/rest/v1/kiara_conversations?'+convQuery,{headers:sessionHeaders});
+  if(!conv.ok)return json({error:'Conversa não autorizada'},conv.status===401||conv.status===403?403:503,headers);
+  const allowed=await conv.json();
+  if(!Array.isArray(allowed)||allowed.length!==1)
+    return json({error:'Conversa indisponível'},404,headers);
+  const state=action==='assume'?'human':'ai';
+  await env.KIARA_CONTROLES.put('staging:control:'+org+':conversation:'+conversationId,
+    JSON.stringify({state,updatedBy:user.id,updatedAt:new Date().toISOString()}),
+    {expirationTtl:60*60*24*7});
+  return json({ok:true,action,conversationId,status:state,simulated:true,
+    environment:'homologacao_isolada',productionConnected:false},200,headers);
+}
+
 export default {
   async fetch(request,env={}){
     const url=new URL(request.url);
@@ -94,6 +158,10 @@ export default {
       service:'kiara-homologacao',status:'ok',worker_code:'integrado',external_integrations:'blocked',
       supabase_read:'authenticated_only'
     });
+    if(url.pathname==='/kiara/control'){
+      try{return await stagingOperator(request,env)}
+      catch(error){console.error('Staging control unavailable',String(error?.message||''));return json({error:'Controle de homologação indisponível'},503,cors(env,request.headers.get('Origin'),'GET, POST, OPTIONS'))}
+    }
     if(url.pathname==='/kiara/capabilities'){
       const origin=request.headers.get('Origin')||'';
       const headers=cors(env,origin);
@@ -122,7 +190,7 @@ export default {
           capabilities:{
             pricingSimulation:{enabled:true,label:'Simulação de preços interna'},
             conversationRead:{enabled:true,label:'Consulta de conversas'},
-            conversationControl:{enabled:false,label:'Assumir, devolver e pausar',reason:'Worker sem KV e sincronização de conversa'},
+            conversationControl:{enabled:true,label:'Simular assumir, devolver e pausar',mode:'sandbox',reason:'Grava apenas no KV exclusivo da homologação; não interfere no WhatsApp'},
             humanMessages:{enabled:false,label:'Envio humano pelo painel',reason:'Worker sem credenciais Meta e número de teste'},
             automaticReplies:{enabled:false,label:'Respostas automáticas no WhatsApp',reason:'Worker sem fila, KV e canal Meta'},
             coachingWrite:{enabled:false,label:'Segurar e liberar resposta',reason:'Worker isolado somente para leitura'}
