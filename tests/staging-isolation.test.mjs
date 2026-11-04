@@ -55,9 +55,9 @@ test('GET without bearer returns 401 with no Supabase calls',async()=>{
  assert.equal(res.status,401);
 });
 
-test('GET with invalid conversation returns 400',async()=>{
+test('GET with invalid conversation but no session returns 401',async()=>{
  const res=await staging.fetch(new Request('https://staging.workers.dev/kiara/coach?conversationId=invalid',{headers:{Origin:origin}}),env);
- assert.equal(res.status,400);
+ assert.equal(res.status,401);
 });
 
 test('authenticated coaching state is sandbox-only and scoped by Supabase RLS',async()=>{
