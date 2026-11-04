@@ -1,0 +1,62 @@
+name: Kiara - auditoria final de pre-requisitos EasyCoexistence
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/auditar-easy-homologacao.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspecionar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Auditar apenas metadados (nunca revelar valores nem mudar Workers)
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request, urllib.error
+          account=os.getenv('CLOUDFLARE_ACCOUNT_ID','')
+          token=os.getenv('CLOUDFLARE_API_TOKEN','')
+          if not account or not token:
+            raise SystemExit('BLOQUEIO: credenciais Cloudflare do GitHub ausentes')
+          api='https://api.cloudflare.com/client/v4/accounts/'+account
+          headers={'Authorization':'Bearer '+token,'Accept':'application/json'}
+          def get(path):
+            try:
+              with urllib.request.urlopen(urllib.request.Request(api+path,headers=headers),timeout=25) as r:
+                return r.status,json.load(r).get('result')
+            except urllib.error.HTTPError as exc:
+              return exc.code,None
+          status,settings=get('/workers/scripts/fabrika-atendimento-ia-homologacao/settings')
+          if status!=200: raise SystemExit('BLOQUEIO: Worker homologacao inacessivel, HTTP '+str(status))
+          bindings=settings.get('bindings') or []
+          names={b.get('name') for b in bindings}
+          kinds={b.get('name'):b.get('type') for b in bindings}
+          required=['EASY_PHONE_NUMBER_ID','EASY_ACCESS_TOKEN','EASY_WEBHOOK_KEY',
+                    'TEST_ALLOWED_WA_ID','OPENAI_API_KEY','SUPABASE_SERVICE_ROLE_KEY']
+          print('AUDITORIA SEM SEGREDOS — HOMOLOGACAO')
+          for name in required:
+            kind=kinds.get(name)
+            print(name+': '+('presente ['+kind+']' if kind else 'AUSENTE'))
+          print('CONVERSAS KV:',kinds.get('CONVERSAS')=='kv_namespace')
+          print('KIARA_CONTROLES KV:',kinds.get('KIARA_CONTROLES')=='kv_namespace')
+          print('KIARA_QUEUE producer:',kinds.get('KIARA_QUEUE')=='queue')
+          for key in ['KIARA_STAGING_LIVE_ENABLED','KIARA_STAGING_PROVIDER',
+                      'KIARA_SYNC_ENABLED','KIARA_CONTROL_ENABLED','KIARA_HOLD_ENABLED',
+                      'KIARA_HUMAN_SEND_ENABLED','KIARA_SYNC_ALL_CONTACTS']:
+            entry=next((b for b in bindings if b.get('name')==key),None)
+            v=str(entry.get('text') if entry and entry.get('type')=='plain_text' else '(ausente)')
+            print(key+': '+v)
+          status,queues=get('/queues?per_page=100')
+          if status==200:
+            qlist=queues if isinstance(queues,list) else (queues or {}).get('queues',[])
+            matched=next((q for q in qlist if q.get('queue_name')=='kiara-homologacao-respostas' or q.get('name')=='kiara-homologacao-respostas'),None)
+            print('FILA homologacao presente:',bool(matched))
+            if matched:
+              print('FILA consumers configurados:',len(matched.get('consumers') or []))
+          else:print('FILA nao auditada: HTTP',status)
+          print('Sem mudanças e sem mensagens enviadas.')
+          PY
