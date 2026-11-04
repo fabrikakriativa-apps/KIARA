@@ -1525,6 +1525,77 @@ async function pricingSimulationRequest(request,env){
   ...(extracted?{intake:extracted.intake}:{} )},result.ready?200:422);
 }
 
+async function budgetReviewRequest(request,env){
+ const origin=request.headers.get('Origin')||'';
+ const headers=dashboardHeaders(env,origin);
+ const reply=(body,status=200)=>Response.json(body,{status,headers});
+ if(!env.KIARA_DASHBOARD_ORIGIN||origin!==env.KIARA_DASHBOARD_ORIGIN)return reply({error:'Origem não autorizada'},403);
+ if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
+ if(request.method!=='POST')return reply({error:'Método não autorizado'},405);
+ if(!quoteTestActive(env))return reply({error:'Revisão de orçamento desativada'},503);
+ const authorization=request.headers.get('Authorization')||'';
+ if(!/^Bearer [A-Za-z0-9._~-]{50,10000}$/.test(authorization))return reply({error:'Sessão necessária'},401);
+ const base=String(env.SUPABASE_URL).replace(/\/$/,'');
+ const auth=await fetch(base+'/auth/v1/user',{headers:{Authorization:authorization,apikey:env.SUPABASE_SERVICE_ROLE_KEY}});
+ if(!auth.ok)return reply({error:'Sessão inválida'},401);
+ const user=await auth.json();
+ if(!/^[a-f0-9-]{36}$/i.test(user.id||''))return reply({error:'Usuário inválido'},401);
+ const membership=await fetch(base+'/rest/v1/memberships?select=role&organization_id=eq.'+
+  encodeURIComponent(env.SUPABASE_ORGANIZATION_ID)+'&user_id=eq.'+encodeURIComponent(user.id)+
+  '&active=is.true&limit=1',{headers:{Authorization:authorization,apikey:env.SUPABASE_SERVICE_ROLE_KEY}});
+ if(!membership.ok)return reply({error:'Permissão indisponível'},503);
+ const roles=await membership.json();
+ if(!roles?.some(x=>x.role==='admin'))return reply({error:'Aprovação exige administrador'},403);
+ let payload;try{payload=await request.json()}catch{return reply({error:'JSON inválido'},400)}
+ const id=String(payload?.draftId||'');
+ const action=String(payload?.action||'');
+ if(!/^[a-f0-9-]{36}$/i.test(id)||!['approve','reject','send'].includes(action))return reply({error:'Ação inválida'},400);
+ const drafts=await dbRequest(env,'kiara_budget_drafts','GET',
+  '?select=id,status,structured_budget,customer_message,conversation_id,reviewed_at,sent_at'+
+  queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+queryEq('id',id)+'&limit=1');
+ const draft=drafts?.[0];
+ if(!draft||draft.structured_budget?.test_only!==true)return reply({error:'Rascunho de teste não encontrado'},404);
+ if(action==='approve'||action==='reject'){
+  if(draft.status!=='pending_review')return reply({error:'Orçamento já revisado'},409);
+  const rpc=await fetch(base+'/rest/v1/rpc/kiara_review_budget',{
+   method:'POST',headers:{Authorization:authorization,apikey:env.SUPABASE_SERVICE_ROLE_KEY,'Content-Type':'application/json'},
+   body:JSON.stringify({p_draft_id:id,p_decision:action==='approve'?'approved':'rejected',p_note:String(payload.note||'').slice(0,1000)})
+  });
+  if(!rpc.ok)return reply({error:'Revisão não autorizada'},rpc.status===403?403:409);
+  return reply({ok:true,review:await rpc.json(),sent:false});
+ }
+ if(draft.status!=='approved'||!draft.reviewed_at||draft.sent_at)
+  return reply({error:'Somente orçamento aprovado e não enviado pode ser encaminhado'},409);
+ const chats=await dbRequest(env,'kiara_conversations','GET','?select=source,phone_number_id,contact_wa_id,last_customer_message_at'+
+  queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+queryEq('id',draft.conversation_id)+'&limit=1');
+ const chat=chats?.[0],route=chat&&routeBySource(chat.source,env);
+ if(!route||String(route.phoneId)!==String(chat.phone_number_id)||
+     digits(route.allowed)!==digits(chat.contact_wa_id))return reply({error:'Destinatário fora do teste'},403);
+ const last=Date.parse(chat.last_customer_message_at||'');
+ if(!Number.isFinite(last)||Date.now()-last>23.5*60*60*1000)
+  return reply({error:'Fora da janela de resposta; utilizar template autorizado'},409);
+ if(await env.CONVERSAS.get(keys(route.source,chat.contact_wa_id).paused)||
+   await readHold(env,route,chat.contact_wa_id))
+  return reply({error:'Conversa pausada por atendimento humano'},409);
+ if(!(await isAuthorizedToSend(env,route,chat.contact_wa_id)))return reply({error:'Envio bloqueado'},409);
+ const message=approvedQuoteText(draft.structured_budget);
+ // O orçamento ainda NÃO foi enviado; marcador é gravado apenas após Meta confirmar.
+ const marker='budget:test:sent:'+id;
+ if(await env.CONVERSAS.get(marker))return reply({error:'Envio já registrado'},409);
+ let messageId;
+ try{messageId=await sendMessage(route,chat.contact_wa_id,message)}
+ catch{return reply({error:'Meta não confirmou o envio'},502)}
+ if(!messageId)return reply({error:'Meta não retornou o ID; verifique manualmente antes de repetir'},502);
+ await env.CONVERSAS.put(marker,messageId,{expirationTtl:MEMORY_TTL});
+ let synced=true;
+ try{
+  await saveMessage(env,draft.conversation_id,messageId,'outgoing','human',message,new Date().toISOString());
+  await dbRequest(env,'kiara_budget_drafts','PATCH','?id=eq.'+encodeURIComponent(id)+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID),
+   {status:'sent',sent_at:new Date().toISOString()});
+ }catch(e){synced=false;console.error('Orçamento enviado, mas sincronização pendente',String(e?.message||''))}
+ return reply({ok:true,sent:true,synchronized:synced,message_id:messageId});
+}
+
 export default {
   // Optional Cloudflare Cron Trigger (recommended every five minutes).
   // Keeps knowledge warm even when there have been no WhatsApp conversations.
@@ -1561,6 +1632,10 @@ export default {
     if (url.pathname === '/kiara/human-message') {
       try {return await humanMessageRequest(request,env);}
       catch(error){console.error('Human message endpoint error',String(error?.message||''));return Response.json({error:'Envio humano indisponível'},{status:503});}
+    }
+    if(url.pathname==='/kiara/budget/review'){
+      try{return await budgetReviewRequest(request,env)}
+      catch(error){console.error('Revisão de orçamento indisponível',String(error?.message||''));return Response.json({error:'Revisão indisponível'},{status:503})}
     }
     if (url.pathname === '/kiara/pricing/simulate') {
       try { return await pricingSimulationRequest(request,env); }
