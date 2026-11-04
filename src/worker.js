@@ -172,6 +172,19 @@ async function loadQualification(env,route,sender){
 async function saveQualification(env,route,sender,profile){
   await env.CONVERSAS.put(qualificationStateKey(route,sender),JSON.stringify(profile),{expirationTtl:60*60*24*30});
 }
+async function syncCustomerQualification(env,route,sender,profile){
+  if(!syncActive(env))return;
+  const rows=await dbRequest(env,'kiara_conversations','GET',
+    '?select=id'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
+    queryEq('source',route.source)+queryEq('phone_number_id',route.phoneId)+
+    queryEq('contact_wa_id',sender)+'&limit=1');
+  if(!rows?.[0]?.id)return;
+  const data={};
+  if(profile.firstName)data.contact_name=[profile.firstName,profile.lastName].filter(Boolean).join(' ');
+  if(profile.neighborhood&&profile.city)data.region=profile.neighborhood+' - '+profile.city;
+  if(Object.keys(data).length)await dbRequest(env,'kiara_conversations','PATCH',
+    '?id=eq.'+encodeURIComponent(rows[0].id)+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID),data);
+}
 async function sendQualificationPrompt(env,route,sender,targetId,conversation,profile,prompt){
   // Toda resposta automática continua sujeita à pausa do atendimento e à limitação de destinatário.
   if(await env.CONVERSAS.get(conversation.paused))return false;
@@ -1253,6 +1266,7 @@ async function consumeMessage(env, job) {
   });
   profile=mergeQualification(profile,extracted);
   if(profile.pendingField && extracted[profile.pendingField])profile.pendingField='';
+  if(Object.keys(extracted).length)await bestEffortSync(()=>syncCustomerQualification(env,route,sender,profile),'customer qualification');
   if(env.KIARA_CUSTOMER_QUALIFICATION_ENABLED==='true' && !profile.firstName){
     const prompt=qualificationQuestion(profile,{initial:true});
     profile.pendingField='firstName';
