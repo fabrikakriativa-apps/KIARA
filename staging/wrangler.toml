@@ -9,7 +9,10 @@ SUPABASE_URL = "https://dpowbyexrcdcwwqysgzp.supabase.co"
 SUPABASE_PUBLISHABLE_KEY = "sb_publishable_5R2zVzcZQVAGGd72zXayFQ_zCp_tJkU"
 KIARA_DASHBOARD_ORIGIN = "https://kiara-painel-homologacao.pages.dev"
 SUPABASE_ORGANIZATION_ID = "0e398095-cc22-421b-ae34-7bf0df8ad7b2"
-# A ponte real permanece bloqueada até a validação do número e dos Secrets Meta.
+# Número Business de homologação já conectado no EasyCoexistence (ID fornecido pela Meta).
+# A ponte permanece bloqueada até configurar os segredos exclusivos, consumidor da fila e destino do webhook.
+KIARA_STAGING_PROVIDER = "easy"
+EASY_PHONE_NUMBER_ID = "989677610885915"
 KIARA_STAGING_LIVE_ENABLED = "false"
 KIARA_SYNC_ENABLED = "false"
 KIARA_CONTROL_ENABLED = "false"
