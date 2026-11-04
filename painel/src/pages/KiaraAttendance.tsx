@@ -134,6 +134,7 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
   const [controlReady, setControlReady] = useState(false)
   const [kiaraEnabled, setKiaraEnabled] = useState(false)
   const [controlSimulated, setControlSimulated] = useState(false)
+  const [simulatedConversationStatus, setSimulatedConversationStatus] = useState<'ai'|'human'|null>(null)
   const [controlBusy, setControlBusy] = useState(false)
   const [controlFeedback, setControlFeedback] = useState('')
   useEffect(() => {
@@ -143,6 +144,15 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
       .catch(()=>{if(!cancelled){setControlReady(false);setControlFeedback('Controle operacional indisponível. Nenhuma ação foi habilitada.')}})
     return ()=>{cancelled=true}
   },[access?.organizationId,access?.role,refresh])
+  useEffect(() => {
+    setSimulatedConversationStatus(null)
+    if(!selectedId || !controlSimulated || !controlReady)return
+    let cancelled=false
+    void readKiaraControl(selectedId).then(result=>{
+      if(!cancelled)setSimulatedConversationStatus(result.simulatedStatus??null)
+    }).catch(()=>{if(!cancelled)setSimulatedConversationStatus(null)})
+    return ()=>{cancelled=true}
+  },[selectedId,controlReady,controlSimulated,refresh])
   const runCommand = async (action:KiaraOperatorAction,id?:string) => {
     if(!controlReady || controlBusy) return
     if(action==='pause_all' && !window.confirm(controlSimulated?'SIMULAÇÃO: pausar somente o estado do KV de homologação? Nada será pausado no WhatsApp.':'Parar todas as respostas automáticas da Kiara, inclusive as que estiverem na fila?')) return
@@ -152,6 +162,8 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
       await commandKiara(action,id)
       if(action==='pause_all') setKiaraEnabled(false)
       if(action==='resume_all') setKiaraEnabled(true)
+      if(controlSimulated && action==='assume')setSimulatedConversationStatus('human')
+      if(controlSimulated && action==='return_to_ai')setSimulatedConversationStatus('ai')
       setControlFeedback(controlSimulated?'Simulação registrada no KV de homologação. Nenhuma conversa real foi alterada.':'Comando confirmado pelo servidor.')
       setRefresh(value=>value+1)
     } catch(error){setControlFeedback(error instanceof Error ? error.message : 'Não foi possível confirmar a alteração.')}
@@ -314,8 +326,8 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
         </div>
           <div className="kiara-hero-actions">
             <button type="button" className="kiara-hero-pause" disabled={!controlReady || controlBusy || !kiaraEnabled} onClick={()=>void runCommand('pause_all')}><PauseCircle size={18}/> Pausar Kiara</button>
-            <button type="button" className="kiara-hero-assume" disabled={!selected || !controlReady || controlBusy || selected.status==='human'} onClick={()=>selected&&void runCommand('assume',selected.id)}><UserRoundCheck size={18}/> Assumir conversa</button>
-            <button type="button" className="kiara-hero-return" disabled={!selected || !controlReady || controlBusy || selected.status==='ai'} onClick={()=>selected&&void runCommand('return_to_ai',selected.id)}><RefreshCcw size={18}/> Devolver à Kiara</button>
+            <button type="button" className="kiara-hero-assume" disabled={!selected || !controlReady || controlBusy || (controlSimulated ? simulatedConversationStatus==='human' : selected.status==='human')} onClick={()=>selected&&void runCommand('assume',selected.id)}><UserRoundCheck size={18}/> Assumir conversa</button>
+            <button type="button" className="kiara-hero-return" disabled={!selected || !controlReady || controlBusy || (controlSimulated ? simulatedConversationStatus==='ai' : selected.status==='ai')} onClick={()=>selected&&void runCommand('return_to_ai',selected.id)}><RefreshCcw size={18}/> Devolver à Kiara</button>
             {controlReady && !kiaraEnabled && <button type="button" className="kiara-hero-return" disabled={controlBusy || access?.role!=='admin'} onClick={()=>void runCommand('resume_all')}><RefreshCcw size={18}/> Reativar</button>}
           </div>
       </div>
@@ -524,6 +536,7 @@ export function KiaraAttendance({initialStatus='all',initialConversationId=null,
               {holdFeedback&&<small role="status">{holdFeedback}</small>}
             </div>
           </div>
+          {controlSimulated && selected && <p role="status" className="kiara-security">Status do teste no KV: {simulatedConversationStatus===null?'Ainda não simulado':simulatedConversationStatus==='human'?'Assumida (simulação)':'Devolvida à IA (simulação)'} — status real preservado.</p>}
           <div className="kiara-chat-actions">
             <button type="button" disabled={!selected || !controlReady || controlBusy || selected.status==='human'} onClick={()=>selected && void runCommand('assume',selected.id)}><Hand size={16}/> Assumir</button>
             <button type="button" disabled={!selected || !controlReady || controlBusy || selected.status==='ai'} onClick={()=>selected && void runCommand('return_to_ai',selected.id)}><RefreshCcw size={16}/> Devolver à Kiara</button>
