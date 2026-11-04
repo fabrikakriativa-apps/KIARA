@@ -16,14 +16,26 @@ function cors(env, origin, methods='GET, OPTIONS'){
 }
 function json(body,status=200,headers=noStore){return Response.json(body,{status,headers});}
 function liveTestActive(env){return env.KIARA_STAGING_LIVE_ENABLED==='true';}
-function liveTestReady(env){
-  return liveTestActive(env) &&
-    env.CONVERSAS?.get && env.CONVERSAS?.put && env.KIARA_QUEUE?.send &&
-    /^\d{6,30}$/.test(String(env.META_PHONE_NUMBER_ID||'')) &&
-    /^\d{8,30}$/.test(String(env.TEST_ALLOWED_WA_ID||'')) &&
-    Boolean(env.META_ACCESS_TOKEN&&env.META_APP_SECRET&&env.META_VERIFY_TOKEN&&
-      env.OPENAI_API_KEY&&env.SUPABASE_SERVICE_ROLE_KEY);
+// Ativação em estágios: todas as proteções precisam estar explicitamente ligadas.
+// A presença de secrets, isoladamente, nunca pode ativar o canal de WhatsApp.
+function stagingReadiness(env){
+  const checks={
+    enabled: env.KIARA_STAGING_LIVE_ENABLED === 'true',
+    synchronization: env.KIARA_SYNC_ENABLED === 'true',
+    operatorControl: env.KIARA_CONTROL_ENABLED === 'true',
+    humanHold: env.KIARA_HOLD_ENABLED === 'true',
+    limitedContacts: env.KIARA_SYNC_ALL_CONTACTS === 'false',
+    kv: Boolean(env.CONVERSAS?.get && env.CONVERSAS?.put && env.CONVERSAS?.delete),
+    queue: Boolean(env.KIARA_QUEUE?.send),
+    testPhoneId: /^\\d{6,30}$/.test(String(env.META_PHONE_NUMBER_ID||'')),
+    testRecipient: /^\\d{8,30}$/.test(String(env.TEST_ALLOWED_WA_ID||'')),
+    metaCredentials: Boolean(env.META_ACCESS_TOKEN && env.META_APP_SECRET && env.META_VERIFY_TOKEN),
+    aiCredential: Boolean(env.OPENAI_API_KEY),
+    supabaseServerCredential: Boolean(env.SUPABASE_SERVICE_ROLE_KEY),
+  };
+  return { ready: Object.values(checks).every(Boolean), checks };
 }
+function liveTestReady(env){ return stagingReadiness(env).ready; }
 function requireConfig(env){
   const url=String(env.SUPABASE_URL||'');
   const key=String(env.SUPABASE_PUBLISHABLE_KEY||'');
@@ -249,9 +261,11 @@ export default {
         const rows=await membership.json();
         if(!Array.isArray(rows)||!rows.some(row=>row.role==='admin'||row.role==='comercial'))
           return json({error:'Sem permissão'},403,headers);
-        const live=liveTestReady(env);
+        const readiness=stagingReadiness(env);
+        const live=readiness.ready;
         return json({
           environment:'homologacao_isolada',
+          readiness,
           transport:live?'whatsapp_test_only':'disabled',productionConnected:false,
           capabilities:{
             pricingSimulation:{enabled:true,label:'Simulação de preços interna'},
