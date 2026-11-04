@@ -1,0 +1,54 @@
+name: Preparar KV isolado Kiara - homologacao
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/preparar-kv-kiara-homologacao.yml'
+permissions:
+  contents: read
+concurrency:
+  group: kiara-kv-homologacao
+  cancel-in-progress: false
+jobs:
+  kv-isolado:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verificar conta e criar KV somente de homologacao
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          python3 - <<'PY'
+          import os,json,urllib.request,urllib.error
+          token=os.environ.get('CF_TOKEN','')
+          account=os.environ.get('CF_ACCOUNT','')
+          assert token and account, 'Credenciais Cloudflare ausentes'
+          base='https://api.cloudflare.com/client/v4'
+          headers={'Authorization':'Bearer '+token,'Accept':'application/json','Content-Type':'application/json'}
+          def api(method,path,payload=None):
+              body=None if payload is None else json.dumps(payload).encode('utf-8')
+              req=urllib.request.Request(base+path,data=body,headers=headers,method=method)
+              try:
+                  with urllib.request.urlopen(req,timeout=30) as response:
+                      return response.status,json.load(response)
+              except urllib.error.HTTPError as e:
+                  print('Cloudflare API:',method,path.rsplit('/',1)[-1],'HTTP',e.code)
+                  raise
+          _,accounts=api('GET','/accounts?per_page=100')
+          assert any(x.get('id')==account for x in accounts.get('result',[])), 'Conta incompatível com token'
+          _,worker=api('GET',f'/accounts/{account}/workers/scripts/fabrika-atendimento-ia-homologacao/settings')
+          assert worker.get('success'), 'Worker de homologacao ausente'
+          _,namespaces=api('GET',f'/accounts/{account}/storage/kv/namespaces?per_page=100')
+          matching=[n for n in namespaces.get('result',[]) if n.get('title')=='kiara-homologacao-controles']
+          assert len(matching)<=1, 'Namespace duplicado'
+          if matching:
+              namespace=matching[0]
+              print('KV exclusivo existente, id:',namespace['id'])
+          else:
+              _,created=api('POST',f'/accounts/{account}/storage/kv/namespaces',{'title':'kiara-homologacao-controles'})
+              assert created.get('success') and created.get('result',{}).get('id')
+              namespace=created['result']
+              print('KV exclusivo criado, id:',namespace['id'])
+          print('Protecao: sem alteracao de Worker, fila, token ou dados de producao.')
+          PY
