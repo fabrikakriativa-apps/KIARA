@@ -28,8 +28,13 @@ jobs:
           print('Worker existente encontrado. Apenas presença, nenhum valor de segredo:')
           for n in ['EASY_PHONE_NUMBER_ID','EASY_ACCESS_TOKEN','EASY_WEBHOOK_KEY','TEST_ALLOWED_WA_ID','META_VERIFY_TOKEN','OPENAI_API_KEY','SUPABASE_SERVICE_ROLE_KEY','KIARA_QUEUE','CONVERSAS']:
             print(n, 'PRESENTE' if n in names else 'AUSENTE')
-          for n in ['KIARA_CONTROL_ENABLED','KIARA_SYNC_ENABLED','KIARA_HOLD_ENABLED','KIARA_SYNC_ALL_CONTACTS']:
+          for n in ['KIARA_CONTROL_ENABLED','KIARA_SYNC_ENABLED','KIARA_HOLD_ENABLED','KIARA_SYNC_ALL_CONTACTS','KIARA_HUMAN_SEND_ENABLED']:
             b=next((x for x in bindings if x.get('name')==n),{})
-            print(n,'configurado' if b.get('type')=='plain_text' else 'nao configurado')
+            value=b.get('text') if b.get('type')=='plain_text' else None
+            print(n, value if value in ('true','false') else 'nao configurado')
+          phone=next((b for b in bindings if b.get('name')=='EASY_PHONE_NUMBER_ID'),{})
+          print('Numero Easy coincide com Business de testes:',phone.get('text')=='989677610885915' if phone.get('type')=='plain_text' else 'indeterminado')
+          allowed=next((b for b in bindings if b.get('name')=='TEST_ALLOWED_WA_ID'),{})
+          print('Contato teste tipo:',allowed.get('type','ausente'))
           print('Nada foi alterado.')
           PY
