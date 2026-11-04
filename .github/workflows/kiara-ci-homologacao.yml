@@ -1,0 +1,34 @@
+name: Kiara - testes isolados de homologacao
+on:
+  push:
+    branches: [homologacao]
+    paths:
+      - '.github/workflows/kiara-ci-homologacao.yml'
+      - 'staging/**'
+      - 'src/**'
+      - 'tests/**'
+      - 'package.json'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: kiara-ci-isolada-homologacao
+  cancel-in-progress: false
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Obter codigo somente da branch homologacao
+        uses: actions/checkout@v4
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validar sintaxe
+        run: |
+          node --check src/worker.js
+          node --check staging/worker.js
+          node --check src/quote-pricing.js
+      - name: Executar testes unitarios e de seguranca
+        run: npm test
