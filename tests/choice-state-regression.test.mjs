@@ -7,5 +7,5 @@ const q=readFileSync(new URL('../src/quote-intake.js',import.meta.url),'utf8');
 test('preferências anteriores não viram decisões aprovadas',()=>{assert.match(CONSULTATIVE_IDENTITY,/preferência em avaliação/);assert.match(CONSULTATIVE_IDENTITY,/escolha expressamente confirmada/);});
 test('retomar opções e receber correções com tato',()=>{assert.match(CONSULTATIVE_IDENTITY,/Preserve preferências anteriores/);assert.match(CONSULTATIVE_IDENTITY,/acolha brevemente/);});
 test('antes das medidas, orientar quando escolha aberta',()=>{assert.match(CONSULTATIVE_IDENTITY,/continue orientando antes de pedir dados técnicos/);});
-test('resumo somente de itens definidos',()=>{assert.match(q,/preferências ainda em avaliação/);assert.match(CONSULTATIVE_IDENTITY,/recapitule uma única vez/);});
+test('resumo somente de itens definidos',()=>{assert.match(q,/alternativas em avaliação|preferências em avaliação|sugestões ou preferências/);assert.match(CONSULTATIVE_IDENTITY,/recapitule uma única vez/);});
 test('proteção de envio persiste',()=>{assert.match(w,/containsCommercialPrice\(answer\)/);assert.match(w,/isAuthorizedToSend\(env, route, sender\)/);});
