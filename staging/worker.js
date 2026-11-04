@@ -15,6 +15,15 @@ function cors(env, origin, methods='GET, OPTIONS'){
     : noStore;
 }
 function json(body,status=200,headers=noStore){return Response.json(body,{status,headers});}
+function liveTestActive(env){return env.KIARA_STAGING_LIVE_ENABLED==='true';}
+function liveTestReady(env){
+  return liveTestActive(env) &&
+    env.CONVERSAS?.get && env.CONVERSAS?.put && env.KIARA_QUEUE?.send &&
+    /^\d{6,30}$/.test(String(env.META_PHONE_NUMBER_ID||'')) &&
+    /^\d{8,30}$/.test(String(env.TEST_ALLOWED_WA_ID||'')) &&
+    Boolean(env.META_ACCESS_TOKEN&&env.META_APP_SECRET&&env.META_VERIFY_TOKEN&&
+      env.OPENAI_API_KEY&&env.SUPABASE_SERVICE_ROLE_KEY);
+}
 function requireConfig(env){
   const url=String(env.SUPABASE_URL||'');
   const key=String(env.SUPABASE_PUBLISHABLE_KEY||'');
@@ -199,12 +208,21 @@ async function stagingOperator(request,env){
 }
 
 export default {
-  async fetch(request,env={}){
+  async queue(batch,env={},ctx){
+    if(!liveTestReady(env))throw new Error('Homologação real não habilitada ou incompleta');
+    return kiara.queue(batch,env,ctx);
+  },
+  async fetch(request,env={},ctx){
     const url=new URL(request.url);
     if(request.method==='GET' && url.pathname==='/health')return json({
-      service:'kiara-homologacao',status:'ok',worker_code:'integrado',external_integrations:'blocked',
+      service:'kiara-homologacao',status:'ok',worker_code:'integrado',
+      external_integrations:liveTestReady(env)?'test_only':'blocked',
       supabase_read:'authenticated_only'
     });
+    if(liveTestReady(env) && (url.pathname==='/webhook' ||
+      ['/kiara/control','/kiara/coach','/kiara/human-message'].includes(url.pathname))) {
+      return kiara.fetch(request,env,ctx);
+    }
     if(url.pathname==='/kiara/control'){
       try{return await stagingOperator(request,env)}
       catch(error){console.error('Staging control unavailable',String(error?.message||''));return json({error:'Controle de homologação indisponível'},503,cors(env,request.headers.get('Origin'),'GET, POST, OPTIONS'))}
@@ -231,16 +249,17 @@ export default {
         const rows=await membership.json();
         if(!Array.isArray(rows)||!rows.some(row=>row.role==='admin'||row.role==='comercial'))
           return json({error:'Sem permissão'},403,headers);
+        const live=liveTestReady(env);
         return json({
           environment:'homologacao_isolada',
-          transport:'disabled',productionConnected:false,
+          transport:live?'whatsapp_test_only':'disabled',productionConnected:false,
           capabilities:{
             pricingSimulation:{enabled:true,label:'Simulação de preços interna'},
             conversationRead:{enabled:true,label:'Consulta de conversas'},
-            conversationControl:{enabled:true,label:'Simular assumir, devolver e pausar',mode:'sandbox',reason:'Grava apenas no KV exclusivo da homologação; não interfere no WhatsApp'},
-            humanMessages:{enabled:false,label:'Envio humano pelo painel',reason:'Worker sem credenciais Meta e número de teste'},
-            automaticReplies:{enabled:false,label:'Respostas automáticas no WhatsApp',reason:'Worker sem fila, KV e canal Meta'},
-            coachingWrite:{enabled:true,label:'Simular segurar e liberar resposta',mode:'sandbox',reason:'Salvo apenas no KV exclusivo de homologação; não altera a fila real'}
+            conversationControl:{enabled:true,label:live?'Assumir, devolver e pausar em homologação':'Simular assumir, devolver e pausar',mode:live?'test_only':'sandbox',reason:live?'Limitado ao número autorizado de teste':'Grava apenas no KV exclusivo da homologação; não interfere no WhatsApp'},
+            humanMessages:{enabled:live&&env.KIARA_HUMAN_SEND_ENABLED==='true',label:'Envio humano pelo painel',reason:live?'Limitado ao número autorizado de teste':'Credenciais e número de teste ainda não validados'},
+            automaticReplies:{enabled:live,label:'Respostas automáticas no WhatsApp',reason:live?'Limitadas ao número autorizado de teste':'Canal Meta ainda bloqueado'},
+            coachingWrite:{enabled:true,label:live?'Segurar e liberar resposta de homologação':'Simular segurar e liberar resposta',mode:live?'test_only':'sandbox',reason:live?'Limitado à conversa de teste':'Salvo apenas no KV exclusivo de homologação; não altera a fila real'}
           }
         },200,headers);
       }catch(error){
