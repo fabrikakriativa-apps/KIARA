@@ -1,0 +1,34 @@
+name: Kiara - verificar leitura das orientacoes
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/auditar-orientacoes-kiara.yml']
+permissions:
+  contents: read
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Auditar somente indicadores nao sensiveis do Worker autorizado
+        run: |
+          python3 - <<'PY'
+          import os,urllib.request,json,sys
+          account=os.environ['CF_ACCOUNT'];token=os.environ['CF_TOKEN']
+          request=urllib.request.Request('https://api.cloudflare.com/client/v4/accounts/'+account+'/workers/scripts/fabrika-atendimento-ia/settings',headers={'Authorization':'Bearer '+token})
+          with urllib.request.urlopen(request,timeout=25) as response:doc=json.load(response)
+          if not doc.get('success'):sys.exit('Nao foi possivel verificar o Worker')
+          bindings={row['name']:row for row in doc['result'].get('bindings',[])}
+          if bindings.get('EASY_PHONE_NUMBER_ID',{}).get('text')!='989677610885915':sys.exit('Worker inesperado')
+          number=''.join(x for x in bindings.get('TEST_ALLOWED_WA_ID',{}).get('text','') if x.isdigit())
+          if not number.endswith('5185'):sys.exit('Contato inesperado')
+          for flag in ['KIARA_KNOWLEDGE_ENABLED','KIARA_GUIDANCE_ENABLED','KIARA_SYNC_ENABLED','KIARA_COMMERCIAL_GUIDANCE_ENABLED','KIARA_CUSTOMER_QUALIFICATION_ENABLED']:
+            b=bindings.get(flag,{})
+            print(flag+': '+(b.get('text') if b.get('type')=='plain_text' else 'unset_or_secret'))
+          print('CONVERSAS_KV:',bindings.get('CONVERSAS',{}).get('type','missing'))
+          print('SUPABASE_ORGANIZATION_ID:', 'configured' if 'SUPABASE_ORGANIZATION_ID' in bindings else 'missing')
+          print('Credenciais nao exibidas.')
+          PY
