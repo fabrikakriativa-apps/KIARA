@@ -101,3 +101,5 @@ jobs:
 # Correção de regressão: reconhecimento do primeiro nome após reiniciar o atendimento.
 
 # Publicação da interpretação natural por IA e validação comercial independente; somente contato autorizado de testes.
+
+# Revalidar extração de identificação em linguagem natural no contato autorizado de testes.
