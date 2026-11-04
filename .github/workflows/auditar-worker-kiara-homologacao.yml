@@ -63,3 +63,4 @@ jobs:
               print('Filas na conta:',len(qs),'(não altera nem cria)')
           else:print('Consulta filas indisponível, HTTP',status)
           PY
+# Auditoria após atualização do token Cloudflare no GitHub — sem mutações nem exibição de segredos.
