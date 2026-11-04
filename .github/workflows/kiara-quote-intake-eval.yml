@@ -1,0 +1,23 @@
+name: Kiara - avaliar extracao real de orcamento
+on:
+  push:
+    branches: [homologacao]
+    paths: ['evals/quote-intake-live.mjs','.github/workflows/kiara-quote-intake-eval.yml']
+permissions:
+  contents: read
+jobs:
+  avaliar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      KIARA_EVAL_MODEL: gpt-6-luna
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validar credencial sem revelar segredo
+        run: test -n "$OPENAI_API_KEY"
+      - name: Avaliar extracao de especificacoes sem qualquer envio
+        run: node evals/quote-intake-live.mjs
