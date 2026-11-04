@@ -30,6 +30,6 @@ jobs:
             print(flag+': '+(b.get('text') if b.get('type')=='plain_text' else 'unset_or_secret'))
           print('CONVERSAS_KV:',bindings.get('CONVERSAS',{}).get('type','missing'))
           print('SUPABASE_ORGANIZATION_ID:', 'configured' if 'SUPABASE_ORGANIZATION_ID' in bindings else 'missing')
-          print('KIARA_DASHBOARD_ORIGIN:', 'configured' if 'KIARA_DASHBOARD_ORIGIN' in bindings else 'missing')
+          print('KIARA_DASHBOARD_ORIGIN:', bindings.get('KIARA_DASHBOARD_ORIGIN',{}).get('text','missing'))
           print('Credenciais nao exibidas.')
           PY
