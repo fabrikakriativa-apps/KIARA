@@ -4,7 +4,8 @@ import {sendKiaraImage} from './send-media.js';
 import { commercialConversationRules } from './commercial-guidance.js';
 import { simulateCurtainQuote } from './quote-pricing.js';
 import { normalizeCurtainIntake, extractConversationInstructions } from './quote-conversation.js';
-import {blankQualification,mergeQualification,evaluateCustomerQualification,extractQualification,qualificationQuestion,containsCommercialPrice} from './customer-qualification.js';
+import {blankQualification,mergeQualification,evaluateCustomerQualification,qualificationQuestion,containsCommercialPrice} from './customer-qualification.js';
+import {validateExtractedQualification,qualificationExtractionInstructions} from './qualification-ai.js';
 /*
  * FÁBRIKA KRIATIVA — KIARA / WORKER INTEGRADO (VERSÃO DE TESTE)
  * Base: Worker enviado em 01/11/2026; preserva espera de 15 s e pausa do atendimento humano.
@@ -165,6 +166,32 @@ async function verifySignature(request, secret, body) {
 // ==== Kiara <-> SISTEMA: synchronization and controlled intervention ====
 // Optional deployment flags default to OFF. Secrets never go to the browser.
 // Estado de cadastro limitado ao contato autorizado de teste e ao próprio KV.
+async function interpretCustomerQualification(env,history,current){
+  if(evaluateCustomerQualification(current).qualified)return {};
+  const recent=history.slice(-24);
+  if(!recent.some(m=>m.role==='user'))return {};
+  const response=await fetch('https://api.openai.com/v1/responses',{
+    method:'POST',
+    headers:{Authorization:'Bearer '+env.OPENAI_API_KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({
+      model:MODEL,
+      instructions:qualificationExtractionInstructions()+
+        '\\nCampos já confirmados (não substitua): '+JSON.stringify(current),
+      input:recent,
+      text:{format:{type:'json_object'}},
+      max_output_tokens:300,
+      reasoning:{effort:'none'},
+      store:false
+    })
+  });
+  if(!response.ok)throw new Error('Falha na interpretação do cadastro');
+  const data=await response.json();
+  const raw=(data.output||[]).flatMap(item=>item.content||[])
+    .filter(x=>x.type==='output_text').map(x=>x.text).join('').trim();
+  let parsed;
+  try{parsed=JSON.parse(raw)}catch{return {}}
+  return validateExtractedQualification(parsed,recent,current);
+}
 const qualificationStateKey=(route,sender)=>route.source+':qualification:'+digits(sender);
 async function loadQualification(env,route,sender){
   return mergeQualification(null,(await env.CONVERSAS.get(qualificationStateKey(route,sender),'json'))||blankQualification());
@@ -1255,27 +1282,20 @@ async function consumeMessage(env, job) {
         ...history.slice(-MAX_CONTEXT_ITEMS),
         { role: 'user', content: inputText }
       ];
-  // Solicita primeiro nome já na primeira interação, antes de qualquer questionário comercial.
-  // O nome do perfil WhatsApp nunca é tratado como uma apresentação explícita.
+  // A IA interpreta os dados em linguagem natural considerando a conversa.
+  // O sistema apenas valida evidências e impede operações comerciais incompletas.
   let profile=await loadQualification(env,route,sender);
-  const extracted=extractQualification(inputText,{
-    // Não depender exclusivamente da marcação de etapa no KV: a resposta curta
-    // "Ana" deve ser reconhecida mesmo se o estado anterior não estiver visível.
-    expectingFirstName:!profile.firstName || profile.pendingField==='firstName',
-    expectingLastName:profile.pendingField==='lastName',
-    expectingNeighborhood:profile.pendingField==='neighborhood',
-    expectingCity:profile.pendingField==='city'
-  });
-  profile=mergeQualification(profile,extracted);
-  if(profile.pendingField && extracted[profile.pendingField])profile.pendingField='';
-  if(Object.keys(extracted).length)await bestEffortSync(()=>syncCustomerQualification(env,route,sender,profile),'customer qualification');
-  if(env.KIARA_CUSTOMER_QUALIFICATION_ENABLED==='true' && !profile.firstName){
-    const prompt=qualificationQuestion(profile,{initial:true});
-    profile.pendingField='firstName';
-    await saveQualification(env,route,sender,profile);
-    await sendQualificationPrompt(env,route,sender,targetId,conversation,profile,prompt);
-    return;
+  if(env.KIARA_CUSTOMER_QUALIFICATION_ENABLED==='true'){
+    let extracted={};
+    try{extracted=await interpretCustomerQualification(env,nextHistory,profile)}
+    catch(error){console.warn('Interpretação de identificação indisponível',String(error?.message||''))}
+    if(Object.keys(extracted).length){
+      profile=mergeQualification(profile,extracted);
+      await saveQualification(env,route,sender,profile);
+      await bestEffortSync(()=>syncCustomerQualification(env,route,sender,profile),'customer qualification');
+    }
   }
+  // Guardar o cadastro confirmado sem transformar o atendimento em formulário.
   await saveQualification(env,route,sender,profile);
 
   let references=[];
@@ -1286,10 +1306,14 @@ async function consumeMessage(env, job) {
   const routing=adsRoutingEnabled(env)?await loadRouteState(env,route,sender):null;
   if(adsRoutingEnabled(env)&&(!routing||routing.status!=='selected'))return;
   const mediaHint=references.length?'\n\nHá referência visual aprovada para esta solicitação. A imagem poderá ser enviada após sua resposta; não diga que já a enviou.':'\n\nNão há mídia aprovada disponível para esta conversa. Explique apenas por texto e não prometa envio de imagem.';
-  const qualificationInstruction='\\n\\nCADASTRO COMERCIAL OBRIGATÓRIO: O cliente já informou primeiro nome: '+profile.firstName+
-    '. Antes de apresentar qualquer valor ou declarar orçamento pronto, obtenha também sobrenome, bairro e cidade. Pendências: '+
-    evaluateCustomerQualification(profile).missing.join(', ')+
-    '. Nunca invente dados ou suponha bairro/cidade pelo telefone. Faça uma pergunta por mensagem e não repita dados recebidos.';
+  const qualificationInstruction='\n\nIDENTIFICAÇÃO COMERCIAL: Dados confirmados pelo cliente: '+
+    JSON.stringify({firstName:profile.firstName,lastName:profile.lastName,neighborhood:profile.neighborhood,city:profile.city})+
+    '. Ainda faltam: '+evaluateCustomerQualification(profile).missing.join(', ')+
+    '. Você é a Kiara. Interprete a conversa naturalmente; não repita perguntas respondidas. '+
+    'Se não houver primeiro nome, pergunte como pode chamar o cliente logo no começo. '+
+    'O sobrenome, bairro e cidade precisam ser obtidos antes de apresentar valores, mas não imponha uma sequência de formulário. '+
+    'Se o cliente trouxer vários dados de uma vez, aproveite-os. Faça só uma pergunta por mensagem. '+
+    'Converse e oriente normalmente mesmo quando os dados comerciais estiverem incompletos.';
   const instructions=guidance+qualificationInstruction+mediaHint+(approvedCommercial?'\n\n'+approvedCommercial:'')+(routing?.status==='selected'?'\n\n'+flowPrompt(routing.choice)+'\n\n'+quoteIntakePrompt():'');
   const handoffPolicy='\\n\\nTRANSFERÊNCIA: Se o cliente demonstrar confusão persistente, repetir que a Kiara não entendeu, tiver frustração com o atendimento, pedido humano ou situação fora do catálogo, responda APENAS <<ENCAMINHAR_HUMANO>>. Não transfira apenas porque o cliente respondeu não, mudou de ideia, fez uma pergunta normal ou ainda não informou uma medida. Em situações normais, esclareça com uma pergunta por vez.';
   const answer = await generateReply(env, nextHistory, instructions+handoffPolicy);
@@ -1331,11 +1355,9 @@ async function consumeMessage(env, job) {
   // Proteção final contra valor comercial sem cadastro completo, mesmo se o modelo errar.
   let finalAnswer=answer;
   if(env.KIARA_CUSTOMER_QUALIFICATION_ENABLED==='true' && containsCommercialPrice(answer) && !evaluateCustomerQualification(profile).qualified){
-    const pending=evaluateCustomerQualification(profile).missing[0];
-    const prompt=qualificationQuestion(profile);
-    profile.pendingField=pending;
-    await saveQualification(env,route,sender,profile);
-    finalAnswer=prompt;
+    // A interpretação continua livre, mas nenhum valor comercial sai sem cadastro.
+    finalAnswer=qualificationQuestion(profile)||
+      'Para preparar a estimativa, preciso confirmar os dados de atendimento.';
   }
   const sentId = await sendMessage(route, sender, finalAnswer);
   await bestEffortSync(() => syncKiaraReply(env, route, sender, sentId, finalAnswer), 'kiara reply');
