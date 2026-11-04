@@ -4,6 +4,7 @@ import {sendKiaraImage} from './send-media.js';
 import { commercialConversationRules } from './commercial-guidance.js';
 import { simulateCurtainQuote } from './quote-pricing.js';
 import { normalizeCurtainIntake, extractConversationInstructions } from './quote-conversation.js';
+import {blankQualification,mergeQualification,evaluateCustomerQualification,extractQualification,qualificationQuestion,containsCommercialPrice} from './customer-qualification.js';
 /*
  * FÁBRIKA KRIATIVA — KIARA / WORKER INTEGRADO (VERSÃO DE TESTE)
  * Base: Worker enviado em 01/11/2026; preserva espera de 15 s e pausa do atendimento humano.
@@ -163,6 +164,23 @@ async function verifySignature(request, secret, body) {
 
 // ==== Kiara <-> SISTEMA: synchronization and controlled intervention ====
 // Optional deployment flags default to OFF. Secrets never go to the browser.
+// Estado de cadastro limitado ao contato autorizado de teste e ao próprio KV.
+const qualificationStateKey=(route,sender)=>route.source+':qualification:'+digits(sender);
+async function loadQualification(env,route,sender){
+  return mergeQualification(null,(await env.CONVERSAS.get(qualificationStateKey(route,sender),'json'))||blankQualification());
+}
+async function saveQualification(env,route,sender,profile){
+  await env.CONVERSAS.put(qualificationStateKey(route,sender),JSON.stringify(profile),{expirationTtl:60*60*24*30});
+}
+async function sendQualificationPrompt(env,route,sender,targetId,conversation,profile,prompt){
+  // Toda resposta automática continua sujeita à pausa do atendimento e à limitação de destinatário.
+  if(await env.CONVERSAS.get(conversation.paused))return false;
+  if(!(await isAuthorizedToSend(env,route,sender)))return false;
+  const id=await sendMessage(route,sender,prompt);
+  await bestEffortSync(()=>syncKiaraReply(env,route,sender,id,prompt),'qualification prompt');
+  await env.CONVERSAS.put(`${route.source}:sent:${targetId}`,'1',{expirationTtl:MEMORY_TTL});
+  return true;
+}
 const syncActive = env => env.KIARA_SYNC_ENABLED === 'true';
 const controlActive = env => env.KIARA_CONTROL_ENABLED === 'true';
 
@@ -215,6 +233,7 @@ async function upsertConversation(env, source, phoneId, sender, options = {}) {
   if (!found?.length) throw new Error('Conversation not found');
   const patch = {
     last_interaction_at: stamp,
+    ...(options.customerMessage ? {last_customer_message_at:stamp} : {}),
     ...(options.name && !found[0].contact_name ? { contact_name: options.name } : {})
   };
   await dbRequest(env, 'kiara_conversations', 'PATCH',
@@ -236,7 +255,7 @@ async function syncInbound(env, route, value, message) {
   const name = (value.contacts || []).find(c => digits(c.wa_id) === customer)?.profile?.name || null;
   const timestamp = toIso(message.timestamp);
   const row = await upsertConversation(env, route.source, route.phoneId, customer, {
-    timestamp, name, referral: message.referral || null
+    timestamp, name, referral: message.referral || null, customerMessage:true
   });
   await saveMessage(env, row.id, message.id, 'incoming', 'customer',
     message.type === 'text' ? message.text?.body : message.type==='interactive' ? message.interactive?.button_reply?.title : null, timestamp, message.type);
@@ -1188,6 +1207,17 @@ async function consumeMessage(env, job) {
   if (isReset) {
     await env.CONVERSAS.delete(conversation.history);
     await env.CONVERSAS.delete(conversation.paused);
+    await env.CONVERSAS.delete(qualificationStateKey(route,sender));
+    // Reinício explícito do contato autorizado: restaura também o estado exibido no CRM.
+    if(syncActive(env)){
+      const scoped=await dbRequest(env,'kiara_conversations','GET',
+        '?select=id'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
+        queryEq('source',route.source)+queryEq('phone_number_id',route.phoneId)+
+        queryEq('contact_wa_id',sender)+'&limit=1');
+      if(scoped?.[0]?.id) await dbRequest(env,'kiara_conversations','PATCH',
+        '?id=eq.'+encodeURIComponent(scoped[0].id)+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID),
+        {status:'ai',reply_held:false,reply_held_since:null,reply_held_by:null});
+    }
     if (!(await isAuthorizedToSend(env, route, sender))) return;
     const text = 'Conversa reiniciada! 😊 Como posso ajudar?';
     const sentId = await sendMessage(route, sender, text);
@@ -1208,6 +1238,26 @@ async function consumeMessage(env, job) {
         ...history.slice(-MAX_CONTEXT_ITEMS),
         { role: 'user', content: inputText }
       ];
+  // Solicita primeiro nome já na primeira interação, antes de qualquer questionário comercial.
+  // O nome do perfil WhatsApp nunca é tratado como uma apresentação explícita.
+  let profile=await loadQualification(env,route,sender);
+  const extracted=extractQualification(inputText,{
+    expectingFirstName:profile.pendingField==='firstName',
+    expectingLastName:profile.pendingField==='lastName',
+    expectingNeighborhood:profile.pendingField==='neighborhood',
+    expectingCity:profile.pendingField==='city'
+  });
+  profile=mergeQualification(profile,extracted);
+  if(profile.pendingField && extracted[profile.pendingField])profile.pendingField='';
+  if(!profile.firstName){
+    const prompt=qualificationQuestion(profile,{initial:true});
+    profile.pendingField='firstName';
+    await saveQualification(env,route,sender,profile);
+    await sendQualificationPrompt(env,route,sender,targetId,conversation,profile,prompt);
+    return;
+  }
+  await saveQualification(env,route,sender,profile);
+
   let references=[];
   try { references=await approvedFinishImages(env,String(inputText||'')); }
   catch(err) { console.warn('Biblioteca indisponível; seguir por texto',String(err?.message||'')); }
@@ -1216,7 +1266,11 @@ async function consumeMessage(env, job) {
   const routing=adsRoutingEnabled(env)?await loadRouteState(env,route,sender):null;
   if(adsRoutingEnabled(env)&&(!routing||routing.status!=='selected'))return;
   const mediaHint=references.length?'\n\nHá referência visual aprovada para esta solicitação. A imagem poderá ser enviada após sua resposta; não diga que já a enviou.':'\n\nNão há mídia aprovada disponível para esta conversa. Explique apenas por texto e não prometa envio de imagem.';
-  const instructions=guidance+mediaHint+(approvedCommercial?'\n\n'+approvedCommercial:'')+(routing?.status==='selected'?'\n\n'+flowPrompt(routing.choice)+'\n\n'+quoteIntakePrompt():'');
+  const qualificationInstruction='\\n\\nCADASTRO COMERCIAL OBRIGATÓRIO: O cliente já informou primeiro nome: '+profile.firstName+
+    '. Antes de apresentar qualquer valor ou declarar orçamento pronto, obtenha também sobrenome, bairro e cidade. Pendências: '+
+    evaluateCustomerQualification(profile).missing.join(', ')+
+    '. Nunca invente dados ou suponha bairro/cidade pelo telefone. Faça uma pergunta por mensagem e não repita dados recebidos.';
+  const instructions=guidance+qualificationInstruction+mediaHint+(approvedCommercial?'\n\n'+approvedCommercial:'')+(routing?.status==='selected'?'\n\n'+flowPrompt(routing.choice)+'\n\n'+quoteIntakePrompt():'');
   const handoffPolicy='\\n\\nTRANSFERÊNCIA: Se o cliente demonstrar confusão persistente, repetir que a Kiara não entendeu, tiver frustração com o atendimento, pedido humano ou situação fora do catálogo, responda APENAS <<ENCAMINHAR_HUMANO>>. Não transfira apenas porque o cliente respondeu não, mudou de ideia, fez uma pergunta normal ou ainda não informou uma medida. Em situações normais, esclareça com uma pergunta por vez.';
   const answer = await generateReply(env, nextHistory, instructions+handoffPolicy);
   if(answer.includes('<<ENCAMINHAR_HUMANO>>')){
@@ -1254,9 +1308,18 @@ async function consumeMessage(env, job) {
   if (await env.CONVERSAS.get(completedKey)) return;
   if (await readHold(env, route, sender)) return;
 
-  const sentId = await sendMessage(route, sender, answer);
-  await bestEffortSync(() => syncKiaraReply(env, route, sender, sentId, answer), 'kiara reply');
-  nextHistory.push({role:'assistant',content:answer});
+  // Proteção final contra valor comercial sem cadastro completo, mesmo se o modelo errar.
+  let finalAnswer=answer;
+  if(containsCommercialPrice(answer) && !evaluateCustomerQualification(profile).qualified){
+    const pending=evaluateCustomerQualification(profile).missing[0];
+    const prompt=qualificationQuestion(profile);
+    profile.pendingField=pending;
+    await saveQualification(env,route,sender,profile);
+    finalAnswer=prompt;
+  }
+  const sentId = await sendMessage(route, sender, finalAnswer);
+  await bestEffortSync(() => syncKiaraReply(env, route, sender, sentId, finalAnswer), 'kiara reply');
+  nextHistory.push({role:'assistant',content:finalAnswer});
   await env.CONVERSAS.put(conversation.history,
     JSON.stringify(nextHistory.slice(-MAX_CONTEXT_ITEMS)),
     {expirationTtl: MEMORY_TTL});
