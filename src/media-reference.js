@@ -21,7 +21,7 @@ export function chooseFinishImages(text,rows){
  */
 export function chooseProductImages(text,rows=[]){
  const input=normalize(text);
- const ask=/(foto|fotos|imagem|imagens|mostr|ver |visualiz|exempl|opco|opç|modelos|compar)/.test(input);
+ const ask=/(foto|fotos|imagem|imagens|mostr|ver |visualiz|ilustr)/.test(input);
  if(!ask||!Array.isArray(rows))return [];
  const eligible=rows.filter(x=>x&&x.active===true&&['produto','composicao','modelo_confeccao'].includes(x.category)
   &&['cortina','persiana'].includes(x.product)&&typeof x.storage_path==='string'&&x.storage_path.length>0);
@@ -29,6 +29,7 @@ export function chooseProductImages(text,rows=[]){
  const curtains=/\b(cortina|cortinas|tecido|linho|voil|gaze|wave|prega)\b/.test(input);
  const blinds=/\b(persiana|persianas|rolo|rol[oô]|romana|double vision|madeira|silonew|vig blind)\b/.test(input);
  const product=curtains&&!blinds?'cortina':blinds&&!curtains?'persiana':null;
+ if(!product)return [];
  const terms=[
    ['gaze de linho',/gaze/],['linho fresh',/fresh/],['linho morea',/morea/],
    ['linho',/linho/],['blackout',/blackout/],['semi-blackout',/semi.?blackout/],
