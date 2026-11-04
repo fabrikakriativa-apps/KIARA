@@ -97,3 +97,5 @@ jobs:
           if data.get('status')!='online':sys.exit('Health check falhou')
           print('Worker online. Nenhuma mensagem enviada.')
           PY
+
+# Correção de regressão: reconhecimento do primeiro nome após reiniciar o atendimento.
