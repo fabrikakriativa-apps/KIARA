@@ -147,8 +147,26 @@ async function stagingOperator(request,env){
   const globalKey='staging:control:'+org+':enabled';
   if(request.method==='GET'){
     const saved=await env.KIARA_CONTROLES.get(globalKey);
-    return json({enabled:saved==='true',environment:'homologacao_isolada',
-      simulated:true,productionConnected:false,
+    const conversationId=new URL(request.url).searchParams.get('conversationId');
+    let simulatedStatus=null;
+    if(conversationId!==null){
+      if(!uuid.test(conversationId))return json({error:'Conversa inválida'},400,headers);
+      const scoped=new URLSearchParams({select:'id',id:'eq.'+conversationId,
+        organization_id:'eq.'+org,limit:'1'});
+      const check=await fetch(base+'/rest/v1/kiara_conversations?'+scoped,{headers:sessionHeaders});
+      if(!check.ok)return json({error:'Conversa não autorizada'},check.status===401||check.status===403?403:503,headers);
+      const visible=await check.json();
+      if(!Array.isArray(visible)||visible.length!==1)return json({error:'Conversa não encontrada'},404,headers);
+      const raw=await env.KIARA_CONTROLES.get('staging:control:'+org+':conversation:'+conversationId);
+      if(raw){
+        try{
+          const state=JSON.parse(raw);
+          if(state?.state==='ai'||state?.state==='human')simulatedStatus=state.state;
+        }catch{ return json({error:'Estado de teste inválido'},503,headers); }
+      }
+    }
+    return json({enabled:saved==='true',simulatedStatus,
+      environment:'homologacao_isolada',simulated:true,productionConnected:false,
       description:'Ações simuladas apenas no KV de homologação; não controlam o WhatsApp.'},200,headers);
   }
   let body;
