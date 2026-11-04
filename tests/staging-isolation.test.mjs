@@ -29,8 +29,8 @@ test('health confirms authenticated Supabase read-only mode',async()=>{
  assert.deepEqual(await res.json(),{service:'kiara-homologacao',status:'ok',worker_code:'integrado',external_integrations:'blocked',supabase_read:'authenticated_only'});
 });
 
-test('webhooks, controls and POST coaching are not available',async()=>{
- for(const path of ['/webhook','/webhook/test-secret','/kiara/coach','/kiara/control','/']){
+test('webhooks and POST coaching remain unavailable',async()=>{
+ for(const path of ['/webhook','/webhook/test-secret','/kiara/coach','/']){
   const res=await staging.fetch(new Request('https://staging.workers.dev'+path,{method:'POST',body:'{}'}),env);
   assert.equal(res.status,404,path);
  }
@@ -96,5 +96,42 @@ test('RLS-hidden conversation remains undisclosed',async()=>{
  try{
   const res=await staging.fetch(new Request(url,{headers:{Origin:origin,Authorization:'Bearer '+'a'.repeat(100)}}),env);
   assert.equal(res.status,404);
+ }finally{globalThis.fetch=original}
+});
+
+test('staging controls require authentication and allowed dashboard origin',async()=>{
+ const endpoint='https://staging.workers.dev/kiara/control';
+ const pre=await staging.fetch(new Request(endpoint,{method:'OPTIONS',headers:{Origin:origin}}),env);
+ assert.equal(pre.status,204);
+ assert.match(pre.headers.get('access-control-allow-methods'),/POST/);
+ const noToken=await staging.fetch(new Request(endpoint,{headers:{Origin:origin}}),env);
+ assert.equal(noToken.status,401);
+ const badOrigin=await staging.fetch(new Request(endpoint,{headers:{Origin:'https://attacker.example',Authorization:'Bearer '+'a'.repeat(100)}}),env);
+ assert.equal(badOrigin.status,403);
+});
+test('staging operator modifies only isolated KV, never production conversation',async()=>{
+ const endpoint='https://staging.workers.dev/kiara/control';
+ const auth='Bearer '+'a'.repeat(100),userId='d7ac3984-e324-456d-b398-912841fbd77a';
+ const original=globalThis.fetch,records=new Map(),requests=[];
+ const kv={get:async key=>records.get(key)||null,put:async(key,value)=>{records.set(key,value)}};
+ const testEnv={...env,KIARA_CONTROLES:kv};
+ globalThis.fetch=async(input,init={})=>{
+  const u=new URL(input);requests.push({pathname:u.pathname,method:init.method||'GET'});
+  if(u.pathname==='/auth/v1/user')return Response.json({id:userId});
+  if(u.pathname==='/rest/v1/memberships')return Response.json([{role:'admin'}]);
+  if(u.pathname==='/rest/v1/kiara_conversations')return Response.json([{id}]);
+  throw Error('Unexpected external request');
+ };
+ try{
+  const req=(method,body)=>staging.fetch(new Request(endpoint,{method,headers:{Origin:origin,Authorization:auth,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})}),testEnv);
+  assert.equal((await (await req('GET')).json()).enabled,false);
+  const resumed=await (await req('POST',{action:'resume_all'})).json();
+  assert.equal(resumed.ok,true);assert.equal(resumed.simulated,true);assert.equal(resumed.productionConnected,false);
+  assert.equal((await (await req('GET')).json()).enabled,true);
+  const assumed=await (await req('POST',{action:'assume',conversationId:id})).json();
+  assert.equal(assumed.status,'human');assert.equal(assumed.simulated,true);
+  assert.ok([...records.keys()].every(k=>k.startsWith('staging:control:')));
+  assert.ok(requests.every(x=>x.method==='GET'));
+  assert.equal((await (await req('POST',{action:'pause_all'})).json()).enabled,false);
  }finally{globalThis.fetch=original}
 });
