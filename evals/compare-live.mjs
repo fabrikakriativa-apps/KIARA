@@ -29,8 +29,10 @@ const out={evaluated_at:new Date().toISOString(),model,comparison:'baseline extr
 for(const scenario of scenarios){
  const old=await call(baseline,scenario.history);
  const newer=await call(revised,scenario.history);
- out.cases.push({id:scenario.id,expected:scenario.expected,old,new:newer});
+ out.cases.push({id:scenario.id,expected:scenario.expected,history:scenario.history,old,new:newer});
  console.log('Concluído',scenario.id);
 }
 writeFileSync('evals/compare-results.json',JSON.stringify(out,null,2));
 console.log('Comparação concluída, total de cenários',out.cases.length);
+
+// Segunda rodada: observar preservação de contexto e perguntas únicas.
