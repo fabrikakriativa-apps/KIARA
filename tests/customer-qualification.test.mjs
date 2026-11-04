@@ -38,3 +38,17 @@ test('detectar valores de orçamento antes do envio',()=>{
   assert.equal(containsCommercialPrice('R$ 900'),true);
   assert.equal(containsCommercialPrice('Qual seu bairro?'),false);
 });
+
+test('regressão WhatsApp: Ana após reiniciar é identificada sem etapa pendente no KV',()=>{
+  const existing=blankQualification();
+  const answer=extractQualification('Ana',{expectingFirstName:!existing.firstName});
+  const updated=mergeQualification(existing,answer);
+  assert.equal(updated.firstName,'Ana');
+  assert.equal(evaluateCustomerQualification(updated).missing[0],'lastName');
+  assert.notEqual(qualificationQuestion(updated),qualificationQuestion(blankQualification(),{initial:true}));
+  assert.doesNotMatch(qualificationQuestion(updated),/Como posso te chamar/);
+});
+test('não interpretar saudação como primeiro nome',()=>{
+  for(const text of ['Oi','Olá','Bom dia','cortina','orçamento'])
+    assert.deepEqual(extractQualification(text,{expectingFirstName:true}),{});
+});
