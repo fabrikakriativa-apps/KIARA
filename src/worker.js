@@ -2,7 +2,7 @@ import { OPERATIONAL_POLICY } from './operational-policy.js';
 import { CONSULTATIVE_IDENTITY } from './consultative-identity.js';
 import { PRODUCT_KNOWLEDGE } from './product-knowledge.js';
 import { quoteIntakePrompt } from './quote-intake.js';
-import {chooseFinishImages,requestedFinishImages} from './media-reference.js';
+import {chooseFinishImages,requestedFinishImages,chooseProductImages} from './media-reference.js';
 import {sendKiaraImage} from './send-media.js';
 import { commercialConversationRules } from './commercial-guidance.js';
 import { simulateCurtainQuote } from './quote-pricing.js';
@@ -1096,13 +1096,18 @@ async function loadCommercialHistory(env, route, sender, requiredMessageId) {
 }
 
 // Recurso opcional: apenas imagens ativas e contato de teste.
-const mediaEnabled=env=>env.KIARA_MEDIA_ENABLED==='true'&&syncActive(env)&&env.KIARA_HOLD_ENABLED==='true'&&controlActive(env);
+// Mídia pode operar em homologação sem habilitar controles humanos ainda não homologados.
+// A autorização estrita do contato de teste permanece no consumo e no envio.
+const mediaEnabled=env=>env.KIARA_MEDIA_ENABLED==='true'&&syncActive(env)&&env.TEST_ALLOWED_WA_ID;
 async function approvedFinishImages(env,text){
- if(!mediaEnabled(env)||!requestedFinishImages(text).length)return [];
+ if(!mediaEnabled(env))return [];
+ const visualRequest=/(foto|imagem|mostr|ver |visualiz|exempl|op[cç][oõ]es|modelos|compar)/i.test(String(text||''));
+ if(!visualRequest)return [];
  const rows=await dbRequest(env,'kiara_reference_images','GET',
   '?select=id,product,model,title,storage_path,active,category'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
-  '&product=eq.cortina&category=eq.modelo_confeccao&active=is.true&limit=100');
- return chooseFinishImages(text,rows);
+  '&active=is.true&limit=100');
+ const finishing=chooseFinishImages(text,rows);
+ return finishing.length?finishing:chooseProductImages(text,rows);
 }
 async function sendFinishImages(env,route,sender,refs,targetId,conversation){
  for(const ref of refs){
@@ -1249,7 +1254,7 @@ async function consumeMessage(env, job) {
   const approvedCommercial = await approvedCommercialConversationRules(env);
   const routing=adsRoutingEnabled(env)?await loadRouteState(env,route,sender):null;
   if(adsRoutingEnabled(env)&&(!routing||routing.status!=='selected'))return;
-  const mediaHint=references.length?'\n\nHá referência visual aprovada para esta solicitação. A imagem poderá ser enviada após sua resposta; não diga que já a enviou.':'\n\nNão há mídia aprovada disponível para esta conversa. Explique apenas por texto e não prometa envio de imagem.';
+  const mediaHint=references.length?'\n\nO cliente pediu imagens e existem referências aprovadas para este assunto: '+references.map(x=>x.title).join('; ')+'. Explique brevemente o que mostram. Elas serão enviadas após sua mensagem; não afirme já ter enviado.':'\n\nNesta mensagem não há referências visuais selecionadas. Oriente por texto e, se uma comparação visual ajudar, pode oferecer imagens aprovadas para um próximo pedido; não prometa imagens não verificadas.';
   // Dados de estado chegam à IA como fatos, não comandos de questionário.
   const clientContext='DADOS CONFIRMADOS PELO CLIENTE (cadastro): '+
     JSON.stringify({firstName:profile.firstName,lastName:profile.lastName,neighborhood:profile.neighborhood,city:profile.city})+
