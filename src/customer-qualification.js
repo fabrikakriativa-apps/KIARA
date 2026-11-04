@@ -5,6 +5,7 @@ const customerLetters = /^[\p{L}][\p{L}'-]{1,39}$/u;
 const customerLabels = /^(?:oi|ol[aá]|bom dia|boa tarde|boa noite|sim|n[aã]o|quero|preciso|cortina|persiana|or[cç]amento|obrigad[oa]|teste)$/iu;
 const customerProper = value => customerLetters.test(value) && !customerLabels.test(value);
 const withName = raw => {
+  if(customerLabels.test(customerClean(raw)))return null;
   const words = customerClean(raw).split(' ').filter(Boolean);
   if (words.length<1 || words.length>4 || !words.every(customerProper)) return null;
   return { firstName:words[0],...(words.length>1?{lastName:words.slice(1).join(' ')}:{}) };
