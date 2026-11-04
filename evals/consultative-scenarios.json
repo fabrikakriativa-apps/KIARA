@@ -120,6 +120,28 @@
       "bad": [
         "Sala e quarto estão definidos, vou enviar o orçamento dos dois."
       ]
+    },
+    {
+      "id": "esclarecimento-sem-transferencia",
+      "history": [
+        [
+          "user",
+          "Na sala quero cortina decorativa e no quarto quero controlar a luz."
+        ],
+        [
+          "assistant",
+          "Para o quarto, pode ficar claro e suave ou bem escurecido. O que prefere?"
+        ],
+        [
+          "user",
+          "Não entendi, o que seria bem escurecido?"
+        ]
+      ],
+      "expected": "Explicar de maneira direta e acolhedora a diferença prática entre filtro de luz e blackout; sem sinalizar frustração, transferência ou pedir a mesma escolha sem esclarecer.",
+      "bad": [
+        "Vou encaminhar à nossa equipe.",
+        "Você prefere que fique claro ou bem escurecido?"
+      ]
     }
   ]
 }
