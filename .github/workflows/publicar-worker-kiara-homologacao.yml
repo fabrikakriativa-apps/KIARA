@@ -44,6 +44,15 @@ jobs:
           node --check staging/worker.js
           npm test
 
+      - name: Configurar chave de IA somente na homologacao
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          test -n "$OPENAI_API_KEY"
+          printf '%s' "$OPENAI_API_KEY" | npx --yes wrangler@4 secret put OPENAI_API_KEY --config staging/wrangler.toml
+
       - name: Auditar destino e preservar producao
         env:
           CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
