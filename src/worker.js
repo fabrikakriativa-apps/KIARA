@@ -850,9 +850,13 @@ async function handleAudioJob(env,route,job) {
 }
 
 
-/* Roteiro de campanhas: sempre opt-in e restrito ao contato de teste.
-   Nunca decide que um contato é de anúncio só porque escreveu sobre um produto. */
-const adsRoutingEnabled = env => env.KIARA_ADS_ROUTING_ENABLED === 'true';
+/* Triagem com botões: ativa no modo isolado de homologação (apenas telefone
+   TEST_ALLOWED_WA_ID), mesmo sem configurar a flag. Em modo geral depende
+   da habilitação explícita. Nenhum contato não autorizado recebe mensagens. */
+const adsRoutingEnabled = env =>
+  env.KIARA_ADS_ROUTING_ENABLED === 'true' ||
+  (env.KIARA_SYNC_ENABLED === 'true' &&
+   env.KIARA_SYNC_ALL_CONTACTS !== 'true' && !!digits(env.TEST_ALLOWED_WA_ID));
 const greeting = "Olá! 👋 Seja bem-vindo(a) à *Fábrika Kriativa!*\n\nSou a *Kiara*, assistente de atendimento da Fábrika Kriativa. 😊\n\nPara oferecer o atendimento mais adequado ao que você procura, temos duas opções:\n\n*1️⃣ ORÇAMENTO RÁPIDO*\nJá sabe o que deseja? Podemos preparar uma estimativa inicial de valores com algumas informações do seu ambiente.\n\n*2️⃣ ATENDIMENTO PERSONALIZADO*\nEstá buscando ideias ou precisa de orientação? Nossa equipe ajuda você a escolher modelos, tecidos e acabamentos para criar a composição ideal para seu espaço.\n\n*Como prefere começar? Selecione uma das opções abaixo.*";
 const routeStateKey=(route,sender)=>route.source+':ad-route:'+digits(sender);
 async function durableRouteState(env,route,sender){
@@ -944,6 +948,14 @@ async function processAdRouting(env,route,message){
     state={...state,status:'awaiting_choice'};
     await saveRouteState(env,route,sender,state);
   }
+  const preview=message.type==='text' && /^\\?\/?testar apresenta[cç][aã]o$/i.test(String(message.text?.body||'').trim());
+  if(preview && env.KIARA_SYNC_ALL_CONTACTS!=='true'){
+    // Comando explícito de homologação: permite visualizar novamente os botões
+    // sem apagar o registro histórico permanente do primeiro envio.
+    await saveRouteState(env,route,sender,{status:'intro_pending',source:'test_preview'});
+    await env.KIARA_QUEUE.send({kind:'routing_preview',source:route.source,sender,messageId:message.id},{delaySeconds:0});
+    return {handled:true};
+  }
   const replyType=message.type==='interactive'&&message.interactive?.type==='button_reply';
   const text=replyType?String(message.interactive.button_reply.title||''):message.type==='text'?String(message.text?.body||''):'';
   if(state?.status==='human')return {handled:true};
@@ -982,6 +994,16 @@ async function consumeAdGreeting(env,route,job){
   await persistRouteState(env,route,job.sender,{intro_sent_at:new Date().toISOString()});
   await saveRouteState(env,route,job.sender,{...state,status:'awaiting_choice'});
   await bestEffortSync(()=>syncKiaraReply(env,route,job.sender,id,greeting),'routing greeting');
+}
+async function consumeAdPreview(env,route,job){
+  if(env.KIARA_SYNC_ALL_CONTACTS==='true'||!(await isAuthorizedToSend(env,route,job.sender)))return;
+  if(await env.CONVERSAS.get(keys(route.source,job.sender).paused))return;
+  const state=await loadRouteState(env,route,job.sender);
+  if(state?.status!=='intro_pending'||state.source!=='test_preview')return;
+  const id=await sendChoiceButtons(route,job.sender);
+  await persistRouteState(env,route,job.sender,{intro_sent_at:new Date().toISOString(),route_choice:null});
+  await saveRouteState(env,route,job.sender,{...state,status:'awaiting_choice'});
+  await bestEffortSync(()=>syncKiaraReply(env,route,job.sender,id,greeting),'routing preview');
 }
 async function consumeAdSelection(env,route,job){
   if(!(await isAuthorizedToSend(env,route,job.sender)))return;
@@ -1344,6 +1366,7 @@ async function consumeMessage(env, job) {
   const sender = digits(job.sender);
   if (!sender || sender !== digits(route.allowed)) return;
   if(adsRoutingEnabled(env) && job.kind==='routing_intro')return consumeAdGreeting(env,route,job);
+  if(adsRoutingEnabled(env) && job.kind==='routing_preview')return consumeAdPreview(env,route,job);
   if(adsRoutingEnabled(env) && job.kind==='routing_selected')return consumeAdSelection(env,route,job);
   if(job.kind==='audio'){
     if(audioMode(env)==='off')return;
