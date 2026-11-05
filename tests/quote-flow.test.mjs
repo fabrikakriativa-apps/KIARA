@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {expressesQuoteIntent,confirmsQuoteSummary,normalizeQuoteItems,summarizeQuoteItems,calculateQuotePreview,buildInternalBudget,approvedQuoteText} from '../src/quote-flow.js';
+import {expressesQuoteIntent,confirmsQuoteSummary,normalizeQuoteItems,summarizeQuoteItems,calculateQuotePreview,buildInternalBudget,approvedQuoteText,customerFabricLabel,ambiguousLiningRequest} from '../src/quote-flow.js';
 const settings={methodology:'commercial_categories_v1',referenceYear:2026,annualAdjustmentPercent:0,
  models:['Wave'],categories:[{name:'LINHO',costPerM2:100,baseYear:2026,active:true},{name:'FORRO',costPerM2:45,baseYear:2026,active:true}],
  rails:[{id:'trilho_03',label:'Trilho Max Reforçado Branco',costPerMeter:12,baseYear:2026,active:true}],
@@ -45,4 +45,21 @@ test('não divulga valor inválido nem gera orçamento sem trilho',()=>{
  const x=normalizeQuoteItems({items:[sala]},settings);
  assert.equal(calculateQuotePreview(x.items,settings,3,{railType:'inexistente'}).ready,false);
  assert.throws(()=>approvedQuoteText({items:[sala],price_brl:'900',review_required:false,customer_price_allowed:false}),/não validado/);
+});
+
+test('resumo comercial nunca mostra categorias, preço médio ou amostras internas',()=>{
+ const item={...sala,environment:'quarto',model:'Franzida',
+  frontCategory:'LINHO / EFEITO LINHO (MOREA / FRESH LINHO / GAIA / ETC) - PREÇO MÉDIO',
+  backCategory:'FORRO CONVENCIONAL (MICROFIBRA / VOIL CRISTAL) - PREÇO MÉDIO'};
+ const summary=summarizeQuoteItems([item],'De linho e com forro de microfibra');
+ assert.match(summary,/tecido linho, com forro de microfibra/);
+ assert.doesNotMatch(summary,/PREÇO MÉDIO|morea|gaia|voil cristal|categoria comercial/i);
+ assert.equal(customerFabricLabel('BLACKOUT FOSCO 70% - PREÇO MÉDIO','lining'),'blackout 70%');
+});
+test('forro de microfibra com percentual indefinido de blackout não vira forro convencional',()=>{
+ const category='FORRO CONVENCIONAL (MICROFIBRA / VOIL CRISTAL) - PREÇO MÉDIO';
+ assert.equal(ambiguousLiningRequest('Com forro de microfibra com alguma porcentagem de Blackout',category),true);
+ assert.equal(ambiguousLiningRequest('Franzina com forro ate 70%',category),false);
+ assert.equal(ambiguousLiningRequest('Quero forro blackout com alguma porcentagem','BLACKOUT FOSCO 70% - PREÇO MÉDIO'),true);
+ assert.equal(ambiguousLiningRequest('Forro convencional de microfibra',category),false);
 });
