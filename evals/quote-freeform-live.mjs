@@ -41,7 +41,7 @@ for(const scenario of scenarios){
  let result;try{result=JSON.parse(text)}catch{result={items:[]}}
  const verdict=normalizeQuoteItems(result,settings,scenario.user,input);
  const pass=verdict.ready===scenario.expected;
- console.log(JSON.stringify({scenario:scenario.id,pass,ready:verdict.ready,basis:verdict.items?.map(x=>x.frontDecision?.kind),missing:verdict.errors?.length}));
+ console.log(JSON.stringify({scenario:scenario.id,pass,ready:verdict.ready,basis:verdict.items?.map(x=>x.frontDecision?.kind),missing:verdict.errors?.length,errors:verdict.errors,extracted:result.items?.map(x=>({model:x.model,frontCategory:x.frontCategory,backCategory:x.backCategory,frontBasis:x.frontBasis,backBasis:x.backBasis,frontEvidence:x.frontEvidence,backEvidence:x.backEvidence,frontDescription:x.frontDescription,backDescription:x.backDescription}))}));
  if(!pass)failures++;
 }
 if(failures)throw Error('Falhas de compreensão em '+failures+' cenário(s)');
