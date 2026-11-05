@@ -55,7 +55,7 @@ export function ambiguousLiningRequest(text,backCategory){
  // Um pedido de microfibra com blackout não equivale a microfibra convencional.
  if(/microfibra/.test(t)&&/blackout|bloqueio de luz/.test(t)&&c.includes('forro convencional'))return true;
  // Grau de blackout mencionado sem definição não equivale a 70% ou 100%.
- if(/blackout/.test(t)&&/(alguma porcentagem|qualquer porcentagem|ate 70|até 70|nao sei quanto|não sei quanto)/.test(t))return true;
+ if(/blackout/.test(t)&&/(algum|alguma porcentagem|qualquer|tanto faz|nao sei|não sei|porcentagem indefinida)/.test(t)&&!/\b(?:70|100)\s*%/.test(t))return true;
  return false;
 }
 export function summarizeQuoteItems(items,customerText=''){
