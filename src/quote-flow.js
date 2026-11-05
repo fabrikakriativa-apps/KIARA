@@ -1,6 +1,7 @@
 import {normalizeCurtainIntake} from './quote-conversation.js';
 import {simulateCurtainQuote} from './quote-pricing.js';
 import {formatApprovedEstimate} from './quote-presentation.js';
+import {assessCategoryEvidence,commercialDescription} from './quote-category-evidence.js';
 
 const normalize=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 export function expressesQuoteIntent(text){
@@ -16,7 +17,7 @@ export function cancelsQuoteSummary(text){
 }
 const cleaned=s=>typeof s==='string'?s.trim().slice(0,140):'';
 const num=n=>typeof n==='number'?n:typeof n==='string'&&/^\d+(?:[.,]\d+)?$/.test(n.trim())?Number(n.replace(',','.')):NaN;
-export function normalizeQuoteItems(raw,settings,customerText=''){
+export function normalizeQuoteItems(raw,settings,customerText='',history=[]){
  if(!raw||!Array.isArray(raw.items)||!raw.items.length||raw.items.length>4)return {ready:false,errors:['O orçamento precisa de 1 a 4 itens confirmados']};
  const items=[],errors=[];
  for(const [index,row] of raw.items.entries()){
@@ -24,7 +25,11 @@ export function normalizeQuoteItems(raw,settings,customerText=''){
   if(!ready){errors.push('Item '+(index+1)+': '+e.join('; '));continue;}
   if(ambiguousLiningRequest(customerText,intake.backCategory)){errors.push('Item '+(index+1)+': confirmar o tipo e o controle de luz do forro');continue;}
   if(intake.drive!=='manual'){errors.push('Item '+(index+1)+': motorização exige análise manual');continue;}
-  items.push(intake);
+  if(settings.enforceEvidence){
+   const assessment=assessCategoryEvidence(row,history);
+   if(!assessment.ready){errors.push('Item '+(index+1)+': '+assessment.errors.join('; '));continue;}
+   items.push({...intake,frontDecision:assessment.basis.front,backDecision:assessment.basis.back??null});
+  }else items.push(intake);
  }
  const names=items.map(x=>normalize(x.environment));
  if(new Set(names).size!==names.length)errors.push('Há dois itens para o mesmo ambiente; separar as composições manualmente');
@@ -57,8 +62,8 @@ export function summarizeQuoteItems(items,customerText=''){
  return items.map((x,i)=>[
   (i+1)+'. '+x.environment+': cortina '+x.model.toLocaleLowerCase('pt-BR'),
   x.width.toLocaleString('pt-BR')+' × '+x.height.toLocaleString('pt-BR')+' m',
-  'tecido '+customerFabricLabel(x.frontCategory,'front',customerText),
-  x.backCategory==='Sem forro'?'sem forro':'com '+customerFabricLabel(x.backCategory,'lining',customerText),
+  'tecido '+commercialDescription(x.frontDecision,customerFabricLabel(x.frontCategory,'front',customerText)),
+  x.backCategory==='Sem forro'?'sem forro':'com '+commercialDescription(x.backDecision,customerFabricLabel(x.backCategory,'lining',customerText)),
   x.quantity===1?'um conjunto':x.quantity+' conjuntos'
  ].join(', ')).join('\n');
 }
@@ -100,8 +105,8 @@ export function approvedQuoteText(budget){
   product:'cortina',
   model:x.model,
   width:x.width,height:x.height,quantity:x.quantity,
-  fabric:customerFabricLabel(x.frontCategory,'front'),
-  lining:x.backCategory==='Sem forro'?null:customerFabricLabel(x.backCategory,'lining'),
+  fabric:commercialDescription(x.frontDecision,customerFabricLabel(x.frontCategory,'front')),
+  lining:x.backCategory==='Sem forro'?null:commercialDescription(x.backDecision,customerFabricLabel(x.backCategory,'lining')),
   installation:'included',
   dimensionScope:'approximate'
  }));
