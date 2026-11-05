@@ -6,3 +6,5 @@ const summarizeQuoteItems=()=>'';
 const calculateQuotePreview=()=>({ready:false});
 const buildInternalBudget=()=>({});
 const approvedQuoteText=()=>'';
+
+const ambiguousLiningRequest=()=>false;
