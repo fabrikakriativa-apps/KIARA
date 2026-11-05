@@ -1,5 +1,6 @@
 import {normalizeCurtainIntake} from './quote-conversation.js';
 import {simulateCurtainQuote} from './quote-pricing.js';
+import {formatApprovedEstimate} from './quote-presentation.js';
 
 const normalize=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 export function expressesQuoteIntent(text){
@@ -95,10 +96,14 @@ export function buildInternalBudget({items,preview,sourceMessageId,revision,conf
 export function approvedQuoteText(budget){
  if(!budget||budget.review_required!==true||budget.customer_price_allowed!==false||!Array.isArray(budget.items))
   throw Error('Orçamento não validado');
- const amount=Number(budget.price_brl);
- if(!Number.isFinite(amount)||amount<=0||amount>1000000)throw Error('Preço não revisável');
- return 'Preparamos sua estimativa de cortinas com base nas especificações que alinhamos. 😊\n\n'+
-  summarizeQuoteItems(budget.items)+'\n\nValor estimado: '+
-  amount.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})+
-  '\n\nA confirmação final depende das medidas e condições verificadas na visita técnica.';
+ const items=budget.items.map(x=>({
+  product:'cortina',
+  model:x.model,
+  width:x.width,height:x.height,quantity:x.quantity,
+  fabric:customerFabricLabel(x.frontCategory,'front'),
+  lining:x.backCategory==='Sem forro'?null:customerFabricLabel(x.backCategory,'lining'),
+  installation:'included',
+  dimensionScope:'approximate'
+ }));
+ return formatApprovedEstimate({product:'cortina',items,total:budget.price_brl});
 }
