@@ -1225,11 +1225,12 @@ async function quoteFlowStep(env,route,sender,targetId,history,profile,text){
   }
   if(confirmsQuoteSummary(text)&&state.version!==2){await env.CONVERSAS.delete(key);return {kind:'continue'};}
   if(confirmsQuoteSummary(text)){
-   // Validação adicional para rascunhos KV gerados antes da correção da apresentação comercial.
-   const recentRelevantUser=history.filter(x=>x.role==='user'&&/microfibra|blackout|bloqueio de luz/i.test(x.content||'')).slice(-1)[0]?.content||'';
-   if(state.items?.some(x=>ambiguousLiningRequest(recentRelevantUser,x.backCategory))){
-     await env.CONVERSAS.delete(key);
-     return {kind:'review',text:'Antes de seguirmos, só quero confirmar o forro: você prefere microfibra convencional ou um forro blackout com maior controle da luz?'};
+   if(state.product!=='persiana'){
+    const recentRelevantUser=history.filter(x=>x.role==='user'&&/microfibra|blackout|bloqueio de luz/i.test(x.content||'')).slice(-1)[0]?.content||'';
+    if(state.items?.some(x=>ambiguousLiningRequest(recentRelevantUser,x.backCategory))){
+      await env.CONVERSAS.delete(key);
+      return {kind:'review',text:'Antes de seguirmos, só quero confirmar o forro: você prefere microfibra convencional ou um forro blackout com maior controle da luz?'};
+    }
    }
    const matches=await dbRequest(env,'kiara_conversations','GET',
      '?select=id'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
@@ -1241,11 +1242,24 @@ async function quoteFlowStep(env,route,sender,targetId,history,profile,text){
      '&product=eq.'+(state.product==='persiana'?'persiana':'cortina')+'&limit=1');
    const config=records?.[0];
    if(!config||!['draft','approved'].includes(config.status))return {kind:'continue'};
-   const rail=config.settings.rails?.find(r=>/trilho max refor[cç]ado branco/i.test(r.label||'')&&r.active!==false);
-   if(!rail)return {kind:'continue'};
-   const preview=calculateQuotePreview(state.items,config.settings,config.revision,{railType:rail.id,rails:1});
-   if(!preview.ready){console.warn('Pré-orçamento sem cálculo seguro',preview.errors?.join('; '));return {kind:'continue'};}
-   const budget=buildInternalBudget({items:state.items,preview,sourceMessageId:targetId,revision:config.revision,configStatus:config.status,railType:rail.id});
+   let budget;
+   if(state.product==='persiana'){
+     const validated=normalizeBlindItems({items:state.items.map(x=>({
+       ...x,basis:x.modelDecision?.kind,evidence:x.modelDecision?.evidence,
+       description:x.modelDecision?.description
+     }))},config.settings,history);
+     if(!validated.ready){await env.CONVERSAS.delete(key);return {kind:'continue'};}
+     const preview=calculateBlindQuote(state.items,config.settings,config.revision);
+     if(!preview.ready){console.warn('Pré-orçamento de persianas sem preço válido',preview.errors?.join('; '));return {kind:'continue'};}
+     budget=buildInternalBlindBudget({items:state.items,preview,sourceMessageId:targetId,
+       revision:config.revision,configStatus:config.status});
+   }else{
+     const rail=config.settings.rails?.find(r=>/trilho max refor[cç]ado branco/i.test(r.label||'')&&r.active!==false);
+     if(!rail)return {kind:'continue'};
+     const preview=calculateQuotePreview(state.items,config.settings,config.revision,{railType:rail.id,rails:1});
+     if(!preview.ready){console.warn('Pré-orçamento sem cálculo seguro',preview.errors?.join('; '));return {kind:'continue'};}
+     budget=buildInternalBudget({items:state.items,preview,sourceMessageId:targetId,revision:config.revision,configStatus:config.status,railType:rail.id});
+   }
    // Evitar criar duas propostas da mesma confirmação após reprocessamento da fila.
    const previous=await dbRequest(env,'kiara_budget_drafts','GET',
       '?select=id,structured_budget,status'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
@@ -1253,7 +1267,7 @@ async function quoteFlowStep(env,route,sender,targetId,history,profile,text){
    if(!(previous||[]).some(x=>x.structured_budget?.source_message_id===targetId)){
     await dbRequest(env,'kiara_budget_drafts','POST','', {
       organization_id:env.SUPABASE_ORGANIZATION_ID,conversation_id:matches[0].id,
-      structured_budget:budget,customer_message:approvedQuoteText(budget),status:'pending_review'
+      structured_budget:budget,customer_message:state.product==='persiana'?approvedBlindQuoteText(budget):approvedQuoteText(budget),status:'pending_review'
     });
    }
    await env.CONVERSAS.put(key,JSON.stringify({status:'awaiting_review',source_message_id:targetId}),
@@ -1641,7 +1655,7 @@ async function budgetReviewRequest(request,env){
    await readHold(env,route,chat.contact_wa_id))
   return reply({error:'Conversa pausada por atendimento humano'},409);
  if(!(await isAuthorizedToSend(env,route,chat.contact_wa_id)))return reply({error:'Envio bloqueado'},409);
- const message=approvedQuoteText(draft.structured_budget);
+ const message=draft.structured_budget?.product==='persiana'?approvedBlindQuoteText(draft.structured_budget):approvedQuoteText(draft.structured_budget);
  // O orçamento ainda NÃO foi enviado; marcador é gravado apenas após Meta confirmar.
  const marker='budget:test:sent:'+id;
  if(await env.CONVERSAS.get(marker))return reply({error:'Envio já registrado'},409);
