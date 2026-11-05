@@ -1,4 +1,4 @@
-import {expressesQuoteIntent,confirmsQuoteSummary,cancelsQuoteSummary,normalizeQuoteItems,summarizeQuoteItems,calculateQuotePreview,buildInternalBudget,approvedQuoteText} from './quote-flow.js';
+import {expressesQuoteIntent,confirmsQuoteSummary,cancelsQuoteSummary,normalizeQuoteItems,summarizeQuoteItems,calculateQuotePreview,buildInternalBudget,approvedQuoteText,ambiguousLiningRequest} from './quote-flow.js';
 import { OPERATIONAL_POLICY } from './operational-policy.js';
 import { CONSULTATIVE_IDENTITY } from './consultative-identity.js';
 import { PRODUCT_KNOWLEDGE } from './product-knowledge.js';
@@ -1160,7 +1160,12 @@ async function extractBudgetItems(env,history,settings){
  const payload=await response.json();
  const raw=(payload.output||[]).flatMap(x=>x.content||[]).filter(x=>x.type==='output_text').map(x=>x.text).join('').trim();
  let parsed;try{parsed=JSON.parse(raw)}catch{throw Error('Especificações não estruturadas')}
- return normalizeQuoteItems(parsed,settings);
+ const normalized=normalizeQuoteItems(parsed,settings);
+ const recentRelevantUser=history.filter(x=>x.role==='user'&&/microfibra|blackout|bloqueio de luz/i.test(x.content||'')).slice(-1)[0]?.content||'';
+ if(normalized.ready&&normalized.items.some(x=>ambiguousLiningRequest(recentRelevantUser,x.backCategory))){
+   return {ready:false,items:normalized.items,errors:['Confirmar a composição e o grau de controle de luminosidade do forro antes de preparar o orçamento. O cliente mencionou microfibra e blackout sem escolha inequívoca.']};
+ }
+ return normalized;
 }
 async function quoteFlowStep(env,route,sender,targetId,history,profile,text){
  if(!quoteTestActive(env))return null;
@@ -1176,6 +1181,12 @@ async function quoteFlowStep(env,route,sender,targetId,history,profile,text){
    return {kind:'continue'};
   }
   if(confirmsQuoteSummary(text)){
+   // Validação adicional para rascunhos KV gerados antes da correção da apresentação comercial.
+   const recentRelevantUser=history.filter(x=>x.role==='user'&&/microfibra|blackout|bloqueio de luz/i.test(x.content||'')).slice(-1)[0]?.content||'';
+   if(state.items?.some(x=>ambiguousLiningRequest(recentRelevantUser,x.backCategory))){
+     await env.CONVERSAS.delete(key);
+     return {kind:'review',text:'Antes de seguirmos, só quero confirmar o forro: você prefere microfibra convencional ou um forro blackout com maior controle da luz?'};
+   }
    const matches=await dbRequest(env,'kiara_conversations','GET',
      '?select=id'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
      queryEq('source',route.source)+queryEq('phone_number_id',route.phoneId)+
@@ -1223,7 +1234,7 @@ async function quoteFlowStep(env,route,sender,targetId,history,profile,text){
  await env.CONVERSAS.put(key,JSON.stringify({status:'summary',items:extracted.items,revision:config.revision}),
    {expirationTtl:MEMORY_TTL});
  return {kind:'summary',text:'Antes de prepararmos os valores, quero conferir se entendi tudo direitinho:\n\n'+
-   summarizeQuoteItems(extracted.items)+'\n\nEssas especificações estão corretas?'};
+   summarizeQuoteItems(extracted.items,history.filter(x=>x.role==='user').slice(-7).map(x=>x.content).join(' '))+'\n\nEssas especificações estão corretas?'};
 }
 
 async function consumeMessage(env, job) {
