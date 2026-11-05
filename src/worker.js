@@ -1153,6 +1153,7 @@ async function extractBudgetItems(env,history,settings){
    'Se o cliente só descreveu uma necessidade, use basis="reference", nunca selected. Se existirem categorias muito diferentes que atendam ao pedido, não escolha arbitrariamente: deixe a categoria null e a IA conversacional esclarecerá uma distinção prática.',
    'Exemplo: "quero algo levinho para sala" pode justificar uma referência de tecido leve, mas não uma escolha definitiva de voil ou linho. Não invente percentuais de blackout ou composição de forro.',
    'Interprete expressões naturais explícitas: "sem forro" corresponde a backCategory="Sem forro"; "uma cortina", "uma peça" ou "um conjunto" corresponde a quantity=1; isso não é invenção.',
+   'Entenda medidas faladas naturalmente: 3 metros por 2 metros e meio significa largura 3,00 e altura 2,50 em metros; "dois e setenta" com unidade e contexto claro significa 2,70. Não troque largura e altura quando não indicadas.',
    'Se o cliente citar um tecido com nome claro (ex.: "gaze de linho"), preserve esse nome em frontDescription em vez de substituí-lo por uma descrição genérica.',
    'Se mencionar blackout sem definir grau e existirem opções com percentuais diferentes, deixe backCategory null; nunca escolha 70% ou 100% por conta própria.',
    'Não suponha modelos, alturas, larguras, quantidades, forro ou motorização.',
