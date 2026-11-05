@@ -1152,6 +1152,9 @@ async function extractBudgetItems(env,history,settings){
    'Retorne frontEvidence/backEvidence: TRECHO LITERAL de mensagem do cliente que fundamenta a escolha ou necessidade (não use frases da assistente). Retorne frontDescription/backDescription: nome comercial curto e fiel à conversa, SEM códigos ou preço médio.',
    'Se o cliente só descreveu uma necessidade, use basis="reference", nunca selected. Se existirem categorias muito diferentes que atendam ao pedido, não escolha arbitrariamente: deixe a categoria null e a IA conversacional esclarecerá uma distinção prática.',
    'Exemplo: "quero algo levinho para sala" pode justificar uma referência de tecido leve, mas não uma escolha definitiva de voil ou linho. Não invente percentuais de blackout ou composição de forro.',
+   'Interprete expressões naturais explícitas: "sem forro" corresponde a backCategory="Sem forro"; "uma cortina", "uma peça" ou "um conjunto" corresponde a quantity=1; isso não é invenção.',
+   'Se o cliente citar um tecido com nome claro (ex.: "gaze de linho"), preserve esse nome em frontDescription em vez de substituí-lo por uma descrição genérica.',
+   'Se mencionar blackout sem definir grau e existirem opções com percentuais diferentes, deixe backCategory null; nunca escolha 70% ou 100% por conta própria.',
    'Não suponha modelos, alturas, larguras, quantidades, forro ou motorização.',
    'Pode haver mais de um ambiente. Nunca leve medidas ou escolhas de um para outro. Se uma informação estiver indefinida, retorne null. Não invente nada.',
    'Saída: {"items":[...]}; sem markdown, texto adicional, valores monetários ou cálculo.'
