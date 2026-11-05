@@ -940,7 +940,7 @@ function choiceFrom(message){
 }
 const choiceLabel=choice=>choice==='quick'?'Orçamento rápido':'Atendimento personalizado';
 const firstQuestion=choice=>choice==='quick'
-  ?'Perfeito! 😊 Vamos começar. Você procura cortina ou persiana?'
+  ?"Perfeito! 😊\n\nPara prepararmos uma estimativa inicial de valores, envie as informações que tiver:\n\n📏 *Medidas:* largura e altura aproximadas do espaço.\n\n📷 *Fotos:* se possível, uma foto do ambiente.\n\n🪟 *Composição:* deseja uma única camada de tecido ou uma composição com frente e forro? (Para cortinas.)\n\n🎨 *Tecido:* já tem alguma preferência? Pode enviar uma foto de referência também.\n\nNão se preocupe se ainda não tiver todas as informações. Podemos começar com o que você já sabe!\n\n*Com esses dados, nossa equipe poderá preparar seu orçamento inicial.*"
   :'Claro! 😊 Você já sabe se prefere cortina ou persiana, ou quer ajuda para escolher?';
 const flowPrompt=choice=>choice==='quick'
  ? 'ROTEIRO ATIVO: ORÇAMENTO RÁPIDO. O cliente escolheu saber valores. Sem questionário e sem inventar preço, obtenha progressivamente produto (cortina/persiana), ambiente, largura e altura aproximadas, fotos opcionais e composição relevante (frente e forro, privacidade ou blackout, modelo, acionamento). Faça UMA pergunta útil por mensagem e aproveite o que o cliente já informou. Quando houver dados suficientes, resuma por ambiente e diga que a equipe preparará o valor para validação humana; nunca declare que gerou ou enviou orçamento. Se pedir pessoa, surgir serviço diferente ou dúvida técnica importante, responda exatamente <<ENCAMINHAR_HUMANO>>.'
@@ -998,11 +998,20 @@ async function processAdRouting(env,route,message){
     return {handled:true};
   }
   if(!state){
-    if(!adReferralValid(message.referral)){
-      await humanRoute(env,route,sender,message.id,'Contato sem origem confirmada de anúncio');
-      return {handled:true};
+    const existing=await dbRequest(env,'kiara_conversations','GET',
+      '?select=id'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
+      queryEq('source',route.source)+queryEq('phone_number_id',route.phoneId)+
+      queryEq('contact_wa_id',sender)+'&limit=1');
+    // Uma conversa já em andamento não pode ser tratada como primeiro contato.
+    if(existing?.[0]){
+      const previous=await dbRequest(env,'kiara_messages','GET',
+        '?select=id'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
+        queryEq('conversation_id',existing[0].id)+'&limit=2');
+      if(previous?.length>1)return {handled:false};
     }
-    await saveRouteState(env,route,sender,{status:'intro_pending',source:'ad',adId:String(message.referral.source_id)});
+    await saveRouteState(env,route,sender,{status:'intro_pending',
+      source:adReferralValid(message.referral)?'ad':'direct',
+      adId:adReferralValid(message.referral)?String(message.referral.source_id):null});
     await env.KIARA_QUEUE.send({kind:'routing_intro',source:route.source,sender,messageId:message.id},{delaySeconds:0});
     return {handled:true};
   }
