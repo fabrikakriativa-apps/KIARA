@@ -1,0 +1,26 @@
+name: Kiara - avaliação de interpretação comercial informal
+on:
+  push:
+    branches: [homologacao]
+    paths:
+      - 'evals/quote-freeform-live.mjs'
+      - '.github/workflows/kiara-freeform-eval.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  avaliar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      KIARA_EVAL_MODEL: gpt-6-luna
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validar acesso ao modelo
+        run: test -n "$OPENAI_API_KEY"
+      - name: Avaliar texto espontâneo e classificação
+        run: node evals/quote-freeform-live.mjs
