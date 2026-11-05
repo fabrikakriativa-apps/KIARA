@@ -850,8 +850,21 @@ async function handleAudioJob(env,route,job) {
 /* Roteiro de campanhas: sempre opt-in e restrito ao contato de teste.
    Nunca decide que um contato é de anúncio só porque escreveu sobre um produto. */
 const adsRoutingEnabled = env => env.KIARA_ADS_ROUTING_ENABLED === 'true';
-const greeting = 'Olá! 👋 Seja bem-vindo(a) à Fábrika Kriativa!\n\nSou a Kiara, assistente de atendimento. 😊\n\nPara te ajudar da melhor forma, me conta como prefere começar:\n\n*Orçamento rápido*\nJá sabe o que procura? Vamos reunir algumas informações para preparar uma estimativa inicial.\n\n*Atendimento personalizado*\nPrecisa de ajuda para escolher? Podemos conversar sobre modelos, tecidos e acabamentos para encontrar a melhor composição para seu ambiente.\n\nÉ só escolher uma das opções abaixo. 😊';
+const greeting = "Olá! 👋 Seja bem-vindo(a) à *Fábrika Kriativa!*\n\nSou a *Kiara*, assistente de atendimento da Fábrika Kriativa. 😊\n\nPara oferecer o atendimento mais adequado ao que você procura, temos duas opções:\n\n*1️⃣ ORÇAMENTO RÁPIDO*\nJá sabe o que deseja? Podemos preparar uma estimativa inicial de valores com algumas informações do seu ambiente.\n\n*2️⃣ ATENDIMENTO PERSONALIZADO*\nEstá buscando ideias ou precisa de orientação? Nossa equipe ajuda você a escolher modelos, tecidos e acabamentos para criar a composição ideal para seu espaço.\n\n*Como prefere começar? Selecione uma das opções abaixo.*";
 const routeStateKey=(route,sender)=>route.source+':ad-route:'+digits(sender);
+async function durableRouteState(env,route,sender){
+  const found=await dbRequest(env,'kiara_conversations','GET',
+    '?select=id,intro_sent_at,route_choice'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
+    queryEq('source',route.source)+queryEq('phone_number_id',route.phoneId)+
+    queryEq('contact_wa_id',digits(sender))+'&limit=1');
+  return found?.[0]||null;
+}
+async function persistRouteState(env,route,sender,updates){
+  const row=await durableRouteState(env,route,sender);
+  if(!row)return;
+  await dbRequest(env,'kiara_conversations','PATCH',
+    '?id=eq.'+encodeURIComponent(row.id)+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID),updates);
+}
 const adReferralValid=ref=>ref&&ref.source_type==='ad'&&/^[0-9]{5,40}$/.test(String(ref.source_id||''));
 // Encaminhamento automático determinístico somente por pedido humano explícito.
 // Dúvidas, correções, estilo consultivo e referências a outros produtos não são
@@ -917,7 +930,12 @@ async function processAdRouting(env,route,message){
   if(!message.id||!digits(message.from))return {handled:true};
   const sender=digits(message.from);
   if(sender!==digits(route.allowed))return {handled:true};
-  const state=await loadRouteState(env,route,sender);
+  let state=await loadRouteState(env,route,sender);
+  const durable=await durableRouteState(env,route,sender);
+  // Estado no KV expira; a apresentação no banco permanece para sempre.
+  if(!state && durable?.intro_sent_at){
+    state={status:'selected',choice:durable.route_choice||'personalized'};
+  }
   const replyType=message.type==='interactive'&&message.interactive?.type==='button_reply';
   const text=replyType?String(message.interactive.button_reply.title||''):message.type==='text'?String(message.text?.body||''):'';
   if(state?.status==='human')return {handled:true};
@@ -938,6 +956,7 @@ async function processAdRouting(env,route,message){
     const choice=choiceFrom(message);
     if(choice){
       await saveRouteState(env,route,sender,{...state,status:'selected',choice});
+      await persistRouteState(env,route,sender,{route_choice:choice});
       await env.KIARA_QUEUE.send({kind:'routing_selected',source:route.source,sender,messageId:message.id,choice},{delaySeconds:0});
     }
     return {handled:true};
@@ -949,7 +968,10 @@ async function consumeAdGreeting(env,route,job){
   const state=await loadRouteState(env,route,job.sender);
   if(state?.status!=='intro_pending')return;
   if(await env.CONVERSAS.get(keys(route.source,job.sender).paused))return;
+  const durable=await durableRouteState(env,route,job.sender);
+  if(durable?.intro_sent_at)return;
   const id=await sendChoiceButtons(route,job.sender);
+  await persistRouteState(env,route,job.sender,{intro_sent_at:new Date().toISOString()});
   await saveRouteState(env,route,job.sender,{...state,status:'awaiting_choice'});
   await bestEffortSync(()=>syncKiaraReply(env,route,job.sender,id,greeting),'routing greeting');
 }
