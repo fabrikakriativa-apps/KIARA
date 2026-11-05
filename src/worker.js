@@ -1148,7 +1148,11 @@ async function extractBudgetItems(env,history,settings){
    'Cada objeto: product (cortina), environment (ambiente), model, width (m), height (m), quantity, frontCategory, backCategory (categoria ou Sem forro), drive (manual ou motorizada).',
    'Modelos aprovados: '+models.join('; ')+'. Categorias comerciais: '+categories.join('; ')+'.',
    'Use apenas informações que o CLIENTE declarou e confirmou. Não trate sugestões da atendente como escolhas.',
-   'Categorias comerciais podem representar o tecido informado pelo cliente (por exemplo linho), mas não suponha modelos, alturas, larguras, quantidades, forro ou motorização.',
+   'Categorias comerciais são referências de valor médio, não nomes para mostrar ao cliente. Para cada frente e forro, retorne frontBasis/backBasis como "selected" (tecido escolhido pelo cliente) ou "reference" (categoria proposta apenas como base de estimativa).',
+   'Retorne frontEvidence/backEvidence: TRECHO LITERAL de mensagem do cliente que fundamenta a escolha ou necessidade (não use frases da assistente). Retorne frontDescription/backDescription: nome comercial curto e fiel à conversa, SEM códigos ou preço médio.',
+   'Se o cliente só descreveu uma necessidade, use basis="reference", nunca selected. Se existirem categorias muito diferentes que atendam ao pedido, não escolha arbitrariamente: deixe a categoria null e a IA conversacional esclarecerá uma distinção prática.',
+   'Exemplo: "quero algo levinho para sala" pode justificar uma referência de tecido leve, mas não uma escolha definitiva de voil ou linho. Não invente percentuais de blackout ou composição de forro.',
+   'Não suponha modelos, alturas, larguras, quantidades, forro ou motorização.',
    'Pode haver mais de um ambiente. Nunca leve medidas ou escolhas de um para outro. Se uma informação estiver indefinida, retorne null. Não invente nada.',
    'Saída: {"items":[...]}; sem markdown, texto adicional, valores monetários ou cálculo.'
  ].join('\n');
@@ -1160,7 +1164,7 @@ async function extractBudgetItems(env,history,settings){
  const payload=await response.json();
  const raw=(payload.output||[]).flatMap(x=>x.content||[]).filter(x=>x.type==='output_text').map(x=>x.text).join('').trim();
  let parsed;try{parsed=JSON.parse(raw)}catch{throw Error('Especificações não estruturadas')}
- const normalized=normalizeQuoteItems(parsed,settings);
+ const normalized=normalizeQuoteItems(parsed,{...settings,enforceEvidence:true},'',history.slice(-55));
  const recentRelevantUser=history.filter(x=>x.role==='user'&&/microfibra|blackout|bloqueio de luz/i.test(x.content||'')).slice(-1)[0]?.content||'';
  if(normalized.ready&&normalized.items.some(x=>ambiguousLiningRequest(recentRelevantUser,x.backCategory))){
    return {ready:false,items:normalized.items,errors:['Confirmar a composição e o grau de controle de luminosidade do forro antes de preparar o orçamento. O cliente mencionou microfibra e blackout sem escolha inequívoca.']};
@@ -1180,6 +1184,7 @@ async function quoteFlowStep(env,route,sender,targetId,history,profile,text){
    await env.CONVERSAS.delete(key);
    return {kind:'continue'};
   }
+  if(confirmsQuoteSummary(text)&&state.version!==2){await env.CONVERSAS.delete(key);return {kind:'continue'};}
   if(confirmsQuoteSummary(text)){
    // Validação adicional para rascunhos KV gerados antes da correção da apresentação comercial.
    const recentRelevantUser=history.filter(x=>x.role==='user'&&/microfibra|blackout|bloqueio de luz/i.test(x.content||'')).slice(-1)[0]?.content||'';
@@ -1231,7 +1236,7 @@ async function quoteFlowStep(env,route,sender,targetId,history,profile,text){
  try{extracted=await extractBudgetItems(env,history,config.settings)}
  catch(error){console.warn('Coleta de orçamento em andamento',String(error?.message||''));return {kind:'collecting'}}
  if(!extracted.ready)return {kind:'collecting',missing:extracted.errors};
- await env.CONVERSAS.put(key,JSON.stringify({status:'summary',items:extracted.items,revision:config.revision}),
+ await env.CONVERSAS.put(key,JSON.stringify({status:'summary',version:2,items:extracted.items,revision:config.revision}),
    {expirationTtl:MEMORY_TTL});
  return {kind:'summary',text:'Antes de prepararmos os valores, quero conferir se entendi tudo direitinho:\n\n'+
    summarizeQuoteItems(extracted.items,history.filter(x=>x.role==='user').slice(-7).map(x=>x.content).join(' '))+'\n\nEssas especificações estão corretas?'};
