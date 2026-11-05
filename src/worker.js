@@ -948,7 +948,7 @@ async function processAdRouting(env,route,message){
     state={...state,status:'awaiting_choice'};
     await saveRouteState(env,route,sender,state);
   }
-  const preview=message.type==='text' && /^\\?\/?testar apresenta[cç][aã]o$/i.test(String(message.text?.body||'').trim());
+  const preview=message.type==='text' && /^\/?testar apresenta[cç][aã]o$/i.test(String(message.text?.body||'').trim());
   if(preview && env.KIARA_SYNC_ALL_CONTACTS!=='true'){
     // Comando explícito de homologação: permite visualizar novamente os botões
     // sem apagar o registro histórico permanente do primeiro envio.
