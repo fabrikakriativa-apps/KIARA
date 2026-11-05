@@ -1,3 +1,4 @@
+import {normalizeBlindItems,calculateBlindQuote,buildInternalBlindBudget,approvedBlindQuoteText,blindSummary} from './blind-quote.js';
 import {expressesQuoteIntent,confirmsQuoteSummary,cancelsQuoteSummary,normalizeQuoteItems,summarizeQuoteItems,calculateQuotePreview,buildInternalBudget,approvedQuoteText,ambiguousLiningRequest} from './quote-flow.js';
 import { OPERATIONAL_POLICY } from './operational-policy.js';
 import { CONSULTATIVE_IDENTITY } from './consultative-identity.js';
@@ -1175,6 +1176,40 @@ async function extractBudgetItems(env,history,settings){
  }
  return normalized;
 }
+async function extractBlindBudgetItems(env,history,settings){
+ const categories=(settings.categories||[]).filter(x=>x.active!==false).map(x=>x.name);
+ const instructions=[
+  'Extração INTERNA de persianas, APENAS JSON: {"items":[...]}; até quatro itens. Não escreva mensagem ao cliente.',
+  'Campos: product="persiana",environment,model,width,height,quantity,dimensionScope ("total" ou "per_piece"),drive="manual" ou "motorizada",basis ("selected" ou "reference"),evidence e description.',
+  'Modelos comerciais disponíveis: '+categories.join('; ')+'. Use model exatamente como uma opção dessa lista.',
+  'evidence é TRECHO LITERAL escrito pelo CLIENTE que justifica modelo ou referência; description é nome comercial curto e claro, como "Tela Solar Screen 1%" ou "Persiana Rolô Blackout".',
+  'Quando o cliente escolheu o tipo exato, basis="selected"; se foi apenas uma necessidade e uma referência de preço é pertinente, basis="reference" e será explicitada no resumo.',
+  'Nunca converta "quero privacidade" em Screen 1%, 3% ou 5% sem o cliente especificar o percentual ou confirmar a referência; se ambíguo, model=null.',
+  'Nunca confunda tela solar com blackout; nenhuma porcentagem Screen significa nível de bloqueio blackout.',
+  'Medidas podem ser totais da composição ou de CADA PEÇA. DimensionScope="total" somente se o cliente disser medida total da área/vão; se disser medidas por peça, use per_piece; se não ficar claro, null.',
+  'Interprete quantidades ditas normalmente, como "3 peças" e "três persianas". Não invente largura/altura, quantidade ou acionamento; se não estiver claro, null.',
+  'As categorias e custos nunca são mostrados no atendimento. Responda só com JSON.'
+ ].join('\n');
+ const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',
+  headers:{Authorization:'Bearer '+env.OPENAI_API_KEY,'Content-Type':'application/json'},
+  body:JSON.stringify({model:MODEL,instructions,input:history.slice(-55),max_output_tokens:1450,reasoning:{effort:'none'},store:false})
+ });
+ if(!response.ok)throw Error('Extração de persianas indisponível');
+ const payload=await response.json();
+ const raw=(payload.output||[]).flatMap(x=>x.content||[]).filter(x=>x.type==='output_text').map(x=>x.text).join('').trim();
+ let parsed;try{parsed=JSON.parse(raw)}catch{throw Error('Dados de persiana incompletos')}
+ return normalizeBlindItems(parsed,settings,history.slice(-55));
+}
+function requestedBudgetProduct(text,history){
+ const clean=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ const t=clean(text);
+ const blinds=/\bpersianas?\b/.test(t),curtains=/\bcortinas?\b/.test(t);
+ if(blinds&&!curtains)return 'persiana';
+ if(curtains&&!blinds)return 'cortina';
+ const latest=(history||[]).filter(x=>x.role==='user').slice(-5).map(x=>clean(x.content)).reverse();
+ for(const line of latest){const b=/\bpersianas?\b/.test(line),c=/\bcortinas?\b/.test(line);if(b!==c)return b?'persiana':'cortina'}
+ return null;
+}
 async function quoteFlowStep(env,route,sender,targetId,history,profile,text){
  if(!quoteTestActive(env))return null;
  const key=quoteStateKey(route,sender);
@@ -1203,7 +1238,7 @@ async function quoteFlowStep(env,route,sender,targetId,history,profile,text){
    if(!matches?.[0]?.id)throw Error('Conversa de orçamento não localizada');
    const records=await dbRequest(env,'kiara_commercial_config','GET',
      '?select=status,revision,settings'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
-     '&product=eq.cortina&limit=1');
+     '&product=eq.'+(state.product==='persiana'?'persiana':'cortina')+'&limit=1');
    const config=records?.[0];
    if(!config||!['draft','approved'].includes(config.status))return {kind:'continue'};
    const rail=config.settings.rails?.find(r=>/trilho max refor[cç]ado branco/i.test(r.label||'')&&r.active!==false);
@@ -1228,22 +1263,22 @@ async function quoteFlowStep(env,route,sender,targetId,history,profile,text){
   // Cliente trouxe outras informações: revisar as escolhas antes de gerar orçamento.
   state=null;
  }
- if(!state){state={status:'collecting'};await env.CONVERSAS.put(key,JSON.stringify(state),{expirationTtl:MEMORY_TTL});}
+ if(!state){state={status:'collecting',product:requestedBudgetProduct(text,history)};await env.CONVERSAS.put(key,JSON.stringify(state),{expirationTtl:MEMORY_TTL});}
  const qualification=evaluateCustomerQualification(profile);
  if(!qualification.qualified)return {kind:'collecting'};
  const records=await dbRequest(env,'kiara_commercial_config','GET',
    '?select=status,revision,settings'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
-   '&product=eq.cortina&limit=1');
+   '&product=eq.'+(state.product==='persiana'?'persiana':'cortina')+'&limit=1');
  const config=records?.[0];
  if(!config||!['approved','draft'].includes(config.status))return {kind:'collecting'};
  let extracted;
- try{extracted=await extractBudgetItems(env,history,config.settings)}
+ try{extracted=state.product==='persiana'?await extractBlindBudgetItems(env,history,config.settings):await extractBudgetItems(env,history,config.settings)}
  catch(error){console.warn('Coleta de orçamento em andamento',String(error?.message||''));return {kind:'collecting'}}
  if(!extracted.ready)return {kind:'collecting',missing:extracted.errors};
- await env.CONVERSAS.put(key,JSON.stringify({status:'summary',version:2,items:extracted.items,revision:config.revision}),
+ await env.CONVERSAS.put(key,JSON.stringify({status:'summary',version:2,product:state.product,items:extracted.items,revision:config.revision}),
    {expirationTtl:MEMORY_TTL});
  return {kind:'summary',text:'Antes de prepararmos os valores, quero conferir se entendi tudo direitinho:\n\n'+
-   summarizeQuoteItems(extracted.items,history.filter(x=>x.role==='user').slice(-7).map(x=>x.content).join(' '))+'\n\nEssas especificações estão corretas?'};
+   (state.product==='persiana'?blindSummary(extracted.items):summarizeQuoteItems(extracted.items,history.filter(x=>x.role==='user').slice(-7).map(x=>x.content).join(' ')))+'\n\nEssas especificações estão corretas?'};
 }
 
 async function consumeMessage(env, job) {
