@@ -1,0 +1,8 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {normalizeBlindItems,calculateBlindQuote} from '../src/blind-quote.js';
+const config={methodology:'blind_average_m2_v1',markupPercent:120,installationPerPiece:80,installationIncluded:true,maxWidth:30,maxHeight:10,maxQuantity:20,categories:[{name:'Rolô Screen 1%',adjustedCostPerM2:142.8,active:true}]};
+const item={product:'persiana',environment:'Sacada',model:'Rolô Screen 1%',width:2.7,height:3.16,quantity:3,dimensionScope:'total',drive:'manual',basis:'selected',evidence:'Screen 1%',description:'Tela Solar Screen 1%'};
+test('planilha de persianas: 2,70 x 3,16 m, tres pecas, preco sugerido R$ 2680,41',()=>{const p=normalizeBlindItems({items:[item]},config,[{role:'user',content:'3 peças de persiana Screen 1% na sacada 2,70 por 3,16 metros no total'}]);assert.equal(p.ready,true);const x=calculateBlindQuote(p.items,config,1);assert.equal(x.ready,true);assert.equal(x.total,2680.41);assert.equal(x.internalInstallationCost,240);assert.equal(x.customerPriceAllowed,false);});
+test('medidas por peça e totais se diferenciam',()=>{const a=calculateBlindQuote([{...item,width:0.9,dimensionScope:'per_piece'}],config,1);const b=calculateBlindQuote([item],config,1);assert.equal(a.total,b.total)});
+test('não permite modelo sem referência nem adivinha dimensão',()=>{assert.equal(normalizeBlindItems({items:[{...item,model:'Rolô Screen 3%'}]},config,[{role:'user',content:'Screen 1%'}]).ready,false);assert.equal(normalizeBlindItems({items:[{...item,dimensionScope:null}]},config,[{role:'user',content:'Screen 1%'}]).ready,false)});
