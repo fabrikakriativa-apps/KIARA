@@ -1,0 +1,26 @@
+name: Kiara - avaliar persianas com IA
+on:
+  push:
+    branches: [homologacao]
+    paths:
+      - 'evals/blind-live.mjs'
+      - '.github/workflows/kiara-blind-eval.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  avaliar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      KIARA_EVAL_MODEL: gpt-6-luna
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verificar credencial sem revelar segredo
+        run: test -n "$OPENAI_API_KEY"
+      - name: Validar linguagem e escopo de medidas
+        run: node evals/blind-live.mjs
