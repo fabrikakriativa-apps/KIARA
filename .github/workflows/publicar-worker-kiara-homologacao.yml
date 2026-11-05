@@ -69,6 +69,9 @@ jobs:
                   data=json.load(res)
               if not data.get('success'): raise SystemExit('Falha Cloudflare em '+path)
               return data.get('result')
+          def newest_id(result):
+              deployments=result.get('deployments',[]) if isinstance(result,dict) else (result or [])
+              return deployments[0].get('id') if deployments else None
           staging=get('/accounts/'+account+'/workers/scripts/fabrika-atendimento-ia-homologacao/settings')
           bindings={b.get('name'):b.get('type') for b in staging.get('bindings',[])}
           required={'EASY_ACCESS_TOKEN','EASY_WEBHOOK_KEY','META_VERIFY_TOKEN','OPENAI_API_KEY','SUPABASE_SERVICE_ROLE_KEY','TEST_ALLOWED_WA_ID'}
@@ -76,7 +79,7 @@ jobs:
           if missing: raise SystemExit('Segredos/bindings ausentes no Worker de homologacao: '+', '.join(missing))
           prod=get('/accounts/'+account+'/workers/scripts/fabrika-atendimento-ia/deployments')
           stage=get('/accounts/'+account+'/workers/scripts/fabrika-atendimento-ia-homologacao/deployments')
-          proof={'productionDeployment':prod[0]['id'] if prod else None,'stagingDeploymentBefore':stage[0]['id'] if stage else None}
+          proof={'productionDeployment':newest_id(prod),'stagingDeploymentBefore':newest_id(stage)}
           open('/tmp/kiara-deploy-proof.json','w').write(json.dumps(proof))
           print('Destino confirmado: fabrika-atendimento-ia-homologacao; producao apenas lida para prova de imutabilidade.')
           PY
@@ -101,10 +104,13 @@ jobs:
               with urllib.request.urlopen(urllib.request.Request('https://api.cloudflare.com/client/v4'+path,headers=headers),timeout=30) as res: data=json.load(res)
               if not data.get('success'): raise SystemExit('Falha Cloudflare em '+path)
               return data.get('result')
+          def newest_id(result):
+              deployments=result.get('deployments',[]) if isinstance(result,dict) else (result or [])
+              return deployments[0].get('id') if deployments else None
           before=json.load(open('/tmp/kiara-deploy-proof.json'))
           prod=get('/accounts/'+account+'/workers/scripts/fabrika-atendimento-ia/deployments')
           stage=get('/accounts/'+account+'/workers/scripts/fabrika-atendimento-ia-homologacao/deployments')
-          prod_id=prod[0]['id'] if prod else None; stage_id=stage[0]['id'] if stage else None
+          prod_id=newest_id(prod); stage_id=newest_id(stage)
           if prod_id!=before['productionDeployment']: raise SystemExit('Deploy de producao mudou; interromper homologacao.')
           if stage_id==before['stagingDeploymentBefore']: raise SystemExit('Worker de homologacao nao recebeu nova versao.')
           settings=get('/accounts/'+account+'/workers/scripts/fabrika-atendimento-ia-homologacao/settings')
