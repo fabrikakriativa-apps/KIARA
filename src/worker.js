@@ -276,7 +276,7 @@ async function syncPastHistory(env,route,value){
         organization_id:org,conversation_id:found[0].id,
         whatsapp_message_id:String(m.id),
         direction:digits(m.from)===phone?'incoming':'outgoing',
-        sender:digits(m.from)||phone,message_type:m.type||'text',
+        sender:digits(m.from)===phone?'customer':'human',message_type:m.type||'text',
         text_body:m.type==='text'?(m.text?.body||null):null,
         occurred_at:toIso(m.timestamp)
       }));
