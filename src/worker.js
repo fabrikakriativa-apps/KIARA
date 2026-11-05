@@ -1279,6 +1279,11 @@ async function quoteFlowStep(env,route,sender,targetId,history,profile,text){
   state=null;
  }
  if(!state){state={status:'collecting',product:requestedBudgetProduct(text,history)};await env.CONVERSAS.put(key,JSON.stringify(state),{expirationTtl:MEMORY_TTL});}
+ const explicitProduct=requestedBudgetProduct(text,[]);
+ if(state.status==='collecting'&&explicitProduct&&state.product!==explicitProduct){
+   state.product=explicitProduct;
+   await env.CONVERSAS.put(key,JSON.stringify(state),{expirationTtl:MEMORY_TTL});
+ }
  if(state.status==='collecting'&&!state.product){
    state.product=requestedBudgetProduct(text,history);
    if(state.product)await env.CONVERSAS.put(key,JSON.stringify(state),{expirationTtl:MEMORY_TTL});
