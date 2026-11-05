@@ -15,12 +15,13 @@ export function cancelsQuoteSummary(text){
 }
 const cleaned=s=>typeof s==='string'?s.trim().slice(0,140):'';
 const num=n=>typeof n==='number'?n:typeof n==='string'&&/^\d+(?:[.,]\d+)?$/.test(n.trim())?Number(n.replace(',','.')):NaN;
-export function normalizeQuoteItems(raw,settings){
+export function normalizeQuoteItems(raw,settings,customerText=''){
  if(!raw||!Array.isArray(raw.items)||!raw.items.length||raw.items.length>4)return {ready:false,errors:['O orçamento precisa de 1 a 4 itens confirmados']};
  const items=[],errors=[];
  for(const [index,row] of raw.items.entries()){
   const {ready,intake,errors:e}=normalizeCurtainIntake(row,settings);
   if(!ready){errors.push('Item '+(index+1)+': '+e.join('; '));continue;}
+  if(ambiguousLiningRequest(customerText,intake.backCategory)){errors.push('Item '+(index+1)+': confirmar o tipo e o controle de luz do forro');continue;}
   if(intake.drive!=='manual'){errors.push('Item '+(index+1)+': motorização exige análise manual');continue;}
   items.push(intake);
  }
