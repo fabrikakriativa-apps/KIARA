@@ -25,6 +25,23 @@ export function normalizeBlindItems(raw,settings,history=[]){
   if(!['total','per_piece'].includes(dimensionScope))errors.push(prefix+'confirme se as medidas são totais ou por peça');
   if(!['selected','reference'].includes(row.basis))errors.push(prefix+'separar escolha da referência de orçamento');
   if(!userEvidence(row.evidence,history))errors.push(prefix+'falta evidência na fala do cliente');
+  const modelText=normalize(model.name),evidenceText=normalize(row.evidence);
+  if(row.basis==='selected'){
+   const screen=modelText.match(/screen\s*([135])\s*%/);
+   if(screen&&!new RegExp('screen\\s*'+screen[1]+'\\s*%').test(evidenceText))
+    errors.push(prefix+'percentual Screen não foi expressamente escolhido');
+   if(/blackout/.test(modelText)&&!/blackout/.test(evidenceText))
+    errors.push(prefix+'blackout não escolhido pelo cliente');
+  }
+  if(!userEvidence(row.dimensionEvidence,history))
+   errors.push(prefix+'não há evidência das medidas');
+  if(!userEvidence(row.scopeEvidence,history))
+   errors.push(prefix+'não há evidência do escopo das medidas');
+  const scopeText=normalize(row.scopeEvidence);
+  if(dimensionScope==='total'&&!/total|vao|janela|sacada|largura toda/.test(scopeText))
+   errors.push(prefix+'confirme se largura e altura são totais');
+  if(dimensionScope==='per_piece'&&!/cada|por peca|individual/.test(scopeText))
+   errors.push(prefix+'confirme se medidas são por peça');
   const label=clean(row.description);
   if(!label||/preço médio|custo|markup|etc|\/.*\//i.test(label))errors.push(prefix+'descrição comercial inválida');
   const environment=clean(row.environment);
@@ -39,6 +56,7 @@ export function normalizeBlindItems(raw,settings,history=[]){
   if(errors.length&&errors[errors.length-1]?.startsWith(prefix))continue;
   items.push({product:'persiana',environment,model:model.name,width,height,quantity,dimensionScope,
     drive:'manual',modelDecision:{kind:row.basis,evidence:clean(row.evidence),description:label},
+    dimensionEvidence:clean(row.dimensionEvidence),scopeEvidence:clean(row.scopeEvidence),
     installation:'included'});
  }
  return {ready:errors.length===0&&items.length===raw.items.length,errors,items};
