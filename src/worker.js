@@ -1180,7 +1180,8 @@ async function extractBlindBudgetItems(env,history,settings){
  const categories=(settings.categories||[]).filter(x=>x.active!==false).map(x=>x.name);
  const instructions=[
   'Extração INTERNA de persianas, APENAS JSON: {"items":[...]}; até quatro itens. Não escreva mensagem ao cliente.',
-  'Campos: product="persiana",environment,model,width,height,quantity,dimensionScope ("total" ou "per_piece"),drive="manual" ou "motorizada",basis ("selected" ou "reference"),evidence e description.',
+  'Campos: product="persiana",environment,model,width,height,quantity,dimensionScope ("total" ou "per_piece"),drive="manual" ou "motorizada",basis ("selected" ou "reference"),evidence,description,dimensionEvidence,scopeEvidence.',
+  'dimensionEvidence: trecho literal do cliente com medidas; scopeEvidence: trecho literal que indique vão inteiro, janela, sacada, total, cada peça ou peça individual. Sem evidência de escopo, dimensionScope=null.',
   'Modelos comerciais disponíveis: '+categories.join('; ')+'. Use model exatamente como uma opção dessa lista.',
   'evidence é TRECHO LITERAL escrito pelo CLIENTE que justifica modelo ou referência; description é nome comercial curto e claro, como "Tela Solar Screen 1%" ou "Persiana Rolô Blackout".',
   'Quando o cliente escolheu o tipo exato, basis="selected"; se foi apenas uma necessidade e uma referência de preço é pertinente, basis="reference" e será explicitada no resumo.',
