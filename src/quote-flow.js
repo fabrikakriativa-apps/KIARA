@@ -28,13 +28,35 @@ export function normalizeQuoteItems(raw,settings){
  if(new Set(names).size!==names.length)errors.push('Há dois itens para o mesmo ambiente; separar as composições manualmente');
  return {ready:errors.length===0,items,errors};
 }
-const categoryLabel=s=>String(s||'').replace(/\\s*-\\s*PREÇO MÉDIO$/i,'').replace(/\\s*\\([^)]*\\)/g,'').trim().toLocaleLowerCase('pt-BR');
-export function summarizeQuoteItems(items){
+// Categorias comerciais são exclusivamente referências de cálculo.
+// A conversa usa nomes curtos e compreensíveis, sem amostras, códigos ou "preço médio".
+export function customerFabricLabel(category,position='front',originalText=''){
+ const cat=normalize(category);
+ const said=normalize(originalText);
+ if(cat==='sem forro')return 'sem forro';
+ if(cat.includes('linho'))return said.includes('linho')?'linho':'tecido com efeito de linho';
+ if(cat.includes('voil texturizado'))return 'voil texturizado';
+ if(cat.includes('voil leve'))return 'voil leve';
+ if(cat.includes('tecido decorativo'))return 'tecido decorativo';
+ if(cat.includes('blackout fosco 70'))return 'blackout 70%';
+ if(cat.includes('blackout 100'))return 'blackout 100%';
+ if(cat.includes('forro convencional'))return said.includes('microfibra')?'forro de microfibra':'forro convencional';
+ return position==='lining'?'forro a confirmar':'tecido a confirmar';
+}
+export function ambiguousLiningRequest(text,backCategory){
+ const t=normalize(text),c=normalize(backCategory);
+ // Um pedido de microfibra com blackout não equivale a microfibra convencional.
+ if(/microfibra/.test(t)&&/blackout|bloqueio de luz/.test(t)&&c.includes('forro convencional'))return true;
+ // Grau de blackout mencionado sem definição não equivale a 70% ou 100%.
+ if(/blackout/.test(t)&&/(alguma porcentagem|qualquer porcentagem|ate 70|até 70|nao sei quanto|não sei quanto)/.test(t))return true;
+ return false;
+}
+export function summarizeQuoteItems(items,customerText=''){
  return items.map((x,i)=>[
-  (i+1)+'. '+x.environment+': cortina '+x.model,
-  'medidas aproximadas '+x.width.toLocaleString('pt-BR')+' × '+x.height.toLocaleString('pt-BR')+' m',
-  'tecido '+categoryLabel(x.frontCategory),
-  x.backCategory==='Sem forro'?'sem forro':'com forro '+categoryLabel(x.backCategory),
+  (i+1)+'. '+x.environment+': cortina '+x.model.toLocaleLowerCase('pt-BR'),
+  x.width.toLocaleString('pt-BR')+' × '+x.height.toLocaleString('pt-BR')+' m',
+  'tecido '+customerFabricLabel(x.frontCategory,'front',customerText),
+  x.backCategory==='Sem forro'?'sem forro':'com '+customerFabricLabel(x.backCategory,'lining',customerText),
   x.quantity===1?'um conjunto':x.quantity+' conjuntos'
  ].join(', ')).join('\n');
 }
