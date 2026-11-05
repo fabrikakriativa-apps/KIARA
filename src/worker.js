@@ -1924,6 +1924,21 @@ export default {
         { status: 400 }
       );
     }
+    // Alguns provedores entregam coexistência no envelope event/data,
+    // além do formato nativo entry/changes da Meta.
+    if(route.source==="easy" &&
+      (event.event==="history"||event.event==="smb_app_state_sync")){
+      if(String(event.data?.metadata?.phone_number_id)!==String(route.phoneId))
+        return new Response("EVENT_RECEIVED",{status:200});
+      try{
+        if(event.event==="history")await syncPastHistory(env,route,event.data);
+        else await syncAppContacts(env,route,event.data);
+      }catch(error){
+        console.error("Coexistence sync failed",String(error?.message||""));
+        return new Response("Processing failed",{status:500});
+      }
+      return new Response("EVENT_RECEIVED",{status:200});
+    }
     if (
       event.object !== "whatsapp_business_account"
     ) {
