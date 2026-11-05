@@ -27,6 +27,7 @@ const instructions=[
 'Modelos: '+settings.models.join('; ')+'. Categorias aprovadas: '+categories.join('; ')+'.',
 'Se o cliente descreve apenas objetivo estético ou funcional, pode propor uma categoria como reference, mas jamais marque selected. Caso múltiplas referências muito diferentes sejam possíveis, deixe categoria null para esclarecer.',
 'Reconheça expressões explícitas comuns: sem forro -> backCategory=Sem forro; uma cortina/um conjunto/uma peça -> quantity=1. Preserve o nome exato do material declarado no frontDescription (ex.: gaze de linho).',
+   'Entenda medidas faladas naturalmente: 3 metros por 2 metros e meio significa largura 3,00 e altura 2,50 em metros; "dois e setenta" com unidade e contexto claro significa 2,70. Não troque largura e altura quando não indicadas.',
 'Se o cliente disser blackout sem definir percentual e houver opções 70% e 100%, deixe backCategory null; não escolha arbitrariamente.',
 'Não suponha modelo, medidas, quantidade, forro, motorização ou percentuais de bloqueio; se faltar dado, null. Não trate uma sugestão sua como decisão do cliente.',
 'Use somente fatos presentes na mensagem do CLIENTE. Nunca mostre preço nem lista de categorias ao cliente. Saída JSON puro.'
