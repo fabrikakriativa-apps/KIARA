@@ -33,7 +33,7 @@ export function formatApprovedEstimate(data){
   text+='\n\n🪟 *'+heading+' '+safe(item.model).toLocaleUpperCase('pt-BR')+'*\n\n'+
    '• *Modelo:* '+safe(item.model)+'\n'+
    '• *Quantidade:* '+Number(item.quantity)+' '+(data.product==='persiana'?(Number(item.quantity)===1?'peça':'peças'):(Number(item.quantity)===1?'conjunto':'conjuntos'))+'\n'+
-   '• *Medidas '+(Number(item.quantity)>1?'totais':'aproximadas')+':* '+measure(item.width)+' m × '+measure(item.height)+' m\n'+
+   '• *Medidas '+(item.dimensionScope==='total'?'totais':item.dimensionScope==='each'?'por peça':'aproximadas')+':* '+measure(item.width)+' m × '+measure(item.height)+' m\n'+
    '• *Tecido:* '+safe(item.fabric)+'\n';
   if(item.lining)text+='• *Forro:* '+safe(item.lining)+'\n';
   text+='• *Instalação:* '+(item.installation==='included'?'Inclusa':'Não inclusa');
