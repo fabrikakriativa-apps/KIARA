@@ -1278,6 +1278,11 @@ async function quoteFlowStep(env,route,sender,targetId,history,profile,text){
   state=null;
  }
  if(!state){state={status:'collecting',product:requestedBudgetProduct(text,history)};await env.CONVERSAS.put(key,JSON.stringify(state),{expirationTtl:MEMORY_TTL});}
+ if(state.status==='collecting'&&!state.product){
+   state.product=requestedBudgetProduct(text,history);
+   if(state.product)await env.CONVERSAS.put(key,JSON.stringify(state),{expirationTtl:MEMORY_TTL});
+   else return {kind:'collecting',missing:['Definir se o orçamento é de cortina ou persiana']};
+ }
  const qualification=evaluateCustomerQualification(profile);
  if(!qualification.qualified)return {kind:'collecting'};
  const records=await dbRequest(env,'kiara_commercial_config','GET',
@@ -1436,9 +1441,12 @@ async function consumeMessage(env, job) {
     'TRANSFERÊNCIA HUMANA: Se houver pedido explícito de humano, frustração persistente, necessidade técnica fora das informações aprovadas ou insegurança real, responda exatamente <<ENCAMINHAR_HUMANO>>. Uma dúvida comum, mudança de preferência ou resposta curta não exige transferência.'
   ].filter(Boolean).join('\n\n');
   const quoteInstruction=quoteStep?.kind==='collecting'
-   ?'O cliente iniciou um pedido de orçamento. Estas são as informações técnicas necessárias para prepará-lo, NÃO um roteiro de perguntas: '+quoteIntakePrompt()+
+   ?'O cliente deseja uma estimativa. Informações técnicas para orientar a coleta, NÃO um roteiro: '+
+    (requestedBudgetProduct(String(inputText||''),nextHistory)==='persiana'?
+       'Persiana: modelo/material ou finalidade, quantidade, largura e altura, esclarecer se dimensões totais ou de cada peça, acionamento. Screen 1%, 3% e 5% são alternativas distintas; não adivinhe porcentagem. A escolha exata de material pode vir depois, mas uma referência de cálculo deve ser apresentada como provisória.':
+       quoteIntakePrompt())+
     ' Use o histórico, não repita perguntas já respondidas e escolha apenas UMA informação faltante por mensagem. '+(quoteStep.missing?.[0]||'')+
-    ' Não mencione preços, margens ou custos internos.'
+    ' Não mencione preços, margens, categorias internas ou custos.'
    :'';
   const answer=quoteStep?.text || await generateReply(env,nextHistory,[contextInstructions,quoteInstruction].filter(Boolean).join('\n\n'));
   if(answer.includes('<<ENCAMINHAR_HUMANO>>')){
