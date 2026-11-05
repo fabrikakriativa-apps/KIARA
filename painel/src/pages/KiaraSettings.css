@@ -1,0 +1,192 @@
+.kiara-settings{padding:15px clamp(14px,1.7vw,26px) 24px;color:#192641;min-width:0}
+.kiara-settings-heading{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.kiara-settings-heading-icon{display:grid;place-items:center;flex-shrink:0;color:#7651df;background:#f0eaff;border-radius:12px;width:40px;height:40px}
+.kiara-settings-heading h1{font-size:clamp(23px,2vw,29px);letter-spacing:-.04em;line-height:1.15;margin:0 0 4px}
+.kiara-settings-heading p{font-size:12px;color:#61718c;margin:0;line-height:1.45}
+.kiara-settings-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}
+.kiara-settings-tile{display:flex;flex-direction:column;align-items:flex-start;position:relative;min-height:132px;gap:10px;padding:16px;border:1px solid #e0e6f2;border-radius:15px;background:#fff;box-shadow:0 4px 15px #354b7408;text-align:left;cursor:pointer;min-width:0}
+.kiara-settings-tile:hover,.kiara-settings-tile:focus-visible{border-color:#a994ec;background:#fcfaff;box-shadow:0 8px 22px #6551a51a}
+.kiara-settings-tile-icon{display:grid;place-items:center;background:#f1eaff;color:#7654de;width:36px;height:36px;border-radius:10px}
+.kiara-settings-tile-copy{display:flex;flex-direction:column;gap:5px}
+.kiara-settings-tile-copy strong{font-size:13px;font-weight:800;color:#25314c}
+.kiara-settings-tile-copy small{font-size:11px;line-height:1.35;color:#65738f}
+.kiara-settings-arrow{position:absolute;right:12px;top:18px;color:#aaa5c9}
+.kiara-settings-detail{max-width:920px;border:1px solid #e2e8f3;border-radius:16px;padding:20px;background:#fff}
+.kiara-settings-back{display:inline-flex;align-items:center;gap:6px;border:0;color:#6456c7;background:none;padding:0;cursor:pointer;font-size:12px;font-weight:700;margin:0 0 20px}
+.kiara-settings-detail-title{display:flex;align-items:center;gap:9px;color:#6e54cf;margin-bottom:15px}
+.kiara-settings-detail-title h2{font-size:21px;margin:0;color:#23314e}
+.kiara-settings-info{display:flex;flex-direction:column;gap:11px;max-width:780px}
+.kiara-settings-info h3{font-size:14px;margin:0}
+.kiara-settings-info p{margin:0;color:#55647d;font-size:12px;line-height:1.55}
+.kiara-settings-info>button{display:inline-flex;align-items:center;gap:6px;align-self:flex-start;cursor:pointer;border:1px solid #d6ddf2;background:#f6f7ff;color:#425ec3;border-radius:9px;padding:10px 12px;font-size:12px;font-weight:700}
+.kiara-settings-status{display:flex;align-items:flex-start;gap:11px;padding:13px;border:1px solid #e8edf5;border-radius:11px}
+.kiara-settings-status>svg{color:#7555d5;flex-shrink:0}
+.kiara-settings-status>div{display:flex;flex-direction:column;gap:5px}
+.kiara-settings-status strong{font-size:12px}
+.kiara-settings-status small{font-size:11px;line-height:1.45;color:#697993}
+@media(max-width:1180px){.kiara-settings-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.kiara-settings{padding:12px}.kiara-settings-grid{grid-template-columns:1fr}.kiara-settings-tile{min-height:105px;flex-direction:row;align-items:center;gap:12px}.kiara-settings-detail{padding:14px}}
+
+
+/* Ações da precificação: mesmos padrões visuais da central Kiara. */
+.kiara-settings-detail .kiara-commercial-button{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  width:max-content;max-width:100%;min-height:38px;align-self:end;
+  padding:9px 13px;border:1px solid #d6ddf2;border-radius:9px;
+  background:#f6f7ff;color:#425ec3;font-family:inherit;
+  font-size:12px;font-weight:700;line-height:1.25;text-align:center;
+  cursor:pointer;transition:background .15s,border-color .15s,box-shadow .15s;
+}
+.kiara-settings-detail .kiara-commercial-button--add{align-self:flex-start}
+.kiara-settings-detail .kiara-commercial-button--remove{
+  color:#a43d4d;background:#fff;border-color:#f0d2d8;
+}
+.kiara-settings-detail .kiara-commercial-button--primary{
+  background:#4a65e7;border-color:#4a65e7;color:#fff;
+}
+.kiara-settings-detail .kiara-commercial-button:hover:not(:disabled){
+  background:#e9edff;border-color:#aab9f4;
+}
+.kiara-settings-detail .kiara-commercial-button--remove:hover:not(:disabled){
+  background:#fff2f4;border-color:#df9ca7;
+}
+.kiara-settings-detail .kiara-commercial-button--primary:hover:not(:disabled){
+  background:#3c54ce;border-color:#3c54ce;
+}
+.kiara-settings-detail .kiara-commercial-button:focus-visible{
+  outline:3px solid #a994ec;outline-offset:2px;
+}
+.kiara-settings-detail .kiara-commercial-button:disabled{
+  opacity:.5;cursor:not-allowed;
+}
+@media(max-width:640px){
+ .kiara-settings-detail .kiara-pricing-form .kiara-commercial-button{justify-self:start}
+}
+
+
+/* Simulação comercial isolada dentro das configurações. */
+.kiara-commercial-test-section{
+ display:flex;flex-direction:column;align-items:stretch;gap:12px;
+ padding:16px;border:1px solid #e0e6f2;background:#fafbff;border-radius:12px;
+}
+.kiara-commercial-test-section h4{margin:0;font-size:14px;color:#263451}
+.kiara-commercial-test-section>.kiara-commercial-button{align-self:flex-start}
+.kiara-commercial-test-section .kiara-management-card{
+ width:100%;min-width:0;border-radius:12px;padding:16px;gap:12px;
+}
+.kiara-commercial-test-section .kiara-pricing-form>p,
+.kiara-commercial-test-section .kiara-pricing-form>div,
+.kiara-commercial-test-section .kiara-pricing-form>small{grid-column:1/-1}
+.kiara-commercial-test-section .kiara-pricing-form input[type=checkbox]{
+ width:auto;min-width:0;margin-right:7px;accent-color:#4a65e7;
+}
+.kiara-commercial-test-section .kiara-pricing-form label:has(input[type=checkbox]){
+ display:flex;flex-direction:row;align-items:center;justify-content:flex-start;
+}
+.kiara-commercial-test-section .kiara-management-card>button{
+ align-self:flex-start;border:1px solid #d6ddf2;color:#425ec3;background:#f6f7ff;
+ padding:9px 13px;border-radius:9px;font-weight:700;font-size:12px;cursor:pointer;
+}
+@media(max-width:640px){.kiara-commercial-test-section{padding:12px}}
+
+
+/* Gestão comercial: aproveitar a largura da tela, mantendo linhas compactas. */
+.kiara-settings-detail--commercial{max-width:none;width:100%}
+.kiara-settings-detail--commercial .kiara-settings-info{max-width:none;width:100%;min-width:0}
+.kiara-settings-detail--commercial .kiara-pricing-form{min-width:0}
+.kiara-settings-detail--commercial .kiara-commercial-row{
+ display:grid;align-items:end;gap:12px;width:100%;
+}
+.kiara-settings-detail--commercial .kiara-commercial-row label{min-width:0}
+.kiara-settings-detail--commercial .kiara-commercial-row--model{
+ grid-template-columns:minmax(200px,1fr) auto;
+}
+.kiara-settings-detail--commercial .kiara-commercial-row--category{
+ grid-template-columns:minmax(180px,2fr) minmax(130px,1.2fr) minmax(105px,.8fr) auto;
+}
+.kiara-settings-detail--commercial .kiara-commercial-row--cost{
+ grid-template-columns:minmax(160px,1.5fr) minmax(120px,1.2fr) minmax(130px,1.15fr) minmax(125px,1fr) auto;
+}
+.kiara-settings-detail--commercial .kiara-commercial-row--rail{
+ grid-template-columns:minmax(120px,1fr) minmax(210px,2fr) minmax(140px,1fr) auto;
+}
+.kiara-settings-detail--commercial .kiara-commercial-row--ratio{
+ grid-template-columns:minmax(150px,1.4fr) minmax(170px,1.4fr) minmax(140px,1fr) auto;
+}
+.kiara-settings-detail--commercial .kiara-commercial-row .kiara-commercial-button{
+ white-space:nowrap;justify-self:end;align-self:end;
+}
+@media(max-width:1050px){
+ .kiara-settings-detail--commercial .kiara-commercial-row--cost{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+ }
+ .kiara-settings-detail--commercial .kiara-commercial-row--cost .kiara-commercial-button{
+  justify-self:start;
+ }
+}
+@media(max-width:760px){
+ .kiara-settings-detail--commercial .kiara-commercial-row{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+ }
+ .kiara-settings-detail--commercial .kiara-commercial-row .kiara-commercial-button{
+  justify-self:start;
+ }
+}
+@media(max-width:510px){
+ .kiara-settings-detail--commercial .kiara-commercial-row{
+  grid-template-columns:minmax(0,1fr);
+ }
+}
+
+
+/* Cadastro de persianas: formulário horizontal, responsivo e isolado das cortinas. */
+.kiara-blinds-panel{display:flex;flex-direction:column;gap:12px;min-width:0}
+.kiara-blinds-panel h3,.kiara-blinds-panel h4{margin:0}
+.kiara-blinds-panel .kiara-commercial-row--rail{
+ grid-template-columns:minmax(90px,.8fr) minmax(160px,1.4fr)
+ minmax(115px,1fr) minmax(115px,1fr) auto auto;
+}
+.kiara-blinds-panel .kiara-blinds-checkbox{
+ display:flex;flex-direction:row;align-items:center;gap:7px;white-space:nowrap;
+}
+.kiara-blinds-panel .kiara-blinds-checkbox input[type=checkbox]{
+ width:auto;min-width:0;accent-color:#4a65e7;
+}
+.kiara-blinds-panel>label textarea{
+ width:100%;display:block;border:1px solid #d9e1ed;border-radius:8px;
+ padding:10px;color:#243045;resize:vertical;
+}
+.kiara-blinds-panel>.kiara-commercial-button{align-self:flex-start}
+@media(max-width:1100px){
+ .kiara-blinds-panel .kiara-commercial-row--rail{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:680px){
+ .kiara-blinds-panel .kiara-commercial-row--rail{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:510px){
+ .kiara-blinds-panel .kiara-commercial-row--rail{grid-template-columns:1fr}
+}
+
+/* Biblioteca visual: cadastros privados e referências aprovadas */
+.kiara-reference-library{display:flex;flex-direction:column;gap:13px;min-width:0}
+.kiara-reference-library h3,.kiara-reference-library h4{margin:0}
+.kiara-reference-editor{display:flex;flex-direction:column;gap:12px;border:1px solid #e2e8f3;background:#fafbff;padding:16px;border-radius:12px}
+.kiara-reference-editor>label{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:650}
+.kiara-reference-editor textarea{padding:10px;border:1px solid #d8e1ee;border-radius:8px;font:inherit;resize:vertical}
+.kiara-reference-editor>.kiara-commercial-button{align-self:flex-start}
+.kiara-reference-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.kiara-reference-item{border:1px solid #e0e7f2;border-radius:12px;background:#fff;overflow:hidden;min-width:0}
+.kiara-reference-item>img,.kiara-reference-unavailable{width:100%;height:165px;object-fit:cover;background:#eef1f7;display:flex;align-items:center;justify-content:center;font-size:12px;color:#66738a}
+.kiara-reference-item>div:last-child{padding:12px;display:flex;flex-direction:column;gap:7px}
+.kiara-reference-item strong{font-size:13px}
+.kiara-reference-item small{font-size:11px;color:#65738f}
+.kiara-reference-item p{font-size:12px;color:#4c5a73;margin:0}
+.kiara-reference-item button{align-self:flex-start;border:1px solid #c8d3e6;border-radius:8px;padding:8px 10px;background:#f7f9ff;color:#405cbe;font-weight:700;cursor:pointer}
+.kiara-reference-item button:disabled{opacity:.6;cursor:default}
+
+.kiara-reference-filters{display:grid;grid-template-columns:minmax(160px,2fr) repeat(2,minmax(130px,1fr));gap:12px;align-items:end}
+.kiara-reference-filters label,.kiara-reference-edit label{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:650;color:#3a4761;min-width:0}
+.kiara-reference-filters input,.kiara-reference-filters select,.kiara-reference-edit input,.kiara-reference-edit select,.kiara-reference-edit textarea{width:100%;min-width:0;padding:9px 10px;border:1px solid #d8e1ee;background:#fff;border-radius:8px;font:inherit;color:#25314c}
+.kiara-reference-actions{display:flex;flex-wrap:wrap;gap:7px}
+.kiara-reference-edit{display:flex;flex-direction:column;gap:9px;border-top:1px solid #e0e7f2;padding-top:12px;margin-top:5px}
+@media(max-width:620px){.kiara-reference-filters{grid-template-columns:1fr}}

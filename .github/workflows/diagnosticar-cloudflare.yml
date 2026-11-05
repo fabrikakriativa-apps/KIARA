@@ -1,0 +1,97 @@
+name: Diagnosticar Cloudflare sem publicação
+on:
+  push:
+    branches: [feat/painel-independente]
+    paths:
+      - '.github/workflows/diagnosticar-cloudflare.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diagnostics:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validar token e acesso ao Pages sem revelar credenciais
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          python3 - <<'PY'
+          import os,json,urllib.request,urllib.error
+          token=os.environ.get('CF_TOKEN','')
+          account=os.environ.get('CF_ACCOUNT','')
+          print('Credenciais presentes:',bool(token),bool(account))
+          if not token or not account: raise SystemExit(1)
+          endpoints=[
+            ('status do token','https://api.cloudflare.com/client/v4/user/tokens/verify'),
+            ('contas visíveis','https://api.cloudflare.com/client/v4/accounts?per_page=50'),
+            ('projetos Pages da conta cadastrada',f'https://api.cloudflare.com/client/v4/accounts/{account}/pages/projects?per_page=2')
+          ]
+          for title,url in endpoints:
+            req=urllib.request.Request(url,headers={'Authorization':'Bearer '+token,'Accept':'application/json'})
+            try:
+              with urllib.request.urlopen(req,timeout=20) as resp:
+                payload=json.load(resp)
+                print(title,': HTTP',resp.status,'success:',payload.get('success'))
+                if title=='status do token':
+                  print('token_status:',payload.get('result',{}).get('status'))
+                elif title=='contas visíveis':
+                  ids=[x.get('id') for x in payload.get('result',[]) if isinstance(x,dict)]
+                  print('conta configurada aparece entre contas visíveis:',account in ids)
+            except urllib.error.HTTPError as err:
+              try:
+                payload=json.load(err)
+                codes=[e.get('code') for e in payload.get('errors',[]) if isinstance(e,dict)]
+              except Exception:codes=[]
+              print(title,': HTTP',err.code,'códigos:',codes)
+            except Exception as e:
+              print(title,': erro de conexão',type(e).__name__)
+          PY
+      - name: Comparar escopos do token e endpoints de conta (somente leitura)
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          python3 - <<'PY'
+          import os,json,urllib.request,urllib.error
+          root='https://api.cloudflare.com/client/v4'
+          token=os.environ['CF_TOKEN']; account=os.environ['CF_ACCOUNT']
+          def read(label,uri):
+            req=urllib.request.Request(root+uri,headers={'Authorization':'Bearer '+token,'Accept':'application/json'})
+            try:
+              with urllib.request.urlopen(req,timeout=20) as response:
+                x=json.load(response)
+                print(label,'HTTP',response.status,'success',x.get('success'))
+                return x.get('result')
+            except urllib.error.HTTPError as exc:
+              try:
+                x=json.load(exc)
+                codes=[v.get('code') for v in x.get('errors',[]) if isinstance(v,dict)]
+              except Exception:codes=[]
+              print(label,'HTTP',exc.code,'cloudflare_error_codes',codes)
+            except Exception as exc:print(label,type(exc).__name__)
+            return None
+          v=read('Token introspection','/user/tokens/verify')
+          token_id=v.get('id') if isinstance(v,dict) else None
+          if token_id:
+            detail=read('Token policies read','/user/tokens/'+token_id)
+            if isinstance(detail,dict):
+              groups=[g.get('name','') for p in detail.get('policies',[]) for g in p.get('permission_groups',[]) if isinstance(g,dict)]
+              print('Effective policy mentions Pages:',any('pages' in g.lower() for g in groups))
+              print('Effective policy mentions Workers:',any('workers scripts' in g.lower() for g in groups))
+              print('Policy count:',len(detail.get('policies',[])))
+              print('Policy resources include account:',any(
+                any(account in k or k=='com.cloudflare.api.account.*' for k in p.get('resources',{}))
+                for p in detail.get('policies',[]) if isinstance(p,dict)))
+          read('Workers Scripts list','/accounts/'+account+'/workers/scripts?per_page=1')
+          read('Pages projects list','/accounts/'+account+'/pages/projects?per_page=1')
+          PY
+
+
+# Revalidação solicitada após atualização de credencial em 2026-11-02.
+
+# Revalidacao apos atualizacao confirmada do segredo GitHub.
+
+# Revalidacao apos inclusao de Cloudflare Pages Read.
+
+# Revalidacao apos clicar em Update na configuracao do token Pages.
