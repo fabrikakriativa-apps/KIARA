@@ -145,3 +145,5 @@ jobs:
 # Teste completo de orçamento: coleta consultiva, resumo, cálculo interno e revisão administrativa antes do envio.
 
 # Reinício de teste limpa rascunho conversacional e aceita confirmação natural das especificações.
+
+# Homologação: informações de validação e estado ficam internas, sem justificativas espontâneas ao cliente.
