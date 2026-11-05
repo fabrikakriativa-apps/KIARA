@@ -853,10 +853,7 @@ async function handleAudioJob(env,route,job) {
 /* Triagem com botões: ativa no modo isolado de homologação (apenas telefone
    TEST_ALLOWED_WA_ID), mesmo sem configurar a flag. Em modo geral depende
    da habilitação explícita. Nenhum contato não autorizado recebe mensagens. */
-const adsRoutingEnabled = env =>
-  env.KIARA_ADS_ROUTING_ENABLED === 'true' ||
-  (env.KIARA_SYNC_ENABLED === 'true' &&
-   env.KIARA_SYNC_ALL_CONTACTS !== 'true' && !!digits(env.TEST_ALLOWED_WA_ID));
+const adsRoutingEnabled = env => env.KIARA_ADS_ROUTING_ENABLED === 'true';
 const greeting = "Olá! 👋 Seja bem-vindo(a) à *Fábrika Kriativa!*\n\nSou a *Kiara*, assistente de atendimento da Fábrika Kriativa. 😊\n\nPara oferecer o atendimento mais adequado ao que você procura, temos duas opções:\n\n*1️⃣ ORÇAMENTO RÁPIDO*\nJá sabe o que deseja? Podemos preparar uma estimativa inicial de valores com algumas informações do seu ambiente.\n\n*2️⃣ ATENDIMENTO PERSONALIZADO*\nEstá buscando ideias ou precisa de orientação? Nossa equipe ajuda você a escolher modelos, tecidos e acabamentos para criar a composição ideal para seu espaço.\n\n*Como prefere começar? Selecione uma das opções abaixo.*";
 const routeStateKey=(route,sender)=>route.source+':ad-route:'+digits(sender);
 async function durableRouteState(env,route,sender){

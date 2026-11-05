@@ -24,7 +24,9 @@ test('isolated Worker has only dedicated staging storage and queue bindings',()=
  assert.match(config,/id = "88c357b564b743fcbc85204ccbf5e636"/);
  assert.match(config,/binding = "KIARA_QUEUE"/);
  assert.match(config,/queue = "kiara-homologacao-respostas"/);
- assert.match(config,/KIARA_STAGING_LIVE_ENABLED = "false"/);
+ assert.match(config,/KIARA_STAGING_LIVE_ENABLED = "true"/);
+ assert.match(config,/KIARA_ADS_ROUTING_ENABLED = "true"/);
+ assert.equal((config.match(/^\s*\[\[queues\.consumers\]\]/gm)||[]).length,1);
  assert.doesNotMatch(config,/SUPABASE_SERVICE_ROLE_KEY|OPENAI_API_KEY|META_ACCESS_TOKEN|EASY_ACCESS_TOKEN/);
 });
 

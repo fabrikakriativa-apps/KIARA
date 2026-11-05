@@ -1,0 +1,108 @@
+name: Publicar Worker Kiara - homologacao isolada
+
+on:
+  push:
+    branches: [homologacao]
+    paths:
+      - '.github/workflows/publicar-worker-kiara-homologacao.yml'
+      - 'staging/**'
+      - 'src/**'
+      - 'tests/**'
+      - 'package.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kiara-worker-homologacao-isolada
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validar codigo e isolamento
+        run: |
+          test "$(git branch --show-current)" = homologacao
+          test -f staging/wrangler.toml
+          grep -q '^name = "fabrika-atendimento-ia-homologacao"$' staging/wrangler.toml
+          grep -q '^main = "./worker.js"$' staging/wrangler.toml
+          grep -q '^workers_dev = true$' staging/wrangler.toml
+          grep -q '^KIARA_SYNC_ALL_CONTACTS = "false"$' staging/wrangler.toml
+          grep -q '^KIARA_HUMAN_SEND_ENABLED = "false"$' staging/wrangler.toml
+          grep -q '^queue = "kiara-homologacao-respostas"$' staging/wrangler.toml
+          test "$(grep -c '^\[\[queues.consumers\]\]$' staging/wrangler.toml)" = 1
+          test ! -e wrangler.toml
+          node --check src/worker.js
+          node --check staging/worker.js
+          npm test
+
+      - name: Auditar destino e preservar producao
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request
+          token=os.environ.get('CF_TOKEN','')
+          account=os.environ.get('CF_ACCOUNT','')
+          if not token or not account: raise SystemExit('Credenciais Cloudflare ausentes; nenhum deploy.')
+          headers={'Authorization':'Bearer '+token,'Accept':'application/json'}
+          def get(path):
+              with urllib.request.urlopen(urllib.request.Request('https://api.cloudflare.com/client/v4'+path,headers=headers),timeout=30) as res:
+                  data=json.load(res)
+              if not data.get('success'): raise SystemExit('Falha Cloudflare em '+path)
+              return data.get('result')
+          staging=get('/accounts/'+account+'/workers/scripts/fabrika-atendimento-ia-homologacao/settings')
+          bindings={b.get('name'):b.get('type') for b in staging.get('bindings',[])}
+          required={'EASY_ACCESS_TOKEN','EASY_WEBHOOK_KEY','META_VERIFY_TOKEN','OPENAI_API_KEY','SUPABASE_SERVICE_ROLE_KEY','TEST_ALLOWED_WA_ID'}
+          missing=sorted(required-set(bindings))
+          if missing: raise SystemExit('Segredos/bindings ausentes no Worker de homologacao: '+', '.join(missing))
+          prod=get('/accounts/'+account+'/workers/scripts/fabrika-atendimento-ia/deployments')
+          stage=get('/accounts/'+account+'/workers/scripts/fabrika-atendimento-ia-homologacao/deployments')
+          proof={'productionDeployment':prod[0]['id'] if prod else None,'stagingDeploymentBefore':stage[0]['id'] if stage else None}
+          open('/tmp/kiara-deploy-proof.json','w').write(json.dumps(proof))
+          print('Destino confirmado: fabrika-atendimento-ia-homologacao; producao apenas lida para prova de imutabilidade.')
+          PY
+
+      - name: Publicar somente Worker isolado
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@4 deploy --config staging/wrangler.toml
+
+      - name: Comprovar publicacao, roteamento e producao intacta
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WORKER_URL: https://fabrika-atendimento-ia-homologacao.fabrikakriativa.workers.dev
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request
+          token=os.environ['CF_TOKEN']; account=os.environ['CF_ACCOUNT']
+          headers={'Authorization':'Bearer '+token,'Accept':'application/json'}
+          def get(path):
+              with urllib.request.urlopen(urllib.request.Request('https://api.cloudflare.com/client/v4'+path,headers=headers),timeout=30) as res: data=json.load(res)
+              if not data.get('success'): raise SystemExit('Falha Cloudflare em '+path)
+              return data.get('result')
+          before=json.load(open('/tmp/kiara-deploy-proof.json'))
+          prod=get('/accounts/'+account+'/workers/scripts/fabrika-atendimento-ia/deployments')
+          stage=get('/accounts/'+account+'/workers/scripts/fabrika-atendimento-ia-homologacao/deployments')
+          prod_id=prod[0]['id'] if prod else None; stage_id=stage[0]['id'] if stage else None
+          if prod_id!=before['productionDeployment']: raise SystemExit('Deploy de producao mudou; interromper homologacao.')
+          if stage_id==before['stagingDeploymentBefore']: raise SystemExit('Worker de homologacao nao recebeu nova versao.')
+          settings=get('/accounts/'+account+'/workers/scripts/fabrika-atendimento-ia-homologacao/settings')
+          names={b.get('name') for b in settings.get('bindings',[])}
+          for name in ('CONVERSAS','KIARA_CONTROLES','KIARA_QUEUE','TEST_ALLOWED_WA_ID'):
+              if name not in names: raise SystemExit('Binding ausente apos deploy: '+name)
+          print(json.dumps({'productionDeploymentUnchanged':prod_id,'stagingDeploymentAfter':stage_id,'requiredBindings':'ok'}))
+          PY
+          test "$(curl -fsS "$WORKER_URL/health" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("service"),d.get("external_integrations"))')" = "kiara-homologacao test_only"
+          test "$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$WORKER_URL/webhook")" = 404

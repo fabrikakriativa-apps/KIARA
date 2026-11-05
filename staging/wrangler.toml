@@ -13,13 +13,14 @@ SUPABASE_ORGANIZATION_ID = "0e398095-cc22-421b-ae34-7bf0df8ad7b2"
 # A ponte permanece bloqueada até configurar os segredos exclusivos, consumidor da fila e destino do webhook.
 KIARA_STAGING_PROVIDER = "easy"
 EASY_PHONE_NUMBER_ID = "989677610885915"
-KIARA_STAGING_LIVE_ENABLED = "false"
+KIARA_STAGING_LIVE_ENABLED = "true"
 KIARA_CUSTOMER_QUALIFICATION_ENABLED = "true"
-KIARA_SYNC_ENABLED = "false"
-KIARA_CONTROL_ENABLED = "false"
-KIARA_HOLD_ENABLED = "false"
+KIARA_SYNC_ENABLED = "true"
+KIARA_CONTROL_ENABLED = "true"
+KIARA_HOLD_ENABLED = "true"
 KIARA_HUMAN_SEND_ENABLED = "false"
 KIARA_SYNC_ALL_CONTACTS = "false"
+KIARA_ADS_ROUTING_ENABLED = "true"
 
 [[kv_namespaces]]
 binding = "KIARA_CONTROLES"
@@ -32,3 +33,9 @@ id = "88c357b564b743fcbc85204ccbf5e636"
 [[queues.producers]]
 binding = "KIARA_QUEUE"
 queue = "kiara-homologacao-respostas"
+
+[[queues.consumers]]
+queue = "kiara-homologacao-respostas"
+max_batch_size = 1
+max_batch_timeout = 1
+max_retries = 3
