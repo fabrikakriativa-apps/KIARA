@@ -235,6 +235,59 @@ async function saveMessage(env, conversationId, messageId, direction, sender, te
     message_type: type, text_body: text || null, occurred_at: timestamp
   });
 }
+// Importação passiva da coexistência: nunca aciona a IA ou dispara WhatsApp.
+// Contatos do aplicativo ficam numa tabela auxiliar, sem criar leads no CRM.
+async function syncAppContacts(env,route,value){
+  if(!syncActive(env))return;
+  for(const item of value.state_sync||[]){
+    if(item.type!=='contact'||item.action==='delete')continue;
+    const phone=digits(item.contact?.phone_number);
+    if(!phone)continue;
+    await dbRequest(env,'kiara_imported_contacts','POST',
+      '?on_conflict=organization_id,source,phone_number_id,contact_phone',{
+        organization_id:String(env.SUPABASE_ORGANIZATION_ID),
+        source:route.source,phone_number_id:String(route.phoneId),
+        contact_phone:phone,contact_name:item.contact?.full_name||null
+      });
+  }
+}
+async function syncPastHistory(env,route,value){
+  if(!syncActive(env))return;
+  for(const batch of value.history||[]){
+    if(batch.errors?.length){console.warn('Historical sharing unavailable');continue}
+    for(const thread of batch.threads||[]){
+      const phone=digits(thread.id);
+      if(!phone)continue;
+      const messages=(thread.messages||[]).filter(m=>m.id).sort((a,b)=>Number(a.timestamp||0)-Number(b.timestamp||0));
+      if(!messages.length)continue;
+      const org=String(env.SUPABASE_ORGANIZATION_ID);
+      const stamp=toIso(messages[0].timestamp);
+      await dbRequest(env,'kiara_conversations','POST',
+        '?on_conflict=organization_id,source,phone_number_id,contact_wa_id',{
+          organization_id:org,source:route.source,phone_number_id:String(route.phoneId),
+          contact_wa_id:phone,contact_phone:phone,first_message_at:stamp,
+          last_interaction_at:toIso(messages[messages.length-1].timestamp)
+        });
+      const found=await dbRequest(env,'kiara_conversations','GET',
+        '?select=id'+queryEq('organization_id',org)+queryEq('source',route.source)+
+        queryEq('phone_number_id',route.phoneId)+queryEq('contact_wa_id',phone)+'&limit=1');
+      if(!found?.length)throw new Error('Missing imported history conversation');
+      const rows=messages.map(m=>({
+        organization_id:org,conversation_id:found[0].id,
+        whatsapp_message_id:String(m.id),
+        direction:digits(m.from)===phone?'incoming':'outgoing',
+        sender:digits(m.from)||phone,message_type:m.type||'text',
+        text_body:m.type==='text'?(m.text?.body||null):null,
+        occurred_at:toIso(m.timestamp)
+      }));
+      await dbRequest(env,'kiara_messages','POST',
+        '?on_conflict=organization_id,whatsapp_message_id',rows);
+      await dbRequest(env,'kiara_conversations','PATCH',
+        '?id=eq.'+encodeURIComponent(found[0].id)+queryEq('organization_id',org),
+        {history_imported_at:new Date().toISOString()});
+    }
+  }
+}
 async function syncInbound(env, route, value, message) {
   if (!syncActive(env)) return;
   const customer = digits(message.from);
@@ -854,7 +907,7 @@ const greeting = "Olá! 👋 Seja bem-vindo(a) à *Fábrika Kriativa!*\n\nSou a 
 const routeStateKey=(route,sender)=>route.source+':ad-route:'+digits(sender);
 async function durableRouteState(env,route,sender){
   const found=await dbRequest(env,'kiara_conversations','GET',
-    '?select=id,intro_sent_at,route_choice'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
+    '?select=id,intro_sent_at,route_choice,history_imported_at'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
     queryEq('source',route.source)+queryEq('phone_number_id',route.phoneId)+
     queryEq('contact_wa_id',digits(sender))+'&limit=1');
   return found?.[0]||null;
@@ -933,7 +986,8 @@ async function processAdRouting(env,route,message){
   let state=await loadRouteState(env,route,sender);
   const durable=await durableRouteState(env,route,sender);
   // Estado no KV expira; a apresentação no banco permanece para sempre.
-  if(!state && durable?.intro_sent_at){
+  if(!state && (durable?.intro_sent_at||durable?.history_imported_at)){
+    // Contato com histórico anterior não deve receber mensagem de boas-vindas.
     state={status:'selected',choice:durable.route_choice||'personalized'};
   }
   const replyType=message.type==='interactive'&&message.interactive?.type==='button_reply';
@@ -1877,6 +1931,14 @@ export default {
             String(value.metadata?.phone_number_id) !==
             String(route.phoneId)
           ) {
+            continue;
+          }
+          if(change.field==="history" && route.source==="easy"){
+            await syncPastHistory(env,route,value);
+            continue;
+          }
+          if(change.field==="smb_app_state_sync" && route.source==="easy"){
+            await syncAppContacts(env,route,value);
             continue;
           }
           if (
