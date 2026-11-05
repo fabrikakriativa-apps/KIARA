@@ -3,7 +3,7 @@
  * Não recebe custos de fornecedor, categorias internas ou instruções do modelo.
  * Usado somente após revisão e autorização de valor.
  */
-const money=n=>Number(n).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const money=n=>Number(n).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}).replace(/\u00a0/g,' ');
 const measure=n=>Number(n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 const clean=s=>String(s||'').trim();
 const safe=s=>clean(s).replace(/\*/g,'').replace(/[\r\n]+/g,' ').slice(0,110);
