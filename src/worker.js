@@ -235,59 +235,9 @@ async function saveMessage(env, conversationId, messageId, direction, sender, te
     message_type: type, text_body: text || null, occurred_at: timestamp
   });
 }
-// Importação passiva da coexistência: nunca aciona a IA ou dispara WhatsApp.
-// Contatos do aplicativo ficam numa tabela auxiliar, sem criar leads no CRM.
-async function syncAppContacts(env,route,value){
-  if(!syncActive(env))return;
-  for(const item of value.state_sync||[]){
-    if(item.type!=='contact'||item.action==='delete')continue;
-    const phone=digits(item.contact?.phone_number);
-    if(!phone)continue;
-    await dbRequest(env,'kiara_imported_contacts','POST',
-      '?on_conflict=organization_id,source,phone_number_id,contact_phone',{
-        organization_id:String(env.SUPABASE_ORGANIZATION_ID),
-        source:route.source,phone_number_id:String(route.phoneId),
-        contact_phone:phone,contact_name:item.contact?.full_name||null
-      });
-  }
-}
-async function syncPastHistory(env,route,value){
-  if(!syncActive(env))return;
-  for(const batch of value.history||[]){
-    if(batch.errors?.length){console.warn('Historical sharing unavailable');continue}
-    for(const thread of batch.threads||[]){
-      const phone=digits(thread.id);
-      if(!phone)continue;
-      const messages=(thread.messages||[]).filter(m=>m.id).sort((a,b)=>Number(a.timestamp||0)-Number(b.timestamp||0));
-      if(!messages.length)continue;
-      const org=String(env.SUPABASE_ORGANIZATION_ID);
-      const stamp=toIso(messages[0].timestamp);
-      await dbRequest(env,'kiara_conversations','POST',
-        '?on_conflict=organization_id,source,phone_number_id,contact_wa_id',{
-          organization_id:org,source:route.source,phone_number_id:String(route.phoneId),
-          contact_wa_id:phone,contact_phone:phone,first_message_at:stamp,
-          last_interaction_at:toIso(messages[messages.length-1].timestamp)
-        });
-      const found=await dbRequest(env,'kiara_conversations','GET',
-        '?select=id'+queryEq('organization_id',org)+queryEq('source',route.source)+
-        queryEq('phone_number_id',route.phoneId)+queryEq('contact_wa_id',phone)+'&limit=1');
-      if(!found?.length)throw new Error('Missing imported history conversation');
-      const rows=messages.map(m=>({
-        organization_id:org,conversation_id:found[0].id,
-        whatsapp_message_id:String(m.id),
-        direction:digits(m.from)===phone?'incoming':'outgoing',
-        sender:digits(m.from)===phone?'customer':'human',message_type:m.type||'text',
-        text_body:m.type==='text'?(m.text?.body||null):null,
-        occurred_at:toIso(m.timestamp)
-      }));
-      await dbRequest(env,'kiara_messages','POST',
-        '?on_conflict=organization_id,whatsapp_message_id',rows);
-      await dbRequest(env,'kiara_conversations','PATCH',
-        '?id=eq.'+encodeURIComponent(found[0].id)+queryEq('organization_id',org),
-        {history_imported_at:new Date().toISOString()});
-    }
-  }
-}
+// Importação retroativa deliberadamente desativada: a Kiara só registra novas
+// mensagens recebidas pelo webhook e nunca percorre contatos antigos.
+// A base de testes não é migrada para produção.
 async function syncInbound(env, route, value, message) {
   if (!syncActive(env)) return;
   const customer = digits(message.from);
@@ -986,9 +936,13 @@ async function processAdRouting(env,route,message){
   let state=await loadRouteState(env,route,sender);
   const durable=await durableRouteState(env,route,sender);
   // Estado no KV expira; a apresentação no banco permanece para sempre.
-  if(!state && (durable?.intro_sent_at||durable?.history_imported_at)){
-    // Contato com histórico anterior não deve receber mensagem de boas-vindas.
-    state={status:'selected',choice:durable.route_choice||'personalized'};
+  if(!state && durable?.intro_sent_at){
+    state={status:durable.route_choice?'selected':'awaiting_choice',choice:durable.route_choice||null};
+    await saveRouteState(env,route,sender,state);
+  }
+  if(state?.status==='intro_pending' && durable?.intro_sent_at){
+    state={...state,status:'awaiting_choice'};
+    await saveRouteState(env,route,sender,state);
   }
   const replyType=message.type==='interactive'&&message.interactive?.type==='button_reply';
   const text=replyType?String(message.interactive.button_reply.title||''):message.type==='text'?String(message.text?.body||''):'';
@@ -998,17 +952,8 @@ async function processAdRouting(env,route,message){
     return {handled:true};
   }
   if(!state){
-    const existing=await dbRequest(env,'kiara_conversations','GET',
-      '?select=id'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
-      queryEq('source',route.source)+queryEq('phone_number_id',route.phoneId)+
-      queryEq('contact_wa_id',sender)+'&limit=1');
-    // Uma conversa já em andamento não pode ser tratada como primeiro contato.
-    if(existing?.[0]){
-      const previous=await dbRequest(env,'kiara_messages','GET',
-        '?select=id'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
-        queryEq('conversation_id',existing[0].id)+'&limit=2');
-      if(previous?.length>1)return {handled:false};
-    }
+    // Mesmo um contato pré-existente pode nunca ter conhecido a Kiara.
+    // Só o registro intro_sent_at impede uma nova apresentação.
     await saveRouteState(env,route,sender,{status:'intro_pending',
       source:adReferralValid(message.referral)?'ad':'direct',
       adId:adReferralValid(message.referral)?String(message.referral.source_id):null});
@@ -1049,6 +994,8 @@ async function consumeAdSelection(env,route,job){
 }
 
 async function receiveMessage(env, route, message, value) {
+  if(!message.id || !digits(message.from))return;
+  if(digits(message.from)!==digits(route.allowed))return;
   await bestEffortSync(() => syncInbound(env, route, value, message), "incoming");
   if(adsRoutingEnabled(env)){
     const result=await processAdRouting(env,route,message);
@@ -1924,21 +1871,6 @@ export default {
         { status: 400 }
       );
     }
-    // Alguns provedores entregam coexistência no envelope event/data,
-    // além do formato nativo entry/changes da Meta.
-    if(route.source==="easy" &&
-      (event.event==="history"||event.event==="smb_app_state_sync")){
-      if(String(event.data?.metadata?.phone_number_id)!==String(route.phoneId))
-        return new Response("EVENT_RECEIVED",{status:200});
-      try{
-        if(event.event==="history")await syncPastHistory(env,route,event.data);
-        else await syncAppContacts(env,route,event.data);
-      }catch(error){
-        console.error("Coexistence sync failed",String(error?.message||""));
-        return new Response("Processing failed",{status:500});
-      }
-      return new Response("EVENT_RECEIVED",{status:200});
-    }
     if (
       event.object !== "whatsapp_business_account"
     ) {
@@ -1957,14 +1889,8 @@ export default {
           ) {
             continue;
           }
-          if(change.field==="history" && route.source==="easy"){
-            await syncPastHistory(env,route,value);
-            continue;
-          }
-          if(change.field==="smb_app_state_sync" && route.source==="easy"){
-            await syncAppContacts(env,route,value);
-            continue;
-          }
+          // Eventos históricos não são importados nem disparados na fila.
+          if(change.field==="history"||change.field==="smb_app_state_sync")continue;
           if (
             change.field === "smb_message_echoes" &&
             route.source === "easy"
