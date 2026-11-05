@@ -139,3 +139,5 @@ jobs:
 # 2ª etapa homologação: observar comandos e retenção somente no KV separado.
 
 # Sincronização segura da revisão EasyCoexistence, mantendo tráfego bloqueado.
+
+# Reexecutar publicação isolada da branch homologacao; sem alterações na produção.
