@@ -869,7 +869,8 @@ async function handleAudioJob(env,route,job) {
    TEST_ALLOWED_WA_ID), mesmo sem configurar a flag. Em modo geral depende
    da habilitação explícita. Nenhum contato não autorizado recebe mensagens. */
 const adsRoutingEnabled = env => env.KIARA_ADS_ROUTING_ENABLED === 'true';
-const greeting = "Olá! 👋 Seja bem-vindo(a) à *Fábrika Kriativa!*\n\nSou a *Kiara*, assistente de atendimento da Fábrika Kriativa. 😊\n\nPara oferecer o atendimento mais adequado ao que você procura, temos duas opções:\n\n*1️⃣ ORÇAMENTO RÁPIDO*\nJá sabe o que deseja? Podemos preparar uma estimativa inicial de valores com algumas informações do seu ambiente.\n\n*2️⃣ ATENDIMENTO PERSONALIZADO*\nEstá buscando ideias ou precisa de orientação? Nossa equipe ajuda você a escolher modelos, tecidos e acabamentos para criar a composição ideal para seu espaço.\n\n*Como prefere começar? Selecione uma das opções abaixo.*";
+const greeting = "Olá! 👋 Seja bem-vindo(a) à *Fábrika Kriativa!*\\n\\nSou a *Kiara*, assistente virtual da Fábrika Kriativa. 😊\\n\\nPosso ajudar com nossos produtos, orçamentos, informações e solicitações de atendimento.\\n\\n*Como posso ajudar você hoje?*";
+const welcomePrefix = "Olá! 👋 Sou a *Kiara*, assistente virtual da *Fábrika Kriativa*. 😊";
 const routeStateKey=(route,sender)=>route.source+':ad-route:'+digits(sender);
 async function durableRouteState(env,route,sender){
   const found=await dbRequest(env,'kiara_conversations','GET',
@@ -891,39 +892,16 @@ const adReferralValid=ref=>ref&&ref.source_type==='ad'&&/^[0-9]{5,40}$/.test(Str
 // pelo mecanismo <<ENCAMINHAR_HUMANO>> quando o assunto realmente exigir.
 const humanRequested=text=>/(?:falar|conversar|atender|atendimento|preciso|quero|prefiro|chamar|transferir).{0,48}(?:pessoa|humano|humana|atendente|consultor|consultora|equipe|algu[eé]m da loja)/i.test(String(text||''));
 export const mustEscalate=text=>humanRequested(text);
-function choiceFrom(message){
-  if(message.type==='interactive' && message.interactive?.type==='button_reply'){
-    const id=message.interactive.button_reply?.id;
-    if(id==='kiara_choice_quick')return 'quick';
-    if(id==='kiara_choice_personalized')return 'personalized';
-  }
-  if(message.type==='text'){
-    const t=String(message.text?.body||'').trim().toLowerCase();
-    if(/^(?:1|or[cç]amento r[aá]pido)$/.test(t))return 'quick';
-    if(/^(?:2|atendimento personalizado|personalizado)$/.test(t))return 'personalized';
-  }
-  return null;
-}
-const choiceLabel=choice=>choice==='quick'?'Orçamento rápido':'Atendimento personalizado';
-const firstQuestion=choice=>choice==='quick'
-  ?"Perfeito! 😊\n\nPara prepararmos uma estimativa inicial de valores, envie as informações que tiver:\n\n📏 *Medidas:* largura e altura aproximadas do espaço.\n\n📷 *Fotos:* se possível, uma foto do ambiente.\n\n🪟 *Composição:* deseja uma única camada de tecido ou uma composição com frente e forro? (Para cortinas.)\n\n🎨 *Tecido:* já tem alguma preferência? Pode enviar uma foto de referência também.\n\nNão se preocupe se ainda não tiver todas as informações. Podemos começar com o que você já sabe!\n\n*Com esses dados, nossa equipe poderá preparar seu orçamento inicial.*"
-  :'Claro! 😊 Você já sabe se prefere cortina ou persiana, ou quer ajuda para escolher?';
-const flowPrompt=choice=>choice==='quick'
- ? 'ROTEIRO ATIVO: ORÇAMENTO RÁPIDO. O cliente escolheu saber valores. Sem questionário e sem inventar preço, obtenha progressivamente produto (cortina/persiana), ambiente, largura e altura aproximadas, fotos opcionais e composição relevante (frente e forro, privacidade ou blackout, modelo, acionamento). Faça UMA pergunta útil por mensagem e aproveite o que o cliente já informou. Quando houver dados suficientes, resuma por ambiente e diga que a equipe preparará o valor para validação humana; nunca declare que gerou ou enviou orçamento. Se pedir pessoa, surgir serviço diferente ou dúvida técnica importante, responda exatamente <<ENCAMINHAR_HUMANO>>.'
- : 'ROTEIRO ATIVO: ATENDIMENTO PERSONALIZADO. O cliente quer orientação na escolha, não só o preço. Converse de forma acolhedora, compreenda ambiente, objetivo de luz/privacidade, estética, preferências e necessidade antes de pedir medidas; uma pergunta por vez. Sugira possibilidades gerais somente quando comprovadas na base aprovada. Depois, organize uma proposta de composição de cortina ou persiana para avaliação da equipe e orçamento sujeito a aprovação. Não prometa preço, visita ou data. Se pedir pessoa, surgir serviço diferente ou dúvida técnica importante, responda exatamente <<ENCAMINHAR_HUMANO>>.';
-async function sendChoiceButtons(route,to){
-  const response=await fetch('https://graph.facebook.com/'+GRAPH_VERSION+'/'+route.phoneId+'/messages',{
-    method:'POST',
-    headers:{Authorization:'Bearer '+route.token,'Content-Type':'application/json'},
-    body:JSON.stringify({messaging_product:'whatsapp',recipient_type:'individual',to,
-      type:'interactive',interactive:{type:'button',body:{text:greeting},action:{buttons:[
-       {type:'reply',reply:{id:'kiara_choice_quick',title:'Orçamento rápido'}},
-       {type:'reply',reply:{id:'kiara_choice_personalized',title:'Personalizado'}}
-      ]}}})
-  });
-  if(!response.ok)throw new Error('WhatsApp interactive greeting unavailable');
-  return (await response.json()).messages?.[0]?.id||null;
-}
+// A intenção é interpretada a cada mensagem, sem menu obrigatório.
+const legacyButtonIntent = message => {
+  if(message?.type!=='interactive'||message.interactive?.type!=='button_reply')return '';
+  const id=message.interactive.button_reply?.id;
+  if(id==='kiara_choice_quick')return 'Quero um orçamento rápido.';
+  if(id==='kiara_choice_personalized')return 'Quero orientação personalizada.';
+  return String(message.interactive.button_reply?.title||'').trim();
+};
+const universalServicePrompt =
+  'ATENDIMENTO ÚNICO E CONTEXTUAL. Não ofereça menus nem obrigue o cliente a escolher orçamento rápido ou personalizado. Interprete a mensagem atual e o histórico: (a) preço/orçamento: colete gradualmente somente os dados que faltam para o produto e use exclusivamente a calculadora e o fluxo de aprovação existentes; (b) orientação: entenda ambiente, finalidade, luz, privacidade e preferências antes de propor modelos; (c) reformas, papel de parede, cabeceiras e outros serviços da Fábrika: responda apenas com as regras aprovadas e encaminhe ao humano quando o serviço exigir avaliação; (d) prazos, pedidos, assistência ou suporte: consulte somente dados disponíveis, nunca invente status e encaminhe para a equipe quando não houver acesso seguro. A origem em campanha é uma pista de contexto, nunca limita o assunto. O cliente pode mudar de assunto a qualquer momento. Não reinicie a apresentação, não repita dados já informados e faça apenas UMA pergunta necessária por mensagem.';
 async function loadRouteState(env,route,sender){
   return env.CONVERSAS.get(routeStateKey(route,sender),'json');
 }
@@ -949,87 +927,39 @@ async function processAdRouting(env,route,message){
   if(!message.id||!digits(message.from))return {handled:true};
   const sender=digits(message.from);
   if(sender!==digits(route.allowed))return {handled:true};
-  let state=await loadRouteState(env,route,sender);
-  const durable=await durableRouteState(env,route,sender);
-  // Estado no KV expira; a apresentação no banco permanece para sempre.
-  if(!state && durable?.intro_sent_at){
-    state={status:durable.route_choice?'selected':'awaiting_choice',choice:durable.route_choice||null};
-    await saveRouteState(env,route,sender,state);
-  }
-  if(state?.status==='intro_pending' && durable?.intro_sent_at){
-    state={...state,status:'awaiting_choice'};
-    await saveRouteState(env,route,sender,state);
-  }
-  const preview=message.type==='text' && /^\/?testar apresenta[cç][aã]o$/i.test(String(message.text?.body||'').trim());
+  const state=await loadRouteState(env,route,sender);
+  const preview=message.type==='text' && /^\\/?testar apresenta[cç][aã]o$/i.test(String(message.text?.body||'').trim());
   if(preview && env.KIARA_SYNC_ALL_CONTACTS!=='true'){
-    // Comando explícito de homologação: permite visualizar novamente os botões
-    // sem apagar o registro histórico permanente do primeiro envio.
     await saveRouteState(env,route,sender,{status:'intro_pending',source:'test_preview'});
     await env.KIARA_QUEUE.send({kind:'routing_preview',source:route.source,sender,messageId:message.id},{delaySeconds:0});
     return {handled:true};
   }
-  const replyType=message.type==='interactive'&&message.interactive?.type==='button_reply';
-  const text=replyType?String(message.interactive.button_reply.title||''):message.type==='text'?String(message.text?.body||''):'';
+  const content=message.type==='text'?String(message.text?.body||''):legacyButtonIntent(message);
   if(state?.status==='human')return {handled:true};
-  if(mustEscalate(text)){
-    await humanRoute(env,route,sender,message.id,'Atendimento humano solicitado ou assunto fora do escopo');
+  if(mustEscalate(content)){
+    await humanRoute(env,route,sender,message.id,'Atendimento humano solicitado');
     return {handled:true};
   }
-  if(!state){
-    // Mesmo um contato pré-existente pode nunca ter conhecido a Kiara.
-    // Só o registro intro_sent_at impede uma nova apresentação.
-    await saveRouteState(env,route,sender,{status:'intro_pending',
+  // A escolha antiga não mantém a IA presa em um roteiro.
+  if(!state||state.status!=='selected'||state.choice!=='general'){
+    await saveRouteState(env,route,sender,{
+      status:'selected',choice:'general',
       source:adReferralValid(message.referral)?'ad':'direct',
-      adId:adReferralValid(message.referral)?String(message.referral.source_id):null});
-    await env.KIARA_QUEUE.send({kind:'routing_intro',source:route.source,sender,messageId:message.id},{delaySeconds:0});
-    return {handled:true};
+      adId:adReferralValid(message.referral)?String(message.referral.source_id):null
+    });
   }
-  if(state.status==='intro_pending'||state.status==='awaiting_choice'){
-    const choice=choiceFrom(message);
-    if(choice){
-      await saveRouteState(env,route,sender,{...state,status:'selected',choice});
-      await persistRouteState(env,route,sender,{route_choice:choice});
-      await env.KIARA_QUEUE.send({kind:'routing_selected',source:route.source,sender,messageId:message.id,choice},{delaySeconds:0});
-    }
-    return {handled:true};
-  }
-  return {handled:false,choice:state.choice};
-}
-async function consumeAdGreeting(env,route,job){
-  if(!(await isAuthorizedToSend(env,route,job.sender)))return;
-  const state=await loadRouteState(env,route,job.sender);
-  if(state?.status!=='intro_pending')return;
-  if(await env.CONVERSAS.get(keys(route.source,job.sender).paused))return;
-  const durable=await durableRouteState(env,route,job.sender);
-  if(durable?.intro_sent_at)return;
-  const id=await sendChoiceButtons(route,job.sender);
-  await persistRouteState(env,route,job.sender,{intro_sent_at:new Date().toISOString()});
-  await saveRouteState(env,route,job.sender,{...state,status:'awaiting_choice'});
-  await bestEffortSync(()=>syncKiaraReply(env,route,job.sender,id,greeting),'routing greeting');
+  return {handled:false};
 }
 async function consumeAdPreview(env,route,job){
-  // O comando explícito de pré-visualização é um diagnóstico de homologação.
-  // Ele não depende do status operacional da conversa no CRM, que pode ter
-  // ficado como "human" após testes anteriores. A autorização continua
-  // restrita ao único destinatário configurado e ao modo sem contatos gerais.
   if(env.KIARA_SYNC_ALL_CONTACTS==='true'||
      digits(job.sender)!==digits(route.allowed))return;
   if(await env.CONVERSAS.get(keys(route.source,job.sender).paused))return;
   const state=await loadRouteState(env,route,job.sender);
   if(state?.status!=='intro_pending'||state.source!=='test_preview')return;
-  const id=await sendChoiceButtons(route,job.sender);
-  await persistRouteState(env,route,job.sender,{intro_sent_at:new Date().toISOString(),route_choice:null});
-  await saveRouteState(env,route,job.sender,{...state,status:'awaiting_choice'});
+  const id=await sendMessage(route,job.sender,greeting);
+  await persistRouteState(env,route,job.sender,{intro_sent_at:new Date().toISOString(),route_choice:'general'});
+  await saveRouteState(env,route,job.sender,{status:'selected',choice:'general',source:'test_preview'});
   await bestEffortSync(()=>syncKiaraReply(env,route,job.sender,id,greeting),'routing preview');
-}
-async function consumeAdSelection(env,route,job){
-  if(!(await isAuthorizedToSend(env,route,job.sender)))return;
-  const state=await loadRouteState(env,route,job.sender);
-  if(state?.status!=='selected'||state.choice!==job.choice)return;
-  if(await env.CONVERSAS.get(keys(route.source,job.sender).paused))return;
-  const question=firstQuestion(job.choice);
-  const id=await sendMessage(route,job.sender,question);
-  await bestEffortSync(()=>syncKiaraReply(env,route,job.sender,id,question),'routing first question');
 }
 
 async function receiveMessage(env, route, message, value) {
@@ -1040,13 +970,13 @@ async function receiveMessage(env, route, message, value) {
     const result=await processAdRouting(env,route,message);
     if(result.handled)return;
   }
-  if(!message.id || !['text','audio'].includes(message.type))return;
+  if(!message.id || !['text','audio','interactive'].includes(message.type))return;
   const sender=digits(message.from);
   const allowed=digits(route.allowed);
   if(!allowed||sender!==allowed)return;
   if(message.type==='audio'&&audioMode(env)==='off')return;
   const audio=message.type==='audio';
-  const input=audio?'[Áudio recebido]':String(message.text?.body||'').trim();
+  const input=audio?'[Áudio recebido]':message.type==='interactive'?legacyButtonIntent(message):String(message.text?.body||'').trim();
   if(!input)return;
   if(audio&&!/^[0-9]{4,40}$/.test(String(message.audio?.id||''))){
     await handoffAudio(env,route,sender,message.id,'Áudio sem identificador válido');
@@ -1382,9 +1312,8 @@ async function consumeMessage(env, job) {
   if (!route) return;
   const sender = digits(job.sender);
   if (!sender || sender !== digits(route.allowed)) return;
-  if(adsRoutingEnabled(env) && job.kind==='routing_intro')return consumeAdGreeting(env,route,job);
   if(adsRoutingEnabled(env) && job.kind==='routing_preview')return consumeAdPreview(env,route,job);
-  if(adsRoutingEnabled(env) && job.kind==='routing_selected')return consumeAdSelection(env,route,job);
+  if(job.kind==='routing_intro'||job.kind==='routing_selected')return;
   if(job.kind==='audio'){
     if(audioMode(env)==='off')return;
     return handleAudioJob(env,route,job);
@@ -1502,7 +1431,7 @@ async function consumeMessage(env, job) {
   const guidance = await getGuidance(env, route, sender);
   const approvedCommercial = await approvedCommercialConversationRules(env);
   const routing=adsRoutingEnabled(env)?await loadRouteState(env,route,sender):null;
-  if(adsRoutingEnabled(env)&&(!routing||routing.status!=='selected'))return;
+  if(adsRoutingEnabled(env)&&routing?.status==='human')return;
   const mediaHint=references.length?'\n\nO cliente pediu imagens e existem referências aprovadas para este assunto: '+references.map(x=>x.title).join('; ')+'. Explique brevemente o que mostram. Elas serão enviadas após sua mensagem; não afirme já ter enviado.':'\n\nNesta mensagem não há referências visuais selecionadas. Oriente por texto e, se uma comparação visual ajudar, pode oferecer imagens aprovadas para um próximo pedido; não prometa imagens não verificadas.';
   // Dados de estado chegam à IA como fatos, não comandos de questionário.
   const clientContext='DADOS CONFIRMADOS PELO CLIENTE (cadastro): '+
@@ -1514,8 +1443,7 @@ async function consumeMessage(env, job) {
     mediaHint,
     guidance,
     approvedCommercial,
-    routing?.status==='selected' ? flowPrompt(routing.choice) : '',
-    routing?.status==='selected' ? quoteIntakePrompt() : '',
+    universalServicePrompt,
     'TRANSFERÊNCIA HUMANA: Se houver pedido explícito de humano, frustração persistente, necessidade técnica fora das informações aprovadas ou insegurança real, responda exatamente <<ENCAMINHAR_HUMANO>>. Uma dúvida comum, mudança de preferência ou resposta curta não exige transferência.'
   ].filter(Boolean).join('\n\n');
   const quoteInstruction=quoteStep?.kind==='collecting'
@@ -1574,7 +1502,13 @@ async function consumeMessage(env, job) {
   if(quoteTestActive(env)&&containsCommercialPrice(finalAnswer)){
     finalAnswer='Posso preparar a estimativa com essas informações, mas precisamos conferir os valores antes de te passar. 😊';
   }
+  const needsGreeting=adsRoutingEnabled(env) &&
+    !(await durableRouteState(env,route,sender))?.intro_sent_at;
+  if(needsGreeting)finalAnswer=welcomePrefix+'\\n\\n'+finalAnswer;
   const sentId = await sendMessage(route, sender, finalAnswer);
+  if(needsGreeting){
+    await persistRouteState(env,route,sender,{intro_sent_at:new Date().toISOString(),route_choice:'general'});
+  }
   await bestEffortSync(() => syncKiaraReply(env, route, sender, sentId, finalAnswer), 'kiara reply');
   nextHistory.push({role:'assistant',content:finalAnswer});
   await env.CONVERSAS.put(conversation.history,
