@@ -399,6 +399,21 @@ async function getGuidance(env, route, recipient) {
 
 async function isAuthorizedToSend(env, route, recipient) {
   if (!controlActive(env)) return true; // Backward-compatible until explicitly activated.
+  // Homologação do WhatsApp: autorização exclusiva ao contato de testes,
+  // sem habilitar globalmente os atendimentos de produção no Supabase.
+  // A pausa individual e a intervenção humana continuam sendo respeitadas.
+  if (env.KIARA_STAGING_LIVE_ENABLED === 'true' &&
+      env.KIARA_STAGING_PROVIDER === 'easy' &&
+      env.KIARA_SYNC_ALL_CONTACTS === 'false' &&
+      route.source === 'easy' &&
+      digits(recipient) === digits(route.allowed) &&
+      digits(recipient) === digits(env.TEST_ALLOWED_WA_ID)) {
+    const rows = await dbRequest(env, 'kiara_conversations', 'GET',
+      '?select=status,reply_held' + queryEq('organization_id', env.SUPABASE_ORGANIZATION_ID) +
+      queryEq('source', route.source) + queryEq('phone_number_id', route.phoneId) +
+      queryEq('contact_wa_id', digits(recipient)) + '&limit=1');
+    return rows?.[0]?.status === 'ai' && rows[0].reply_held !== true;
+  }
   // On any database error, throw: queue retries, but no WhatsApp message is sent.
   const org = env.SUPABASE_ORGANIZATION_ID;
   const global = await dbRequest(env, 'kiara_operational_control', 'GET',
