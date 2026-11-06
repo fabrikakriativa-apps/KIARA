@@ -865,9 +865,8 @@ async function handleAudioJob(env,route,job) {
 }
 
 
-/* Triagem com botões: ativa no modo isolado de homologação (apenas telefone
-   TEST_ALLOWED_WA_ID), mesmo sem configurar a flag. Em modo geral depende
-   da habilitação explícita. Nenhum contato não autorizado recebe mensagens. */
+/* Atendimento de entrada única: a homologação atende apenas ao TEST_ALLOWED_WA_ID.
+   A triagem interna é contextual, sem botões ou roteiros obrigatórios. */
 const adsRoutingEnabled = env => env.KIARA_ADS_ROUTING_ENABLED === 'true';
 const greeting = "Olá! 👋 Seja bem-vindo(a) à *Fábrika Kriativa!*\n\nSou a *Kiara*, assistente virtual da Fábrika Kriativa. 😊\n\nPosso ajudar com nossos produtos, orçamentos, informações e solicitações de atendimento.\n\n*Como posso ajudar você hoje?*";
 const welcomePrefix = "Olá! 👋 Sou a *Kiara*, assistente virtual da *Fábrika Kriativa*. 😊";
@@ -1216,7 +1215,15 @@ async function quoteFlowStep(env,route,sender,targetId,history,profile,text){
  if(!quoteTestActive(env))return null;
  const key=quoteStateKey(route,sender);
  let state=await env.CONVERSAS.get(key,'json');
- if(!state&&!expressesQuoteIntent(text))return null;
+ // Uma solicitação explícita de outro atendimento interrompe o orçamento
+ // pendente, mas não apaga cadastro, mensagens ou propostas já salvas.
+ const serviceChange=/(?:acompanhar|andamento|status|prazo|entrega|pedido|garantia|assist[eê]ncia|conserto|reparo|reforma(?:r)?|estofad[oa]|sof[aá]|papel de parede|cabeceira)/i.test(String(text||''));
+ const freshQuote=expressesQuoteIntent(text);
+ if(state && serviceChange && !freshQuote){
+   await env.CONVERSAS.delete(key);
+   state=null;
+ }
+ if(!state&&!freshQuote)return null;
  if(state?.status==='awaiting_review'){
   return {kind:'review',text:'Organizamos as informações para uma estimativa e ela está aguardando nossa conferência. Assim que estiver validada, seguimos com os valores. 😊'};
  }
