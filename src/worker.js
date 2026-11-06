@@ -993,7 +993,12 @@ async function consumeAdGreeting(env,route,job){
   await bestEffortSync(()=>syncKiaraReply(env,route,job.sender,id,greeting),'routing greeting');
 }
 async function consumeAdPreview(env,route,job){
-  if(env.KIARA_SYNC_ALL_CONTACTS==='true'||!(await isAuthorizedToSend(env,route,job.sender)))return;
+  // O comando explícito de pré-visualização é um diagnóstico de homologação.
+  // Ele não depende do status operacional da conversa no CRM, que pode ter
+  // ficado como "human" após testes anteriores. A autorização continua
+  // restrita ao único destinatário configurado e ao modo sem contatos gerais.
+  if(env.KIARA_SYNC_ALL_CONTACTS==='true'||
+     digits(job.sender)!==digits(route.allowed))return;
   if(await env.CONVERSAS.get(keys(route.source,job.sender).paused))return;
   const state=await loadRouteState(env,route,job.sender);
   if(state?.status!=='intro_pending'||state.source!=='test_preview')return;

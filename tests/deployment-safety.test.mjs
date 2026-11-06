@@ -29,6 +29,15 @@ test('webhook still isolates test recipient and human takeover',()=>{
  assert.match(code,/KIARA_QUEUE/);
 });
 
+test('explicit presentation preview is isolated and independent from stale CRM control state',()=>{
+ const preview=code.match(/async function consumeAdPreview[\s\S]*?\n}/)?.[0]||'';
+ assert.match(preview,/KIARA_SYNC_ALL_CONTACTS==='true'/);
+ assert.match(preview,/digits\(job\.sender\)!==digits\(route\.allowed\)/);
+ assert.doesNotMatch(preview,/isAuthorizedToSend/);
+ assert.match(preview,/status!=='intro_pending'/);
+ assert.match(preview,/source!=='test_preview'/);
+});
+
 test('hold and coaching are opt-in only',()=>{
  assert.match(code,/env\.KIARA_HOLD_ENABLED !== 'true'/);
  assert.match(code,/env\.KIARA_GUIDANCE_ENABLED !== 'true'/);
