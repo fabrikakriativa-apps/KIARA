@@ -869,7 +869,7 @@ async function handleAudioJob(env,route,job) {
    TEST_ALLOWED_WA_ID), mesmo sem configurar a flag. Em modo geral depende
    da habilitação explícita. Nenhum contato não autorizado recebe mensagens. */
 const adsRoutingEnabled = env => env.KIARA_ADS_ROUTING_ENABLED === 'true';
-const greeting = "Olá! 👋 Seja bem-vindo(a) à *Fábrika Kriativa!*\\n\\nSou a *Kiara*, assistente virtual da Fábrika Kriativa. 😊\\n\\nPosso ajudar com nossos produtos, orçamentos, informações e solicitações de atendimento.\\n\\n*Como posso ajudar você hoje?*";
+const greeting = "Olá! 👋 Seja bem-vindo(a) à *Fábrika Kriativa!*\n\nSou a *Kiara*, assistente virtual da Fábrika Kriativa. 😊\n\nPosso ajudar com nossos produtos, orçamentos, informações e solicitações de atendimento.\n\n*Como posso ajudar você hoje?*";
 const welcomePrefix = "Olá! 👋 Sou a *Kiara*, assistente virtual da *Fábrika Kriativa*. 😊";
 const routeStateKey=(route,sender)=>route.source+':ad-route:'+digits(sender);
 async function durableRouteState(env,route,sender){
@@ -928,7 +928,7 @@ async function processAdRouting(env,route,message){
   const sender=digits(message.from);
   if(sender!==digits(route.allowed))return {handled:true};
   const state=await loadRouteState(env,route,sender);
-  const preview=message.type==='text' && /^\\/?testar apresenta[cç][aã]o$/i.test(String(message.text?.body||'').trim());
+  const preview=message.type==='text' && /^\/?testar apresenta[cç][aã]o$/i.test(String(message.text?.body||'').trim());
   if(preview && env.KIARA_SYNC_ALL_CONTACTS!=='true'){
     await saveRouteState(env,route,sender,{status:'intro_pending',source:'test_preview'});
     await env.KIARA_QUEUE.send({kind:'routing_preview',source:route.source,sender,messageId:message.id},{delaySeconds:0});
@@ -1504,7 +1504,7 @@ async function consumeMessage(env, job) {
   }
   const needsGreeting=adsRoutingEnabled(env) &&
     !(await durableRouteState(env,route,sender))?.intro_sent_at;
-  if(needsGreeting)finalAnswer=welcomePrefix+'\\n\\n'+finalAnswer;
+  if(needsGreeting)finalAnswer=welcomePrefix+'\n\n'+finalAnswer;
   const sentId = await sendMessage(route, sender, finalAnswer);
   if(needsGreeting){
     await persistRouteState(env,route,sender,{intro_sent_at:new Date().toISOString(),route_choice:'general'});
