@@ -1,6 +1,7 @@
 import {useEffect,useState} from 'react'
 import {supabase} from '../lib/supabase'
 import {useAccess} from '../components/AuthorizedAccess'
+import {KiaraBlindCommercialPreview} from './KiaraBlindCommercialPreview'
 
 type BlindModel={id:string;name:string;costPerM2:number|null;minCost:number|null;active:boolean}
 type Technical={
@@ -119,6 +120,10 @@ export function KiaraBlindSettings(){
  const installation=ready?count*(motorized?data.installation.motorPerPiece??0:data.installation.manualPerPiece??0):0
  const motor=ready&&motorized?count*(data.motorization.saleSurchargePerPiece??0):0
  const price=ready?Math.round(((fabric+installation)*(1+(data.pricing.markupPercent??0)/100)+motor)*100)/100:null
+ // A precificação comercial atual é por categorias de custo médio por m².
+ // Preservar o painel legado apenas para registros efetivamente legados.
+ if(!loading&&(data as BlindSettings & {methodology?:string}).methodology==='blind_average_m2_v1')
+  return <KiaraBlindCommercialPreview/>
  return <section className="kiara-blinds-panel">
   <h3>Persianas — configurações comerciais e triagem</h3>
   <p>Primeiro identificar o ambiente. Regras de fachada do condomínio devem ser verificadas prioritariamente para sacadas e varandas, não para cortinas ou persianas internas. A estimativa é apenas interna e depende dos parâmetros comerciais preenchidos.</p>
