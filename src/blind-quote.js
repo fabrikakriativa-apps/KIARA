@@ -71,18 +71,25 @@ export function calculateBlindQuote(items,settings,revision){
  for(const item of items){
   const model=settings.categories?.find(x=>x.active!==false&&x.name===item.model);
   if(!model||!(model.adjustedCostPerM2>0)){errors.push(item.environment+': custo médio não disponível');continue}
+  if(item.drive!=='manual'||!Number.isInteger(item.quantity)||item.quantity<1||
+     !['total','per_piece'].includes(item.dimensionScope)){
+   errors.push(item.environment+': acionamento manual, quantidade e escopo das medidas são obrigatórios');
+   continue;
+  }
   const area=item.width*item.height*(item.dimensionScope==='per_piece'?item.quantity:1);
   const adjusted=area*model.adjustedCostPerM2;
-  const sale=round(adjusted*(1+settings.markupPercent/100));
+  const installationCost=item.quantity*settings.installationPerPiece;
+  // Segue a metodologia das cortinas: instalação entra na base antes do markup.
+  const sale=round((adjusted+installationCost)*(1+settings.markupPercent/100));
   details.push({environment:item.environment,model:item.model,area:round(area),cost:round(adjusted),
-    unitAdjustedCost:model.adjustedCostPerM2,internalInstallationCost:round(item.quantity*settings.installationPerPiece),
+    unitAdjustedCost:model.adjustedCostPerM2,internalInstallationCost:round(installationCost),
     internalSuggestedSale:sale,quantity:item.quantity,dimensionScope:item.dimensionScope});
  }
  return {ready:errors.length===0&&details.length===items.length,errors,items:details,
   total:round(details.reduce((a,x)=>a+x.internalSuggestedSale,0)),
   internalInstallationCost:round(details.reduce((a,x)=>a+x.internalInstallationCost,0)),
   customerPriceAllowed:false,reviewRequired:true,
-  warning:'A instalação é custo interno apresentado em separado na planilha; não somar duas vezes ao preço sugerido.'};
+  warning:'A instalação manual por unidade já integra a base do preço sugerido, antes do acréscimo comercial; não somar novamente.'};
 }
 export function buildInternalBlindBudget({items,preview,sourceMessageId,revision,configStatus}){
  return {
