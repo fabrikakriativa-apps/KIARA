@@ -19,6 +19,9 @@ KIARA_SYNC_ENABLED = "true"
 KIARA_CONTROL_ENABLED = "true"
 KIARA_HOLD_ENABLED = "true"
 KIARA_HUMAN_SEND_ENABLED = "false"
+# Áudios apenas do número de teste: transcrever, avaliar confiabilidade e responder somente a pedidos claros.
+# Transcrições incertas e casos técnicos são encaminhados ao atendimento humano.
+KIARA_AUDIO_MODE = "reply"
 # Pré-orçamentos restritos à conversa e à revisão humana, sem envio automático.
 KIARA_BUDGET_WORKFLOW_ENABLED = "true"
 # Simulador autenticado apenas para equipe autorizada no painel de testes.
