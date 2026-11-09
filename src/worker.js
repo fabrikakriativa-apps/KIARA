@@ -1408,7 +1408,8 @@ async function quoteFlowStep(env,route,sender,targetId,history,profile,text){
  // Uma solicitação explícita de outro atendimento interrompe o orçamento
  // pendente, mas não apaga cadastro, mensagens ou propostas já salvas.
  const serviceChange=/(?:acompanhar|andamento|status|prazo|entrega|pedido|garantia|assist[eê]ncia|conserto|reparo|reforma(?:r)?|estofad[oa]|sof[aá]|papel de parede|cabeceira)/i.test(String(text||''));
- const freshQuote=expressesQuoteIntent(text);
+ const freshQuote=expressesQuoteIntent(text) ||
+   (initialMode(env) && (await env.CONVERSAS.get(quickIntentKey(route,sender)))==='quick');
  if(state && serviceChange && !freshQuote){
    await env.CONVERSAS.delete(key);
    state=null;
