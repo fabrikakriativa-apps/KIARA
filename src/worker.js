@@ -1046,7 +1046,7 @@ async function initialModeRouting(env,route,sender,text,history,profile){
  if(otherService&&!/\bpersianas?\b/i.test(t))return 'Serviço fora do orçamento rápido de persianas';
  if(current==='quick'||quoteState?.status==='collecting'||quoteState?.status==='summary'||quoteState?.status==='awaiting_review')
   return null;
- if(asksQuote&&product==='persiana'){
+ if((asksQuote&&product==='persiana') || /or[cç]amento r[aá]pido/i.test(t)){
   await env.CONVERSAS.put(quickIntentKey(route,sender),'quick',{expirationTtl:MEMORY_TTL});
   return null;
  }
@@ -1650,6 +1650,7 @@ async function consumeMessage(env, job) {
     guidance,
     approvedCommercial,
     universalServicePrompt,
+    initialMode(env)?'MODO INICIAL DE HOMOLOGAÇÃO: somente triagem e coleta objetiva de orçamento rápido de persianas. Outras consultas exigem equipe humana via controle operacional; não anuncie valores, não afirme que o orçamento está pronto, e não prometa horário de resposta humano. Quando faltar informação, faça apenas a pergunta necessária. Ao apresentar opções, cite modelos existentes e nunca invente um modelo de persiana.':'',
     NATURAL_REPLY_GUIDANCE,
     'TRANSFERÊNCIA HUMANA: Use <<ENCAMINHAR_HUMANO>> somente quando o cliente pedir atendimento humano explicitamente, manifestar frustração persistente, houver risco real ou decisão técnica insegura fora das informações aprovadas. NÃO transfira por cliente morar em prédio, explicar regras do condomínio, prometer enviar foto, não conhecer modelos/medidas, responder em partes ou desejar mudar as persianas. Nesses casos continue normalmente, agradeça a informação e faça no máximo uma pergunta pertinente à conversa.'
   ].filter(Boolean).join('\n\n');
