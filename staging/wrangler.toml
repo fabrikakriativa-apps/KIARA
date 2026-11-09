@@ -18,6 +18,8 @@ KIARA_CUSTOMER_QUALIFICATION_ENABLED = "true"
 KIARA_SYNC_ENABLED = "true"
 KIARA_CONTROL_ENABLED = "true"
 KIARA_HOLD_ENABLED = "true"
+# Aplicar orientações registradas nesta conversa e somente regras globais aprovadas.
+KIARA_GUIDANCE_ENABLED = "true"
 KIARA_HUMAN_SEND_ENABLED = "false"
 # Áudios apenas do número de teste: transcrever, avaliar confiabilidade e responder somente a pedidos claros.
 # Transcrições incertas e casos técnicos são encaminhados ao atendimento humano.
