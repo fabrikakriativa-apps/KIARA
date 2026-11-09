@@ -1335,7 +1335,7 @@ function nextBlindBudgetQuestion(errors=[],history=[]){
  const reasons=(errors||[]).join(' ').toLowerCase();
  const customer=history.filter(m=>m.role==='user').map(m=>String(m.content||'')).join(' ');
  // Nunca inferir quantidade pela quantidade de vidros vistos em foto.
- const hasQuantity=/(?:\b\d+|uma|duas|dois|três|tres|quatro|cinco|seis)\s*(?:peças?|persianas?|rolôs?|rolos?)(?:\b|$)/i.test(customer);
+ const hasQuantity=/(?:\b\d+|duas|dois|três|tres|quatro|cinco|seis)\s*(?:peças?|persianas?|rolôs?|rolos?)(?:\b|$)|\buma\s+peça\b/i.test(customer);
  if(!hasQuantity && /quantidade|um a quatro itens|modelo não confirmado|dados de persiana incompletos/.test(reasons))
    return 'Quantas persianas você pretende colocar nesse espaço?';
  if(/modelo não confirmado|referência de orçamento|percentual|falta evidência na fala/.test(reasons))
