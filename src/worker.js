@@ -1008,14 +1008,64 @@ async function loadRouteState(env,route,sender){
 async function saveRouteState(env,route,sender,state){
   await env.CONVERSAS.put(routeStateKey(route,sender),JSON.stringify(state),{expirationTtl:MEMORY_TTL});
 }
+
+const initialMode=env=>env.KIARA_INITIAL_ATTENDANT_MODE==='true'&&
+  env.KIARA_STAGING_LIVE_ENABLED==='true'&&env.KIARA_STAGING_PROVIDER==='easy'&&
+  env.KIARA_SYNC_ALL_CONTACTS==='false';
+const metroCities=new Set(('São Paulo|Arujá|Barueri|Biritiba-Mirim|Caieiras|Cajamar|Carapicuíba|Cotia|Diadema|Embu das Artes|Embu|Embu-Guaçu|Ferraz de Vasconcelos|Francisco Morato|Franco da Rocha|Guararema|Guarulhos|Itapecerica da Serra|Itapevi|Itaquaquecetuba|Jandira|Juquitiba|Mairiporã|Mauá|Mogi das Cruzes|Osasco|Pirapora do Bom Jesus|Poá|Ribeirão Pires|Rio Grande da Serra|Salesópolis|Santa Isabel|Santana de Parnaíba|Santo André|São Bernardo do Campo|São Caetano do Sul|São Lourenço da Serra|Suzano|Taboão da Serra|Vargem Grande Paulista').split('|').map(s=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()));
+function regionStatus(city){
+ const c=String(city||'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s*[-,].*$/,'');
+ return !c?'missing':metroCities.has(c)?'covered':'needs_review';
+}
+function isBusinessHours(now=new Date()){
+ const parts=new Intl.DateTimeFormat('en-US',{timeZone:'America/Sao_Paulo',weekday:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(now);
+ const get=x=>parts.find(p=>p.type===x)?.value;
+ const day=get('weekday'),minutes=Number(get('hour'))*60+Number(get('minute'));
+ return day==='Sat'?minutes>=600&&minutes<900:
+   !['Sun','Sat'].includes(day)&&minutes>=570&&minutes<1080;
+}
+function humanTransferNotice(now=new Date()){
+ return isBusinessHours(now)
+  ?'Vou encaminhar sua conversa à nossa equipe para um atendimento mais personalizado. 😊'
+  :'Vou encaminhar sua conversa à nossa equipe. Nosso atendimento é de segunda a sexta, das 9h30 às 18h, e sábado, das 10h às 15h. Retornaremos no próximo período de atendimento. 😊';
+}
+const quickIntentKey=(route,sender)=>route.source+':quick-intent:'+digits(sender);
+async function initialModeRouting(env,route,sender,text,history,profile){
+ if(!initialMode(env))return null;
+ if(regionStatus(profile.city)==='needs_review')
+  return 'Localização fora da região confirmada; validar viabilidade com a equipe';
+ const current=await env.CONVERSAS.get(quickIntentKey(route,sender));
+ const quoteState=await env.CONVERSAS.get(quoteStateKey(route,sender),'json');
+ const t=String(text||'').trim();
+ const question= /\?/.test(t)||
+   /^(?:qual|quais|como|porque|por que|será que|sera que|voc[eê]s podem me explicar|me indica|o que sugere)\b/i.test(t);
+ const asksQuote=expressesQuoteIntent(t);
+ if(question&&!asksQuote)return 'Cliente solicitou orientação personalizada';
+ const product=requestedBudgetProduct(t,history);
+ const otherService=/\b(?:sof[aá]|estofad|cabeceira|papel de parede|reforma|lavagem|conserto|manuten[cç][aã]o|cortina)\b/i.test(t);
+ if(otherService&&!/\bpersianas?\b/i.test(t))return 'Serviço fora do orçamento rápido de persianas';
+ if(current==='quick'||quoteState?.status==='collecting'||quoteState?.status==='summary'||quoteState?.status==='awaiting_review')
+  return null;
+ if(asksQuote&&product==='persiana'){
+  await env.CONVERSAS.put(quickIntentKey(route,sender),'quick',{expirationTtl:MEMORY_TTL});
+  return null;
+ }
+ if(/(?:quero|preciso|gostaria|or[cç]amento|valor|pre[cç]o).{0,45}persianas?|persianas?.{0,45}(?:or[cç]amento|valor|pre[cç]o)/i.test(t)){
+  await env.CONVERSAS.put(quickIntentKey(route,sender),'quick',{expirationTtl:MEMORY_TTL});
+  return null;
+ }
+ if(/^(?:oi|ol[aá]|bom dia|boa tarde|boa noite|tudo bem)[!.,\s]*$/i.test(t))return null;
+ return 'Atendimento consultivo: triagem humana';
+}
+
 async function humanRoute(env,route,sender,id,reason){
   await handoffAudio(env,route,sender,id,reason);
   await saveRouteState(env,route,sender,{status:'human',source:'human',reason});
   // Confirmação única, apenas depois do bloqueio da IA. Não afirma que alguém já assumiu.
-  if(env.KIARA_HANDOFF_NOTICE_ENABLED==='true'){
+  if(env.KIARA_HANDOFF_NOTICE_ENABLED==='true'||initialMode(env)){
    const noticeKey=route.source+':handoff-notice:'+digits(sender)+':'+String(id);
    if(!await env.CONVERSAS.get(noticeKey)){
-    const notice='Vou encaminhar seu atendimento à nossa equipe.';
+    const notice=initialMode(env)?humanTransferNotice():'Vou encaminhar seu atendimento à nossa equipe.';
     const sent=await sendMessage(route,sender,notice);
     await env.CONVERSAS.put(noticeKey,'1',{expirationTtl:MEMORY_TTL});
     await bestEffortSync(()=>syncKiaraReply(env,route,sender,sent,notice),'handoff notice');
@@ -1569,6 +1619,11 @@ async function consumeMessage(env, job) {
   }
   // Guardar o cadastro confirmado sem transformar o atendimento em formulário.
   await saveQualification(env,route,sender,profile);
+  const initialTransfer=await initialModeRouting(env,route,sender,String(inputText||''),nextHistory,profile);
+  if(initialTransfer){
+    await humanRoute(env,route,sender,targetId,initialTransfer);
+    return;
+  }
 
   let references=[];
   try { const latestAssistant=nextHistory.slice(0,-1).filter(x=>x.role==='assistant').slice(-1).map(x=>x.content).join(' '); references=await approvedFinishImages(env,String(inputText||''),latestAssistant); }
