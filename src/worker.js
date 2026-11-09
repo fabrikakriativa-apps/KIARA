@@ -945,7 +945,20 @@ async function processAdRouting(env,route,message){
   if(!message.id||!digits(message.from))return {handled:true};
   const sender=digits(message.from);
   if(sender!==digits(route.allowed))return {handled:true};
-  const state=await loadRouteState(env,route,sender);
+  let state=await loadRouteState(env,route,sender);
+  // A retomada pela equipe pode atualizar o Supabase antes do antigo estado KV.
+  // Nesse caso, respeite o status atual do contato de teste, nunca libere se
+  // ainda houver atendimento humano ou retenção.
+  if(state?.status==='human' && syncActive(env)){
+    const current=await dbRequest(env,'kiara_conversations','GET',
+      '?select=status,reply_held'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
+      queryEq('source',route.source)+queryEq('phone_number_id',route.phoneId)+
+      queryEq('contact_wa_id',sender)+'&limit=1');
+    if(current?.[0]?.status==='ai' && current[0].reply_held===false){
+      state={status:'selected',choice:'general',source:'direct'};
+      await saveRouteState(env,route,sender,state);
+    }
+  }
   const preview=message.type==='text' && /^\/?testar apresenta[cç][aã]o$/i.test(String(message.text?.body||'').trim());
   if(preview && env.KIARA_SYNC_ALL_CONTACTS!=='true'){
     await saveRouteState(env,route,sender,{status:'intro_pending',source:'test_preview'});
