@@ -52,3 +52,5 @@ Atualizar homologação: base de conhecimento editorial versionada (v2.0 em rasc
 Painel Kiara homologação: mensagens humanas com identificação obrigatória do perfil via Worker, motivo de transferência e cadastro de versões Markdown da base de conhecimento, incluindo v2.0 em rascunho. Desativar envio humano até verificação do endpoint no número de teste.
 
 2026-11-03: publicar painel com VITE_KIARA_CONTROL_URL, VITE_KIARA_COACH_URL, VITE_KIARA_HUMAN_MESSAGE_URL e VITE_KIARA_PRICE_SIMULATION_URL configurados para Worker isolado; testar OPTIONS em todas as rotas. NÃO liberar envios automáticos ou WhatsApp de produção.
+
+2026-11-08: publicar correção do painel de persianas que utiliza metodologia blind_average_m2_v1, categorias comerciais e instalação manual R$80/unidade. Apenas projeto kiara-painel-homologacao. Manter aprovação humana, sem mensagens automáticas e sem modificar Worker ou WhatsApp oficial.
