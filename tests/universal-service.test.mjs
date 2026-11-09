@@ -17,7 +17,7 @@ test('primeira resposta aproveita mensagem recebida e registra apresentacao',()=
   assert.match(code,/needsGreeting=adsRoutingEnabled\(env\)/);
   assert.match(code,/finalAnswer=welcomePrefix/);
   assert.match(code,/persistRouteState\(env,route,sender,\{intro_sent_at:new Date\(\)\.toISOString\(\),route_choice:'general'\}\)/);
-  assert.match(code,/const input=audio\?'\[Áudio recebido\]':message\.type==='interactive'\?legacyButtonIntent/);
+  assert.match(code,/const input=audio\?'\[Áudio recebido\]':image\?'\[Foto recebida\]':message\.type==='interactive'\?legacyButtonIntent/);
 });
 
 test('mudanca de assunto pode interromper coleta de orcamento',()=>{
