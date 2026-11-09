@@ -1337,7 +1337,7 @@ function nextBlindBudgetQuestion(errors=[],history=[]){
  // Nunca inferir quantidade pela quantidade de vidros vistos em foto.
  const hasQuantity=/(?:\\b\\d+|uma|duas|dois|três|tres|quatro|cinco|seis)\\s*(?:peças?|persianas?|rolôs?|rolos?)(?:\\b|$)/i.test(customer);
  if(!hasQuantity && /quantidade|um a quatro itens|modelo não confirmado|dados de persiana incompletos/.test(reasons))
-   return 'Quantas persianas você pretende colocar nessa largura total de 5,10 m?';
+   return 'Quantas persianas você pretende colocar nesse espaço?';
  if(/modelo não confirmado|referência de orçamento|percentual|falta evidência na fala/.test(reasons))
    return 'Para a estimativa, você prefere tela solar, que filtra a luz, ou um tecido translúcido mais decorativo?';
  if(/motorização|acionamento/.test(reasons))
