@@ -10,6 +10,6 @@ test('Kiara não repete como confirmação aquilo que o cliente acabou de inform
 });
 test('confirma apenas dados ambíguos de orçamento e não recapitula por hábito',()=>{
  assert.match(CONSULTATIVE_IDENTITY,/quando houver ambiguidade que mude medidas, modelo, quantidade, segurança, preço/);
- assert.match(CONSULTATIVE_IDENTITY,/confirme apenas o ponto incerto/);
+ assert.match(CONSULTATIVE_IDENTITY,/Confirme somente quando houver ambiguidade/);
  assert.match(CONSULTATIVE_IDENTITY,/no máximo uma pergunta útil por mensagem/);
 });
