@@ -1042,15 +1042,15 @@ async function initialModeRouting(env,route,sender,text,history,profile){
  const asksQuote=expressesQuoteIntent(t);
  if(question&&!asksQuote)return 'Cliente solicitou orientação personalizada';
  const product=requestedBudgetProduct(t,history);
- const otherService=/\b(?:sof[aá]|estofad|cabeceira|papel de parede|reforma|lavagem|conserto|manuten[cç][aã]o|cortina)\b/i.test(t);
- if(otherService&&!/\bpersianas?\b/i.test(t))return 'Serviço fora do orçamento rápido de persianas';
+ const otherService=/\b(?:sof[aá]|estofad|cabeceira|papel de parede|reforma|lavagem|conserto|manuten[cç][aã]o)\b/i.test(t);
+ if(otherService)return 'Serviço fora do orçamento rápido de cortinas e persianas';
  if(current==='quick'||quoteState?.status==='collecting'||quoteState?.status==='summary'||quoteState?.status==='awaiting_review')
   return null;
- if((asksQuote&&product==='persiana') || /or[cç]amento r[aá]pido/i.test(t)){
+ if((asksQuote&&['persiana','cortina'].includes(product)) || /or[cç]amento r[aá]pido/i.test(t)){
   await env.CONVERSAS.put(quickIntentKey(route,sender),'quick',{expirationTtl:MEMORY_TTL});
   return null;
  }
- if(/(?:quero|preciso|gostaria|or[cç]amento|valor|pre[cç]o).{0,45}persianas?|persianas?.{0,45}(?:or[cç]amento|valor|pre[cç]o)/i.test(t)){
+ if(/(?:quero|preciso|gostaria|or[cç]amento|valor|pre[cç]o).{0,45}(?:persianas?|cortinas?)|(?:persianas?|cortinas?).{0,45}(?:or[cç]amento|valor|pre[cç]o)/i.test(t)){
   await env.CONVERSAS.put(quickIntentKey(route,sender),'quick',{expirationTtl:MEMORY_TTL});
   return null;
  }
@@ -1651,7 +1651,7 @@ async function consumeMessage(env, job) {
     guidance,
     approvedCommercial,
     universalServicePrompt,
-    initialMode(env)?'MODO INICIAL DE HOMOLOGAÇÃO: somente triagem e coleta objetiva de orçamento rápido de persianas. Outras consultas exigem equipe humana via controle operacional; não anuncie valores, não afirme que o orçamento está pronto, e não prometa horário de resposta humano. Quando faltar informação, faça apenas a pergunta necessária. Ao apresentar opções, cite modelos existentes e nunca invente um modelo de persiana.':'',
+    initialMode(env)?'MODO INICIAL DE HOMOLOGAÇÃO: somente triagem e coleta objetiva de orçamento rápido de cortinas e persianas. Outras consultas exigem equipe humana via controle operacional; não anuncie valores, não afirme que o orçamento está pronto, e não prometa horário de resposta humano. Quando faltar informação, faça apenas a pergunta necessária. Ao apresentar opções, cite modelos existentes e nunca invente um modelo de persiana.':'',
     NATURAL_REPLY_GUIDANCE,
     'TRANSFERÊNCIA HUMANA: Use <<ENCAMINHAR_HUMANO>> somente quando o cliente pedir atendimento humano explicitamente, manifestar frustração persistente, houver risco real ou decisão técnica insegura fora das informações aprovadas. NÃO transfira por cliente morar em prédio, explicar regras do condomínio, prometer enviar foto, não conhecer modelos/medidas, responder em partes ou desejar mudar as persianas. Nesses casos continue normalmente, agradeça a informação e faça no máximo uma pergunta pertinente à conversa.'
   ].filter(Boolean).join('\n\n');
