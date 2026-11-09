@@ -1470,7 +1470,7 @@ async function consumeMessage(env, job) {
     guidance,
     approvedCommercial,
     universalServicePrompt,
-    'TRANSFERÊNCIA HUMANA: Se houver pedido explícito de humano, frustração persistente, necessidade técnica fora das informações aprovadas ou insegurança real, responda exatamente <<ENCAMINHAR_HUMANO>>. Uma dúvida comum, mudança de preferência ou resposta curta não exige transferência.'
+    'TRANSFERÊNCIA HUMANA: Use <<ENCAMINHAR_HUMANO>> somente quando o cliente pedir atendimento humano explicitamente, manifestar frustração persistente, houver risco real ou decisão técnica insegura fora das informações aprovadas. NÃO transfira por cliente morar em prédio, explicar regras do condomínio, prometer enviar foto, não conhecer modelos/medidas, responder em partes ou desejar mudar as persianas. Nesses casos continue normalmente, agradeça a informação e faça no máximo uma pergunta pertinente à conversa.'
   ].filter(Boolean).join('\n\n');
   const quoteInstruction=quoteStep?.kind==='collecting'
    ?'O cliente deseja uma estimativa. Informações técnicas para orientar a coleta, NÃO um roteiro: '+
@@ -1482,6 +1482,39 @@ async function consumeMessage(env, job) {
    :'';
   const answer=quoteStep?.text || await generateReply(env,nextHistory,[contextInstructions,quoteInstruction].filter(Boolean).join('\n\n'));
   if(answer.includes('<<ENCAMINHAR_HUMANO>>')){
+    // Uma mensagem antiga (especialmente áudio seguido imediatamente por outro)
+    // não pode transferir a conversa e impedir a resposta ao conteúdo mais recente.
+    if(syncActive(env)){
+      const latest=await pendingCustomerBatch(env,route,sender);
+      if(!latest||latest.latestId!==targetId){
+        console.log('Transferência de mensagem anterior descartada; há mensagem mais recente');
+        return;
+      }
+    }
+    // Informações normais da conversa (condomínio, foto, preferências) não são
+    // motivo de transferência. Não sobrepor pedidos humanos explícitos ou risco.
+    const routine=/(?:condom[ií]nio|padroniza[cç][aã]o|foto|fotografia|imagem|varanda|sacada|persiana|cortina|prefiro|moderno|moderna)/i.test(String(inputText||''));
+    const explicitHuman=mustEscalate(inputText);
+    const risk=/(?:inc[eê]ndio|fogo|chama|aquecedor|el[eé]tric[ao]|f[aí]a[cç]a|amea[cç]a|emerg[eê]ncia|risco|perigo|curto.circuito)/i.test(String(inputText||''));
+    if(routine&&!explicitHuman&&!risk){
+      console.warn('Transferência automática indevida evitada: continuação comercial comum');
+      // Resposta segura: não inventa orçamento, não presume medida ou modelo.
+      // A conversa segue pelo atendimento consultivo com uma pergunta natural.
+      const fallback='Entendi, obrigada por explicar! 😊 Pode enviar uma foto da varanda quando conseguir? Assim conseguimos avaliar melhor as opções de persiana para o ambiente.';
+      if(syncActive(env)){
+        const latest=await pendingCustomerBatch(env,route,sender);
+        if(!latest||latest.latestId!==targetId)return;
+      }
+      if(await readHold(env,route,sender)||await env.CONVERSAS.get(conversation.paused))return;
+      if(!(await isAuthorizedToSend(env,route,sender)))return;
+      if(await env.CONVERSAS.get(completedKey))return;
+      const sentId=await sendMessage(route,sender,fallback);
+      await bestEffortSync(()=>syncKiaraReply(env,route,sender,sentId,fallback),'audio consultative fallback');
+      nextHistory.push({role:'assistant',content:fallback});
+      await env.CONVERSAS.put(conversation.history,JSON.stringify(nextHistory.slice(-MAX_CONTEXT_ITEMS)),{expirationTtl:MEMORY_TTL});
+      await env.CONVERSAS.put(completedKey,'1',{expirationTtl:MEMORY_TTL});
+      return;
+    }
     await humanRoute(env,route,sender,targetId,'A Kiara solicitou análise humana');
     return;
   }
