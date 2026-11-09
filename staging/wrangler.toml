@@ -19,6 +19,10 @@ KIARA_SYNC_ENABLED = "true"
 KIARA_CONTROL_ENABLED = "true"
 KIARA_HOLD_ENABLED = "true"
 KIARA_HUMAN_SEND_ENABLED = "false"
+# Pré-orçamentos restritos à conversa e à revisão humana, sem envio automático.
+KIARA_BUDGET_WORKFLOW_ENABLED = "true"
+# Simulador autenticado apenas para equipe autorizada no painel de testes.
+KIARA_QUOTE_SIMULATION_ENABLED = "true"
 KIARA_SYNC_ALL_CONTACTS = "false"
 KIARA_ADS_ROUTING_ENABLED = "true"
 
