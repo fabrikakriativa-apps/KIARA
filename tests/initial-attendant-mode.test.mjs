@@ -45,3 +45,12 @@ test('cliente com triagem rápida pode responder os dados faltantes',async()=>{
  const e=env();e.CONVERSAS.get=async(k)=>k.includes('quick-intent')?'quick':null;
  assert.equal(await initialModeRouting(e,route,'1','5,10 x 2,41',[],{city:'Santo André'}),null);
 });
+
+test('opção orçamento rápido é aceita sem escolher modelo na mesma mensagem',async()=>{
+ const e=env();let stored=null;e.CONVERSAS.put=async(k,v)=>stored=v;
+ assert.equal(await initialModeRouting(e,route,'1','Quero um orçamento rápido',[],{city:''}),null);
+ assert.equal(stored,'quick');
+});
+test('código do fluxo reconhece intenção rápida armazenada sem exigir expressão de preço',()=>{
+ assert.match(worker,/\(initialMode\(env\) && \(await env.CONVERSAS.get\(quickIntentKey\(route,sender\)\)\)==='quick'\)/);
+});
