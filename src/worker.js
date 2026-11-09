@@ -1571,6 +1571,7 @@ async function consumeMessage(env, job) {
     await env.CONVERSAS.delete(conversation.paused);
     await env.CONVERSAS.delete(qualificationStateKey(route,sender));
     await env.CONVERSAS.delete(quoteStateKey(route,sender));
+    if(initialMode(env))await env.CONVERSAS.delete(quickIntentKey(route,sender));
     // Reinício explícito do contato autorizado: restaura também o estado exibido no CRM.
     if(syncActive(env)){
       const scoped=await dbRequest(env,'kiara_conversations','GET',
