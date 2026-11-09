@@ -8,7 +8,7 @@ const source=worker.slice(a,b);
 const {initialMode,regionStatus,isBusinessHours,humanTransferNotice,initialModeRouting}=Function(
  "const MEMORY_TTL=604800; const digits=x=>String(x).replace(/\\D/g,''); const quoteStateKey=(r,s)=>r.source+':budget-flow:'+s;"+
  "const expressesQuoteIntent=t=>/orçamento|quanto custa|valor|preço/i.test(t);"+
- "const requestedBudgetProduct=(t,h)=>/persiana/i.test(t+' '+h.map(x=>x.content).join(' '))?'persiana':null;"+
+ "const requestedBudgetProduct=(t,h)=>/persiana/i.test(t+' '+h.map(x=>x.content).join(' '))?'persiana':/cortina/i.test(t+' '+h.map(x=>x.content).join(' '))?'cortina':null;"+
  source+";return {initialMode,regionStatus,isBusinessHours,humanTransferNotice,initialModeRouting};"
 )();
 const env=()=>({KIARA_INITIAL_ATTENDANT_MODE:'true',KIARA_STAGING_LIVE_ENABLED:'true',KIARA_STAGING_PROVIDER:'easy',KIARA_SYNC_ALL_CONTACTS:'false',CONVERSAS:{get:async()=>null,put:async()=>{}}});
@@ -53,4 +53,25 @@ test('opção orçamento rápido é aceita sem escolher modelo na mesma mensagem
 });
 test('código do fluxo reconhece intenção rápida armazenada sem exigir expressão de preço',()=>{
  assert.match(worker,/\(initialMode\(env\) && \(await env.CONVERSAS.get\(quickIntentKey\(route,sender\)\)\)==='quick'\)/);
+});
+
+test('pedido de cortina segue orçamento rápido, sem transferência indevida',async()=>{
+ const e=env();let stored=null;e.CONVERSAS.put=async(k,v)=>stored=v;
+ const response=await initialModeRouting(e,route,'1','Quero orçamento de cortina para a sala',[],{city:'Santo André'});
+ assert.equal(response,null);assert.equal(stored,'quick');
+});
+test('cliente pode iniciar orçamento de cortina em linguagem livre',async()=>{
+ const e=env();let stored=null;e.CONVERSAS.put=async(k,v)=>stored=v;
+ const response=await initialModeRouting(e,route,'1','Preciso de cortinas wave para o quarto',[],{city:'São Paulo'});
+ assert.equal(response,null);assert.equal(stored,'quick');
+});
+test('outros serviços permanecem para atendimento humano',async()=>{
+ const response=await initialModeRouting(env(),route,'1','Preciso de reforma de sofá',[],{city:'Diadema'});
+ assert.match(response,/fora do orçamento rápido/);
+});
+test('cálculo das duas linhas permanece ligado às calculadoras validadas',()=>{
+ assert.match(worker,/state.product==='persiana'\?await extractBlindBudgetItems\(env,history,config.settings\):await extractBudgetItems\(env,history,config.settings\)/);
+ assert.match(worker,/calculateBlindQuote\(state.items,config.settings,config.revision\)/);
+ assert.match(worker,/calculateQuotePreview\(state.items,config.settings,config.revision/);
+ assert.match(worker,/status:'pending_review'/);
 });
