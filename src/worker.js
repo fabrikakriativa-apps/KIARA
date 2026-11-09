@@ -1331,6 +1331,26 @@ function requestedBudgetProduct(text,history){
  for(const line of latest){const b=/\bpersianas?\b/.test(line),c=/\bcortinas?\b/.test(line);if(b!==c)return b?'persiana':'cortina'}
  return null;
 }
+function nextBlindBudgetQuestion(errors=[],history=[]){
+ const reasons=(errors||[]).join(' ').toLowerCase();
+ const customer=history.filter(m=>m.role==='user').map(m=>String(m.content||'')).join(' ');
+ // Nunca inferir quantidade pela quantidade de vidros vistos em foto.
+ const hasQuantity=/(?:\\b\\d+|uma|duas|dois|três|tres|quatro|cinco|seis)\\s*(?:peças?|persianas?|rolôs?|rolos?)(?:\\b|$)/i.test(customer);
+ if(!hasQuantity && /quantidade|um a quatro itens|modelo não confirmado|dados de persiana incompletos/.test(reasons))
+   return 'Quantas persianas você pretende colocar nessa largura total de 5,10 m?';
+ if(/modelo não confirmado|referência de orçamento|percentual|falta evidência na fala/.test(reasons))
+   return 'Para a estimativa, você prefere tela solar, que filtra a luz, ou um tecido translúcido mais decorativo?';
+ if(/motorização|acionamento/.test(reasons))
+   return 'Você prefere as persianas manuais ou motorizadas?';
+ if(/medidas não confirmadas|evidência das medidas/.test(reasons))
+   return 'Qual é a largura e a altura aproximadas do espaço?';
+ if(/escopo|totais ou por peça/.test(reasons))
+   return 'Essas medidas são do vão inteiro ou de cada persiana?';
+ if(/quantidade/.test(reasons))
+   return 'Quantas peças você pretende instalar?';
+ return 'Para preparar a estimativa, quantas persianas você pretende colocar nessa largura total?';
+}
+
 async function quoteFlowStep(env,route,sender,targetId,history,profile,text){
  if(!quoteTestActive(env))return null;
  const key=quoteStateKey(route,sender);
@@ -1426,8 +1446,10 @@ async function quoteFlowStep(env,route,sender,targetId,history,profile,text){
  if(!config||!['approved','draft'].includes(config.status))return {kind:'collecting'};
  let extracted;
  try{extracted=state.product==='persiana'?await extractBlindBudgetItems(env,history,config.settings):await extractBudgetItems(env,history,config.settings)}
- catch(error){console.warn('Coleta de orçamento em andamento',String(error?.message||''));return {kind:'collecting'}}
- if(!extracted.ready)return {kind:'collecting',missing:extracted.errors};
+ catch(error){console.warn('Coleta de orçamento em andamento',String(error?.message||''));return {kind:'collecting',
+    ...(state.product==='persiana'?{text:nextBlindBudgetQuestion(['dados de persiana incompletos'],history)}:{})}}
+ if(!extracted.ready)return {kind:'collecting',missing:extracted.errors,
+    ...(state.product==='persiana'?{text:nextBlindBudgetQuestion(extracted.errors,history)}:{})};
  await env.CONVERSAS.put(key,JSON.stringify({status:'summary',version:2,product:state.product,items:extracted.items,revision:config.revision}),
    {expirationTtl:MEMORY_TTL});
  return {kind:'summary',text:'Antes de prepararmos os valores, quero conferir se entendi tudo direitinho:\n\n'+
@@ -1580,7 +1602,7 @@ async function consumeMessage(env, job) {
     (requestedBudgetProduct(String(inputText||''),nextHistory)==='persiana'?
        'Persiana: modelo/material ou finalidade, quantidade, largura e altura, esclarecer se dimensões totais ou de cada peça, acionamento. Screen 1%, 3% e 5% são alternativas distintas; não adivinhe porcentagem. A escolha exata de material pode vir depois, mas uma referência de cálculo deve ser apresentada como provisória.':
        quoteIntakePrompt())+
-    ' Use o histórico, não repita perguntas já respondidas e escolha apenas UMA informação faltante por mensagem. '+(quoteStep.missing?.[0]||'')+
+    ' Use o histórico, não repita perguntas já respondidas e escolha apenas UMA informação faltante por mensagem. Se os dados não forem suficientes, continue fazendo uma pergunta por vez; NUNCA diga que o orçamento foi encaminhado à equipe, está pronto ou aguarda aprovação até existir um rascunho registrado como pending_review. '+(quoteStep.missing?.[0]||'')+
     ' Não mencione preços, margens, categorias internas ou custos.'
    :'';
   const answer=quoteStep?.text || await generateReply(env,nextHistory,[contextInstructions,quoteInstruction].filter(Boolean).join('\n\n'));
