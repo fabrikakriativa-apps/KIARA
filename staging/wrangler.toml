@@ -32,6 +32,7 @@ KIARA_IMAGE_MODE = "reply"
 KIARA_BUDGET_WORKFLOW_ENABLED = "true"
 # Simulador autenticado apenas para equipe autorizada no painel de testes.
 KIARA_QUOTE_SIMULATION_ENABLED = "true"
+KIARA_NEW_CONTACTS_ENABLED = "false"
 KIARA_SYNC_ALL_CONTACTS = "false"
 KIARA_ADS_ROUTING_ENABLED = "true"
 
