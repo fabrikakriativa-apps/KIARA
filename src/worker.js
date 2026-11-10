@@ -54,11 +54,11 @@ async function enrolledNewContact(env,route,sender){
 }
 async function eligibleIncoming(env,route,message){
   if(!multiContactMode(env))return testContact(route,message.from);
-  if(!message.timestamp||!/^\\d{8,30}$/.test(digits(message.from)))return false;
+  if(!message.timestamp||!/^\d{8,30}$/.test(digits(message.from)))return false;
   const seconds=Number(message.timestamp);
   if(!Number.isSafeInteger(seconds)||seconds<1)return false;
   checkSupabaseConfig(env);
-  const response=await fetch(String(env.SUPABASE_URL).replace(/\\/$/,'')+'/rest/v1/rpc/kiara_is_new_contact_eligible',{
+  const response=await fetch(String(env.SUPABASE_URL).replace(/\/$/,'')+'/rest/v1/rpc/kiara_is_new_contact_eligible',{
     method:'POST',headers:{
       apikey:env.SUPABASE_SERVICE_ROLE_KEY,
       Authorization:'Bearer '+env.SUPABASE_SERVICE_ROLE_KEY,'Content-Type':'application/json'
@@ -2102,7 +2102,7 @@ export default {
     if (
       !route.token ||
       !route.phoneId ||
-      !digits(route.allowed) ||
+      (!digits(route.allowed) && !multiContactMode(env)) ||
       !env.OPENAI_API_KEY ||
       !env.CONVERSAS ||
       !env.KIARA_QUEUE
