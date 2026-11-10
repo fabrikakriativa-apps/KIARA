@@ -208,7 +208,15 @@ async function sendQualificationPrompt(env,route,sender,targetId,conversation,pr
   // Toda resposta automática continua sujeita à pausa do atendimento e à limitação de destinatário.
   if(await env.CONVERSAS.get(conversation.paused))return false;
   if(!(await isAuthorizedToSend(env,route,sender)))return false;
+  if(multiContactMode(env)){
+    const claimed=await guardedAutoReplyRpc(env,'kiara_claim_auto_reply',route,sender,targetId);
+    if(!claimed)return false;
+  }
   const id=await sendMessage(route,sender,prompt);
+  if(multiContactMode(env)){
+    if(!id)throw new Error('Envio de qualificação ambíguo');
+    await guardedAutoReplyRpc(env,'kiara_mark_auto_reply_sent',route,sender,targetId,id);
+  }
   await bestEffortSync(()=>syncKiaraReply(env,route,sender,id,prompt),'qualification prompt');
   await env.CONVERSAS.put(`${route.source}:sent:${targetId}`,'1',{expirationTtl:MEMORY_TTL});
   return true;
@@ -1755,7 +1763,15 @@ async function consumeMessage(env, job) {
       if(await readHold(env,route,sender)||await env.CONVERSAS.get(conversation.paused))return;
       if(!(await isAuthorizedToSend(env,route,sender)))return;
       if(await env.CONVERSAS.get(completedKey))return;
+      if(multiContactMode(env)){
+        const claimed=await guardedAutoReplyRpc(env,'kiara_claim_auto_reply',route,sender,targetId);
+        if(!claimed)return;
+      }
       const sentId=await sendMessage(route,sender,fallback);
+      if(multiContactMode(env)){
+        if(!sentId)throw new Error('Envio de fallback ambíguo');
+        await guardedAutoReplyRpc(env,'kiara_mark_auto_reply_sent',route,sender,targetId,sentId);
+      }
       await bestEffortSync(()=>syncKiaraReply(env,route,sender,sentId,fallback),'audio consultative fallback');
       nextHistory.push({role:'assistant',content:fallback});
       await env.CONVERSAS.put(conversation.history,JSON.stringify(nextHistory.slice(-MAX_CONTEXT_ITEMS)),{expirationTtl:MEMORY_TTL});
