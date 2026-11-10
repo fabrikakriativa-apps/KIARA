@@ -1693,6 +1693,10 @@ async function consumeMessage(env, job) {
   }
   // Guardar o cadastro confirmado sem transformar o atendimento em formulário.
   await saveQualification(env,route,sender,profile);
+  if(multiContactMode(env)&&regionStatus(profile.city)==='needs_review'){
+    await humanRoute(env,route,sender,targetId,'Cidade fora da área atendida; validação humana obrigatória');
+    return;
+  }
   const initialTransfer=await initialModeRouting(env,route,sender,String(inputText||''),nextHistory,profile);
   if(initialTransfer){
     await humanRoute(env,route,sender,targetId,initialTransfer);
