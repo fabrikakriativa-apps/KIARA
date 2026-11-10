@@ -1,0 +1,126 @@
+name: Kiara - auditar rotas e consumidores (somente leitura)
+
+on:
+  push:
+    branches: [homologacao]
+    paths:
+      - '.github/workflows/auditar-rotas-filas-kiara.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  auditar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Validar a infraestrutura sem alterar rotas, filas ou Workers
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          python3 - <<'PY'
+          import json,os,urllib.request,urllib.error
+          from urllib.parse import quote
+          base='https://api.cloudflare.com/client/v4'
+          token=os.environ.get('CF_TOKEN','');account=os.environ.get('CF_ACCOUNT','')
+          if not token or not account: raise SystemExit('BLOCKED: credenciais Cloudflare ausentes.')
+          def get(path):
+              req=urllib.request.Request(base+path,headers={'Authorization':'Bearer '+token,'Accept':'application/json'})
+              try:
+                  with urllib.request.urlopen(req,timeout=25) as res: data=json.load(res)
+              except urllib.error.HTTPError as ex:
+                  return None,'HTTP '+str(ex.code)
+              except Exception as ex:
+                  return None,type(ex).__name__
+              if not data.get('success'):return None,'success=false'
+              return data.get('result'),None
+          def items(value,key):
+              if isinstance(value,list):return value
+              if isinstance(value,dict):return value.get(key) or []
+              return []
+          def status(title,ok,explanation=''):
+              print(('[OK]' if ok else '[REVIEW]')+' '+title+(' — '+explanation if explanation else ''))
+          print('MODO AUDITORIA: SOMENTE GET, sem deploy e sem alteração de webhooks.')
+          print('IMPORTANTE: O NUMERO EASY COEXISTENCE ATUAL E PROVISORIO; nao usar este levantamento para ativa-lo em producao.')
+          verified,error=get('/user/tokens/verify')
+          if error or (verified or {}).get('status')!='active':raise SystemExit('Cloudflare token indisponível')
+          status('Token Cloudflare',True)
+          expected={'producao':'fabrika-atendimento-ia','homologacao':'fabrika-atendimento-ia-homologacao'}
+          versions={}
+          for label,name in expected.items():
+              root='/accounts/'+account+'/workers/scripts/'+quote(name,safe='')
+              deployments,error=get(root+'/deployments')
+              rows=items(deployments,'deployments')
+              newest=rows[0] if rows else {}
+              versions[label]=newest.get('id')
+              print('WORKER',label,name)
+              if error:status('Deployments '+label,False,error)
+              else:
+                  status('Deployments '+label,bool(newest),('created_on='+str(newest.get('created_on'))+' deployment_id='+str(newest.get('id'))))
+                  for v in newest.get('versions') or []:
+                      print('  VERSION_ID:',v.get('version_id'),'PERCENT:',v.get('percentage'))
+              settings,error=get(root+'/settings')
+              if error:
+                  status('Bindings '+label,False,error)
+                  continue
+              bindings=items(settings,'bindings')
+              binding_names={b.get('name') for b in bindings}
+              # Não imprimir valores de plain_text nem tokens/secrets, nem URL secreta.
+              for key in ('KIARA_QUEUE','CONVERSAS','KIARA_CONTROLES','EASY_PHONE_NUMBER_ID','KIARA_NEW_CONTACTS_ENABLED','KIARA_SYNC_ALL_CONTACTS','KIARA_STAGING_LIVE_ENABLED'):
+                  found=next((b for b in bindings if b.get('name')==key),None)
+                  if found:print('  BINDING_NAME:',key,'TYPE:',found.get('type'),
+                      'TARGET:',found.get('queue_name') if found.get('type')=='queue' else '[not printed]')
+                  elif label=='homologacao' and key in ('KIARA_NEW_CONTACTS_ENABLED','KIARA_SYNC_ALL_CONTACTS','KIARA_QUEUE'):
+                      status('Binding esperado em '+label+': '+key,False,'ausente')
+              if label=='homologacao':
+                  status('Fila isolada configurada no Worker', 'KIARA_QUEUE' in binding_names)
+          queues,error=get('/accounts/'+account+'/queues')
+          rows=items(queues,'queues')
+          if error:
+              status('Listagem de filas',False,error)
+          else:
+              for name in ('kiara-respostas','kiara-homologacao-respostas'):
+                  q=next((x for x in rows if x.get('queue_name')==name),None)
+                  status('Fila '+name,bool(q))
+                  if not q:continue
+                  queueid=q.get('queue_id') or q.get('id')
+                  if not queueid:
+                      status('ID da fila '+name,False,'não encontrado')
+                      continue
+                  consumers,err=get('/accounts/'+account+'/queues/'+quote(str(queueid),safe='')+'/consumers')
+                  if err:
+                      status('Consumidores '+name,False,err)
+                      continue
+                  active=items(consumers,'consumers')
+                  print('CONSUMERS',name,'COUNT',len(active))
+                  for c in active:
+                      print('  CONSUMER_SCRIPT:',c.get('script_name') or c.get('name') or '[unknown]',
+                         'TYPE:',c.get('type') or '[unknown]',
+                         'DLQ:',bool(c.get('dead_letter_queue')),
+                         'BATCH:',(c.get('settings') or {}).get('batch_size'))
+                  required=expected['homologacao'] if name.endswith('homologacao-respostas') else expected['producao']
+                  configured=[c.get('script_name') for c in active]
+                  status('Consumidor correto e único '+name,len(active)==1 and configured==[required],
+                         'esperado='+required)
+          zones,error=get('/zones?per_page=50')
+          if error:
+              status('Rotas por zonas',False,'API indisponível: '+error)
+          else:
+              for zone in items(zones,'zones'):
+                  zid=zone.get('id')
+                  if not zid:continue
+                  routes,err=get('/zones/'+quote(zid,safe='')+'/workers/routes')
+                  if err:
+                      status('Rotas da zona '+str(zone.get('name')),False,err)
+                      continue
+                  relevant=[r for r in items(routes,'routes') if r.get('script') in expected.values()]
+                  for r in relevant:
+                      # Não divulgar padrões de rotas contendo chaves ou parâmetros.
+                      print('ZONE',zone.get('name'),'WORKER_ROUTE_SCRIPT',r.get('script'),'PATTERN','[redacted]')
+                  print('ROUTES_TO_KIARA',zone.get('name'),'COUNT',len(relevant))
+          print('CUIDADO: a API Cloudflare não confirma a URL cadastrada no painel da EasyCoexistence.')
+          print('CUIDADO: deployment_id do Cloudflare não prova qual commit GitHub foi publicado.')
+          print('AUDITORIA CONCLUÍDA: nenhuma operação de escrita executada.')
+          PY
