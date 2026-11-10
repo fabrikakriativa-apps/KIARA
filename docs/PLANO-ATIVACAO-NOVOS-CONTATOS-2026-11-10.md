@@ -1,3 +1,28 @@
+## Progresso implementado em 10/11/2026 — ainda SEM produção
+
+**Concluído no código e Supabase (não equivale a deploy em produção):**
+- Migration `kiara_new_contacts_activation_gate_off_by_default`: `kiara_activation_control`, `kiara_contact_eligibility` e RPC `kiara_is_new_contact_eligible`. `enabled=false`, `activated_at=null`, `legacy_snapshot_verified=false`.
+- Migration `kiara_block_preexisting_crm_phone_numbers`: o RPC bloqueia também telefones preexistentes em `sales_opportunities`, além do cadastro `kiara_imported_contacts` e conversas anteriores ao corte.
+- Migration `kiara_atomic_auto_reply_claims_fail_closed`: tabela `kiara_auto_reply_claims`, com `claim` atômico e `mark sent`. Falha ou resultado ambíguo NÃO autoriza reenvio automático; operador deve investigar claims pendentes.
+- Worker com `KIARA_NEW_CONTACTS_ENABLED=true` **somente** se `KIARA_SYNC_ALL_CONTACTS=true` e sem `KIARA_STAGING_LIVE_ENABLED=true`. A produção deve configurar essas flags apenas após validação.
+- Ingress de mensagens consulta elegibilidade antes de sincronizar/enfileirar; filas e rota do painel limitadas a contatos inscritos; bloqueio operacional, status humano e janela de 24h verificados antes do envio.
+- Claims aplicados a respostas de texto, qualificação e fallback; áudio e imagem em modo multicontato transferem ao humano enquanto não forem homologados os envios automáticos.
+- Mensagens antigas `history`/`smb_app_state_sync` permanecem ignoradas, comando `reiniciar teste` inativo no modo multicontato, limite de webhook 256 KiB.
+- Cidades fora ABC Paulista/Grande São Paulo são encaminhadas ao humano para validar área de atendimento.
+- Testes de segurança adicionados em `tests/new-contact-gate.test.mjs`. A sintaxe do Worker passou por validação local de parse e verificações simuladas fail-closed.
+- `staging/wrangler.toml` contém `KIARA_NEW_CONTACTS_ENABLED = "false"`; produção não foi alterada.
+
+**Ainda bloqueia GO (dependência externa/operacional):**
+1. Obter lista completa de números já atendidos no WhatsApp antes do corte (somente identificadores de exclusão, sem importar mensagens), validar a cobertura e preencher o bloqueio de contatos antigos. O CRM identificado contém apenas parte dos telefones, não equivale ao histórico do WhatsApp. NÃO marcar `legacy_snapshot_verified=true` antes disso.
+2. Conferir credenciais, bindings, filas, consumidores e webhook no Cloudflare/EasyCoexistence, com evidência de SHA implantado, e garantir um único ingressor ativo.
+3. Executar o `npm test` completo em CI, obter evidência de deploy e testar E2E com novos e antigos contatos, intervenção humana durante geração, duplicidade/retry, limites de payload, orçamento e rollback.
+4. Validar corrida restante: uma pausa humana ocorrida depois do último check e antes da API Meta não é atomicamente serializada. Para garantia forte, serializar por contato e envio.
+5. Aprovar regras comerciais atualmente em `draft` (cortina e persiana) antes de qualquer orçamento externo; manter revisão humana e envio condicionado.
+6. Definir responsável por monitorar claims presos em `claimed` sem `sent_at`, fila, alertas e respostas silenciosas antes de permitir operação 24/7.
+
+**Operação de ativação:** Não mudar `main`, webhook, Worker de produção, `kiara_operational_control.enabled`, `kiara_activation_control.enabled` nem `activated_at` nesta fase. A troca deve ocorrer em janela assistida, com deploy comprovado e rollback pré-testado.
+
+---
 # Auditoria de segurança e plano de ativação — 10/11/2026
 
 Escopo: preparar a Kiara para TODOS os **novos contatos** de WhatsApp, sem redirecionar webhooks ou mudar produção nesta auditoria.
