@@ -2193,3 +2193,6 @@ export default {
     );
   }
 };
+
+// Exportações puras para testes de segurança; não expõem endpoints HTTP.
+export {multiContactMode,eligibleIncoming,enrolledNewContact,isAuthorizedToSend};
