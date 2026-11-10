@@ -1,3 +1,14 @@
+## Atualização operacional — EasyCoexistence com número provisório (10/11/2026)
+
+A usuária confirmou que o EasyCoexistence **ainda não está configurado com o número definitivo da Fábrika**. Por isso:
+- `EASY_PHONE_NUMBER_ID` da homologação é **identificador provisório de testes**, não destino de produção.
+- NÃO migrar webhook, phone number ID, token, cadastro de contatos, filas ou rotas para o número definitivo nesta fase.
+- NÃO considerar concluída a auditoria do destino do webhook da EasyCoexistence apenas pelos dados do Cloudflare. A URL escolhida no painel da Easy precisa de conferência específica após conectar o número final.
+- **Não ativar** `KIARA_NEW_CONTACTS_ENABLED`, `KIARA_SYNC_ALL_CONTACTS`, `kiara_activation_control.enabled` ou `kiara_operational_control.enabled`.
+- Auditoria sem escrita criada em `.github/workflows/auditar-rotas-filas-kiara.yml`, que faz chamadas somente GET às APIs de deploy, scripts, filas, consumidores e rotas. Sucesso do job indica execução técnica da consulta, não autorização de produção.
+- Na futura entrada em produção, cadastrar e verificar o identificador do número definitivo e, depois, refazer testes de mensagens novas, contatos históricos, deduplicação, transferência humana e rollback especificamente nesse canal.
+- A lista preexistente de contatos do número definitivo ainda não foi validada; não marcar `legacy_snapshot_verified`.
+
 ## Progresso implementado em 10/11/2026 — ainda SEM produção
 
 **Concluído no código e Supabase (não equivale a deploy em produção):**
