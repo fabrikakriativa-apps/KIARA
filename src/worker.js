@@ -589,7 +589,7 @@ async function humanMessageRequest(request,env){
  if(chat.status!=='human')return reply({error:'Assuma a conversa antes de responder'},409);
  const route=routeBySource(chat.source,env);
  if(!route||String(route.phoneId)!==String(chat.phone_number_id)||
-   digits(route.allowed)!==digits(chat.contact_wa_id)||!route.token)
+   (!testContact(route,chat.contact_wa_id)&&!(await enrolledNewContact(env,route,chat.contact_wa_id)))||!route.token)
   return reply({error:'Destino não autorizado na homologação'},403);
  const last=Date.parse(chat.last_customer_message_at||'');
  if(!Number.isFinite(last)||Date.now()-last>23.5*60*60*1000)
@@ -1567,7 +1567,7 @@ async function consumeMessage(env, job) {
   if(job.kind==='image')return handleImageJob(env,route,job);
 
   const conversation = keys(route.source, sender);
-  const isReset = /^\/?reiniciar teste$/i.test(String(job.input || '').trim());
+  const isReset = !multiContactMode(env) && /^\/?reiniciar teste$/i.test(String(job.input || '').trim());
 
   // Antes do agrupamento, respeita a intervenção humana e os controles gerais.
   if (!(await isAuthorizedToSend(env, route, sender))) {
@@ -1867,7 +1867,7 @@ async function pricingSimulationRequest(request,env){
   // Sem nome e sobrenome, bairro e cidade, não calcular valores para o cliente.
   const route=routeBySource(found[0].source,env);
   if(!route || String(route.phoneId)!==String(found[0].phone_number_id) ||
-     digits(route.allowed)!==digits(found[0].contact_wa_id))
+     (!testContact(route,found[0].contact_wa_id)&&!(await enrolledNewContact(env,route,found[0].contact_wa_id))))
     return reply({ready:false,customerPriceAllowed:false,
       errors:['Conversa não autorizada para orçamento']},422);
   const registration=await loadQualification(env,route,found[0].contact_wa_id);
@@ -1955,7 +1955,7 @@ async function budgetReviewRequest(request,env){
   queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+queryEq('id',draft.conversation_id)+'&limit=1');
  const chat=chats?.[0],route=chat&&routeBySource(chat.source,env);
  if(!route||String(route.phoneId)!==String(chat.phone_number_id)||
-     digits(route.allowed)!==digits(chat.contact_wa_id))return reply({error:'Destinatário fora do teste'},403);
+     (!testContact(route,chat.contact_wa_id)&&!(await enrolledNewContact(env,route,chat.contact_wa_id))))return reply({error:'Destinatário não autorizado'},403);
  const last=Date.parse(chat.last_customer_message_at||'');
  if(!Number.isFinite(last)||Date.now()-last>23.5*60*60*1000)
   return reply({error:'Fora da janela de resposta; utilizar template autorizado'},409);
