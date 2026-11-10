@@ -72,6 +72,20 @@ async function eligibleIncoming(env,route,message){
   if(!response.ok)throw new Error('Eligibility unavailable: '+response.status);
   return (await response.json())===true;
 }
+async function guardedAutoReplyRpc(env,name,route,sender,sourceMessageId,whatsappId){
+  checkSupabaseConfig(env);
+  const body={p_organization_id:env.SUPABASE_ORGANIZATION_ID,
+    p_source:route.source,p_phone_number_id:String(route.phoneId),
+    p_contact_wa_id:digits(sender),p_source_message_id:String(sourceMessageId),
+    ...(whatsappId?{p_whatsapp_message_id:String(whatsappId)}:{})};
+  const response=await fetch(String(env.SUPABASE_URL).replace(/\/$/,'')+
+    '/rest/v1/rpc/'+name,{method:'POST',headers:{
+      apikey:env.SUPABASE_SERVICE_ROLE_KEY,
+      Authorization:'Bearer '+env.SUPABASE_SERVICE_ROLE_KEY,'Content-Type':'application/json'
+    },body:JSON.stringify(body)});
+  if(!response.ok)throw new Error('Reply claim unavailable: '+response.status);
+  return (await response.json())===true;
+}
 function routeBySource(source, env) {
   if (source === "original") {
     return {
@@ -1109,7 +1123,7 @@ async function humanRoute(env,route,sender,id,reason){
   await handoffAudio(env,route,sender,id,reason);
   await saveRouteState(env,route,sender,{status:'human',source:'human',reason});
   // Confirmação única, apenas depois do bloqueio da IA. Não afirma que alguém já assumiu.
-  if(env.KIARA_HANDOFF_NOTICE_ENABLED==='true'||initialMode(env)){
+  if(!multiContactMode(env) && (env.KIARA_HANDOFF_NOTICE_ENABLED==='true'||initialMode(env))){
    const noticeKey=route.source+':handoff-notice:'+digits(sender)+':'+String(id);
    if(!await env.CONVERSAS.get(noticeKey)){
     const notice=initialMode(env)?humanTransferNotice():'Vou encaminhar seu atendimento à nossa equipe.';
@@ -1561,10 +1575,14 @@ async function consumeMessage(env, job) {
   if(adsRoutingEnabled(env) && job.kind==='routing_preview')return consumeAdPreview(env,route,job);
   if(job.kind==='routing_intro'||job.kind==='routing_selected')return;
   if(job.kind==='audio'){
+    if(multiContactMode(env))return humanRoute(env,route,sender,job.messageId,'Áudio exige validação humana durante implantação');
     if(audioMode(env)==='off')return;
     return handleAudioJob(env,route,job);
   }
-  if(job.kind==='image')return handleImageJob(env,route,job);
+  if(job.kind==='image'){
+    if(multiContactMode(env))return humanRoute(env,route,sender,job.messageId,'Imagem exige validação humana durante implantação');
+    return handleImageJob(env,route,job);
+  }
 
   const conversation = keys(route.source, sender);
   const isReset = !multiContactMode(env) && /^\/?reiniciar teste$/i.test(String(job.input || '').trim());
@@ -1793,7 +1811,16 @@ async function consumeMessage(env, job) {
   const needsGreeting=adsRoutingEnabled(env) &&
     !(await durableRouteState(env,route,sender))?.intro_sent_at;
   if(needsGreeting)finalAnswer=welcomePrefix+'\n\n'+finalAnswer;
+  // Claim transacional: reprocessamento ambíguo não autoriza reenvio.
+  if(multiContactMode(env)){
+    const claimed=await guardedAutoReplyRpc(env,'kiara_claim_auto_reply',route,sender,targetId);
+    if(!claimed){console.warn('Resposta já reclamada ou bloqueada');return;}
+  }
   const sentId = await sendMessage(route, sender, finalAnswer);
+  if(!sentId)throw new Error('Envio ambíguo: conferir claim antes de repetir');
+  if(multiContactMode(env)){
+    await guardedAutoReplyRpc(env,'kiara_mark_auto_reply_sent',route,sender,targetId,sentId);
+  }
   if(needsGreeting){
     await persistRouteState(env,route,sender,{intro_sent_at:new Date().toISOString(),route_choice:'general'});
   }
@@ -1804,7 +1831,7 @@ async function consumeMessage(env, job) {
     {expirationTtl: MEMORY_TTL});
   await env.CONVERSAS.put(completedKey, '1', {expirationTtl: MEMORY_TTL});
   if(references.length){
-   try{await sendFinishImages(env,route,sender,references,targetId,conversation)}
+   try{if(!multiContactMode(env))await sendFinishImages(env,route,sender,references,targetId,conversation)}
    catch(error){console.warn('Imagem não enviada; preservar atendimento em texto',String(error?.message||''))}
   }
   console.log('Resposta da Kiara enviada pela fila',route.source);
@@ -2081,7 +2108,11 @@ export default {
         { status: 405 }
       );
     }
+    const maximumBytes=256*1024;
+    const declared=Number(request.headers.get('content-length')||0);
+    if(declared>maximumBytes)return new Response('Payload too large',{status:413});
     const body = await request.arrayBuffer();
+    if(body.byteLength>maximumBytes)return new Response('Payload too large',{status:413});
     // Mantém a validação da integração original.
     if (route.source === "original") {
       const valid = await verifySignature(
