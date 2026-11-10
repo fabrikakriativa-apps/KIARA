@@ -41,6 +41,37 @@ const INSTRUCTIONS = [CONSULTATIVE_IDENTITY,PRODUCT_KNOWLEDGE,OPERATIONAL_POLICY
 function digits(value) {
   return String(value || "").replace(/\D/g, "");
 }
+const multiContactMode=env=>env.KIARA_NEW_CONTACTS_ENABLED==='true' &&
+  env.KIARA_SYNC_ALL_CONTACTS==='true' && env.KIARA_STAGING_LIVE_ENABLED!=='true';
+const testContact=(route,sender)=>Boolean(digits(route.allowed))&&digits(sender)===digits(route.allowed);
+async function enrolledNewContact(env,route,sender){
+  if(!multiContactMode(env))return false;
+  const rows=await dbRequest(env,'kiara_contact_eligibility','GET',
+    '?select=contact_wa_id'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
+    queryEq('source',route.source)+queryEq('phone_number_id',route.phoneId)+
+    queryEq('contact_wa_id',digits(sender))+'&limit=1');
+  return rows?.length===1;
+}
+async function eligibleIncoming(env,route,message){
+  if(!multiContactMode(env))return testContact(route,message.from);
+  if(!message.timestamp||!/^\\d{8,30}$/.test(digits(message.from)))return false;
+  const seconds=Number(message.timestamp);
+  if(!Number.isSafeInteger(seconds)||seconds<1)return false;
+  checkSupabaseConfig(env);
+  const response=await fetch(String(env.SUPABASE_URL).replace(/\\/$/,'')+'/rest/v1/rpc/kiara_is_new_contact_eligible',{
+    method:'POST',headers:{
+      apikey:env.SUPABASE_SERVICE_ROLE_KEY,
+      Authorization:'Bearer '+env.SUPABASE_SERVICE_ROLE_KEY,'Content-Type':'application/json'
+    },body:JSON.stringify({
+      p_organization_id:env.SUPABASE_ORGANIZATION_ID,
+      p_source:route.source,p_phone_number_id:String(route.phoneId),
+      p_contact_wa_id:digits(message.from),
+      p_message_at:new Date(seconds*1000).toISOString()
+    })
+  });
+  if(!response.ok)throw new Error('Eligibility unavailable: '+response.status);
+  return (await response.json())===true;
+}
 function routeBySource(source, env) {
   if (source === "original") {
     return {
@@ -241,7 +272,7 @@ async function saveMessage(env, conversationId, messageId, direction, sender, te
 async function syncInbound(env, route, value, message) {
   if (!syncActive(env)) return;
   const customer = digits(message.from);
-  if (env.KIARA_SYNC_ALL_CONTACTS !== 'true' && customer !== digits(route.allowed)) return;
+  if(!testContact(route,customer)&&!(await enrolledNewContact(env,route,customer)))return;
   const name = (value.contacts || []).find(c => digits(c.wa_id) === customer)?.profile?.name || null;
   const timestamp = toIso(message.timestamp);
   const row = await upsertConversation(env, route.source, route.phoneId, customer, {
@@ -258,7 +289,7 @@ async function syncHumanEcho(env, route, echo) {
   if (!syncActive(env)) return;
   const recipient = digits(echo.to || echo.recipient_id);
   if (!recipient || !echo.id) return;
-  if (env.KIARA_SYNC_ALL_CONTACTS !== 'true' && recipient !== digits(route.allowed)) return;
+  if(!testContact(route,recipient)&&!(await enrolledNewContact(env,route,recipient)))return;
   const timestamp = toIso(echo.timestamp);
   const row = await upsertConversation(env, route.source, route.phoneId, recipient, { timestamp });
   await dbRequest(env, 'kiara_conversations', 'PATCH',
@@ -398,6 +429,22 @@ async function getGuidance(env, route, recipient) {
 }
 
 async function isAuthorizedToSend(env, route, recipient) {
+  if(multiContactMode(env)){
+    if(!(await enrolledNewContact(env,route,recipient)))return false;
+    const activation=await dbRequest(env,'kiara_activation_control','GET',
+      '?select=enabled,legacy_snapshot_verified'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+'&limit=1');
+    if(activation?.[0]?.enabled!==true||activation[0].legacy_snapshot_verified!==true||!controlActive(env))return false;
+    const control=await dbRequest(env,'kiara_operational_control','GET',
+      '?select=enabled'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+'&limit=1');
+    if(control?.[0]?.enabled!==true)return false;
+    const rows=await dbRequest(env,'kiara_conversations','GET',
+      '?select=status,reply_held,last_customer_message_at'+queryEq('organization_id',env.SUPABASE_ORGANIZATION_ID)+
+      queryEq('source',route.source)+queryEq('phone_number_id',route.phoneId)+
+      queryEq('contact_wa_id',digits(recipient))+'&limit=1');
+    return rows?.[0]?.status==='ai'&&rows[0].reply_held===false &&
+      !!rows[0].last_customer_message_at &&
+      (Date.now()-Date.parse(rows[0].last_customer_message_at))<24*60*60*1000;
+  }
   if (!controlActive(env)) return true; // Backward-compatible until explicitly activated.
   // Homologação do WhatsApp: autorização exclusiva ao contato de testes,
   // sem habilitar globalmente os atendimentos de produção no Supabase.
@@ -707,7 +754,7 @@ async function handleHumanEcho(env, route, value) {
     // Espelha todos os ecos quando KIARA_SYNC_ALL_CONTACTS=true, mas mantém
     // intervenção e pausa limitadas ao contato autorizado da homologação.
     await bestEffortSync(() => syncHumanEcho(env, route, echo), 'human echo');
-    if (recipient !== digits(route.allowed)) continue;
+    if(!testContact(route,recipient)&&!(await enrolledNewContact(env,route,recipient)))continue;
     const conversation = keys(
       route.source,
       recipient
@@ -1076,7 +1123,7 @@ async function processAdRouting(env,route,message){
   if(!adsRoutingEnabled(env))return {handled:false};
   if(!message.id||!digits(message.from))return {handled:true};
   const sender=digits(message.from);
-  if(sender!==digits(route.allowed))return {handled:true};
+  if(!testContact(route,sender)&&!(await enrolledNewContact(env,route,sender)))return {handled:true};
   let state=await loadRouteState(env,route,sender);
   // A retomada pela equipe pode atualizar o Supabase antes do antigo estado KV.
   // Nesse caso, respeite o status atual do contato de teste, nunca libere se
@@ -1092,7 +1139,7 @@ async function processAdRouting(env,route,message){
     }
   }
   const preview=message.type==='text' && /^\/?testar apresenta[cç][aã]o$/i.test(String(message.text?.body||'').trim());
-  if(preview && env.KIARA_SYNC_ALL_CONTACTS!=='true'){
+  if(preview && !multiContactMode(env) && env.KIARA_SYNC_ALL_CONTACTS!=='true'){
     await saveRouteState(env,route,sender,{status:'intro_pending',source:'test_preview'});
     await env.KIARA_QUEUE.send({kind:'routing_preview',source:route.source,sender,messageId:message.id},{delaySeconds:0});
     return {handled:true};
@@ -1127,7 +1174,7 @@ async function consumeAdPreview(env,route,job){
 
 async function receiveMessage(env, route, message, value) {
   if(!message.id || !digits(message.from))return;
-  if(digits(message.from)!==digits(route.allowed))return;
+  if(!(await eligibleIncoming(env,route,message)))return;
   await bestEffortSync(() => syncInbound(env, route, value, message), "incoming");
   if(adsRoutingEnabled(env)){
     const result=await processAdRouting(env,route,message);
@@ -1135,8 +1182,7 @@ async function receiveMessage(env, route, message, value) {
   }
   if(!message.id || !['text','audio','image','interactive'].includes(message.type))return;
   const sender=digits(message.from);
-  const allowed=digits(route.allowed);
-  if(!allowed||sender!==allowed)return;
+  if(!testContact(route,sender)&&!(await enrolledNewContact(env,route,sender)))return;
   if(message.type==='audio'&&audioMode(env)==='off')return;
   const audio=message.type==='audio';
   const image=message.type==='image';
@@ -1511,7 +1557,7 @@ async function consumeMessage(env, job) {
   const route = routeBySource(job.source, env);
   if (!route) return;
   const sender = digits(job.sender);
-  if (!sender || sender !== digits(route.allowed)) return;
+  if(!sender||(!testContact(route,sender)&&!(await enrolledNewContact(env,route,sender))))return;
   if(adsRoutingEnabled(env) && job.kind==='routing_preview')return consumeAdPreview(env,route,job);
   if(job.kind==='routing_intro'||job.kind==='routing_selected')return;
   if(job.kind==='audio'){
