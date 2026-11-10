@@ -1,37 +1,81 @@
-name: Verificar credenciais Cloudflare (sem publicar)
+name: Auditar Cloudflare Kiara - somente leitura
 
 on:
+  push:
+    branches: [homologacao]
+    paths:
+      - '.github/workflows/verificar-cloudflare.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  verificar:
+  auditoria:
     runs-on: ubuntu-latest
+    timeout-minutes: 8
     steps:
-      - name: Confirmar os dois segredos
+      - name: Confirmar acesso e consultar Cloudflare sem alterar nada
         env:
           CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          test -n "$CF_TOKEN" || { echo "::error::CLOUDFLARE_API_TOKEN ausente"; exit 1; }
-          test -n "$CF_ACCOUNT" || { echo "::error::CLOUDFLARE_ACCOUNT_ID ausente"; exit 1; }
-          echo "Os dois segredos estão disponíveis para o workflow."
-      - name: Verificar token sem publicar
-        env:
-          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: |
           python3 - <<'PY'
-          import json, os, urllib.request
-          url='https://api.cloudflare.com/client/v4/user/tokens/verify'
-          req=urllib.request.Request(url,headers={'Authorization':'Bearer '+os.environ['CF_TOKEN'],'Accept':'application/json'})
-          try:
-              with urllib.request.urlopen(req, timeout=20) as response:
-                  payload=json.load(response)
-          except Exception as e:
-              raise SystemExit('Falha na validação do token. Confirme o token cadastrado e suas permissões.') from None
-          if not payload.get('success') or payload.get('result',{}).get('status')!='active':
-              raise SystemExit('Token não está ativo.')
-          print('Token Cloudflare ativo. Nenhum deploy executado.')
+          import json, os, urllib.request, urllib.error, datetime
+          token=os.getenv('CF_TOKEN','')
+          account=os.getenv('CF_ACCOUNT','')
+          if not token or not account:
+              raise SystemExit('FAIL: CLOUDFLARE_API_TOKEN ou CLOUDFLARE_ACCOUNT_ID ausente no GitHub Actions.')
+          headers={'Authorization':'Bearer '+token,'Accept':'application/json'}
+          base='https://api.cloudflare.com/client/v4'
+          def get(path):
+              req=urllib.request.Request(base+path,headers=headers)
+              try:
+                  with urllib.request.urlopen(req,timeout=25) as response:
+                      payload=json.load(response)
+              except urllib.error.HTTPError as err:
+                  return {'ok':False,'status':err.code,'reason':'API sem acesso ou endpoint indisponível'}
+              except Exception as err:
+                  return {'ok':False,'reason':type(err).__name__}
+              if not payload.get('success'):
+                  return {'ok':False,'reason':'API retornou success=false'}
+              return {'ok':True,'result':payload.get('result')}
+          def deployment_info(result):
+              if isinstance(result,dict):
+                  rows=result.get('deployments') or []
+              elif isinstance(result,list):rows=result
+              else:rows=[]
+              return [{'id':x.get('id'),'created_on':x.get('created_on')} for x in rows[:2]]
+          print('AUDITORIA somente leitura: sem deploy, sem publicação, sem alteracao de webhook ou secrets.')
+          v=get('/user/tokens/verify')
+          if not v['ok'] or (v.get('result') or {}).get('status')!='active':
+              raise SystemExit('FAIL: token Cloudflare não validado.')
+          print('TOKEN: ACTIVE')
+          names=['fabrika-atendimento-ia','fabrika-atendimento-ia-homologacao']
+          for name in names:
+              deploy=get('/accounts/'+account+'/workers/scripts/'+name+'/deployments')
+              settings=get('/accounts/'+account+'/workers/scripts/'+name+'/settings')
+              print('\nWORKER:',name)
+              if deploy['ok']:
+                  print('DEPLOYMENTS:',json.dumps(deployment_info(deploy['result']),ensure_ascii=False))
+              else:print('DEPLOYMENTS: INDISPONÍVEL',deploy.get('status'),deploy.get('reason'))
+              if settings['ok']:
+                  result=settings['result'] or {}
+                  bindings=result.get('bindings',[]) if isinstance(result,dict) else []
+                  # Só nomes e tipos, nunca valores nem segredos.
+                  binding_names=[{'name':b.get('name'),'type':b.get('type')} for b in bindings]
+                  print('BINDINGS:',json.dumps(binding_names,ensure_ascii=False))
+                  if name.endswith('-homologacao'):
+                      required={'CONVERSAS','KIARA_CONTROLES','KIARA_QUEUE','TEST_ALLOWED_WA_ID'}
+                      missing=sorted(required-{x['name'] for x in binding_names})
+                      print('HOMOLOGACAO_REQUIRED_BINDINGS:', 'OK' if not missing else 'MISSING '+','.join(missing))
+              else:print('BINDINGS: INDISPONÍVEL',settings.get('status'),settings.get('reason'))
+          queues=get('/accounts/'+account+'/queues')
+          if queues['ok']:
+              q=queues['result']
+              rows=q.get('queues',[]) if isinstance(q,dict) else q if isinstance(q,list) else []
+              print('\nQUEUES_NAMES:',json.dumps([x.get('queue_name') or x.get('name') for x in rows],ensure_ascii=False))
+          else:
+              print('\nQUEUES: INDISPONÍVEL',queues.get('status'),queues.get('reason'))
+          print('\nAUDITORIA FINALIZADA: nenhuma alteração feita.')
           PY
