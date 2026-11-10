@@ -967,8 +967,8 @@ async function handleAudioJob(env,route,job) {
 /* Atendimento de entrada única: a homologação atende apenas ao TEST_ALLOWED_WA_ID.
    A triagem interna é contextual, sem botões ou roteiros obrigatórios. */
 const adsRoutingEnabled = env => env.KIARA_ADS_ROUTING_ENABLED === 'true';
-const greeting = "Olá! 👋 Seja bem-vindo(a) à *Fábrika Kriativa!*\n\nSou a *Kiara*, assistente virtual da Fábrika Kriativa. 😊\n\nPosso ajudar com nossos produtos, orçamentos, informações e solicitações de atendimento.\n\n*Como posso ajudar você hoje?*";
-const welcomePrefix = "Olá! 👋 Sou a *Kiara*, assistente virtual da *Fábrika Kriativa*. 😊";
+const greeting = "Olá! 👋 Seja bem-vindo(a) à Fábrika Kriativa!\nSou a Kiara, assistente de atendimento da Fábrika Kriativa. 😊\nComo posso ajudar você hoje?";
+const welcomePrefix = "Olá! 👋 Seja bem-vindo(a) à Fábrika Kriativa!\nSou a Kiara, assistente de atendimento da Fábrika Kriativa. 😊";
 const routeStateKey=(route,sender)=>route.source+':ad-route:'+digits(sender);
 async function durableRouteState(env,route,sender){
   const found=await dbRequest(env,'kiara_conversations','GET',
