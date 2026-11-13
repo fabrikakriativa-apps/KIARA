@@ -1,0 +1,31 @@
+name: Validar painel Kiara em homologacao
+
+on:
+  push:
+    branches: [feat/painel-independente]
+    paths:
+      - 'painel/**'
+      - '.github/workflows/validar-painel-kiara.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Instalar dependencias do painel
+        working-directory: painel
+        run: npm install --no-audit --no-fund
+      - name: Compilar e checar TypeScript sem publicar
+        working-directory: painel
+        env:
+          KIARA_BASE_PATH: /
+          VITE_SUPABASE_URL: https://dpowbyexrcdcwwqysgzp.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_placeholder
+        run: npm run build

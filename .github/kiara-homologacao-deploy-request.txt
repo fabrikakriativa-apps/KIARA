@@ -1,0 +1,58 @@
+Solicitação manual de publicação isolada do painel Kiara em homologação — 2026-11-02.
+Não altera o Worker nem ativa envio de mensagens.
+
+Nova publicacao apos confirmacao Pages HTTP 200 em 2026-11-02.
+
+Solicitação de publicação da integração de precificação aprovada no simulador interno; sem alterações no Worker e sem habilitar envios.
+
+Republicar após corrigir a tentativa indevida de criar projeto Pages já existente (erro Cloudflare 8000002). Somente painel isolado.
+
+Publicar ajuste visual dos botões de configuração comercial (adicionar, remover, salvar e aprovar), sem alterar preços ou Worker.
+
+Publicação isolada: botão Testar precificação na área de Configurações, com rascunho somente para testes internos, sem envio e sem alterar Worker.
+
+Publicar layout horizontal da precificação e forro Franzida por padrão, apenas painel isolado de homologação, sem alteração de custos e Worker.
+
+Publicar simulador com composição única frente/forro Franzida, trilhos/instalação/motorização por conjunto, painel isolado, sem alterações no Worker ou Supabase.
+
+Corrigir instalação por face na calculadora completa: 1 face manual R$60, frente+forro manual R$120, motorização conforme parâmetros por face; somente painel de homologação, sem Worker.
+
+Publicar painel de parâmetros comerciais de persianas e simulação interna de rascunho; sem preços pré-definidos, sem alterar Worker, sem autorizar envios automáticos.
+
+Publicar formulario de persianas: condominio, referencias provisórias, janela e varanda envidraçada, larguras minimas e sobreposicao. Apenas painel de homologacao.
+
+Publicar regra de condominio focada em sacadas/varandas, sem aplicar restricao automaticamente a ambientes internos. Somente painel de homologacao.
+
+Publicar cadastro privado de imagens e aprovacao na biblioteca visual. Flow de abertura corrigido na branch homologacao do Worker, sem deploy operacional.
+
+Publicar somente painel de homologacao: categorias de imagens, manifesto 22 referencias e importacao em lote inativa. Sem ativacao do Worker ou de WhatsApp.
+
+Ajuste importacao visual: instrucoes para ZIP simplificado de 22 fotos, selecionar todas da mesma pasta, nenhuma foto ativa automaticamente. Publicar apenas painel homologacao.
+
+Atualizar painel de homologação: importador genérico permanente de imagens, edição por arquivo, campos em lote, textos atemporais e revisão individual; não alterar Worker de produção.
+
+Atualizar painel isolado de homologação: filtros, edição de metadados em referências inativas e confirmação de persistência. Worker e WhatsApp de produção permanecem inalterados.
+
+Publicar APENAS o painel de homologação com novo editor de preços de cortinas por categoria comercial (base planilha de 03/11/2026); sem atualizar Worker em produção e sem autorizar mensagens automáticas de preço.
+
+Ajuste complementar da interface: modelos e parâmetros especiais permanecem editáveis, mas sem afetar o cálculo por média de categoria. Publicar apenas painel homologação.
+
+Atualização do simulador comercial: cálculo por faces frente/forro com trilhos compartilhados, validação de ano-base e utilização das categorias da revisão comercial. Somente painel de homologação; Worker e WhatsApp de produção inalterados.
+
+Homologação integrada: substituir simulador legado pelo cálculo por categorias comerciais; considerar composição de frente e forro com único conjunto de trilhos. Publicar somente painel separado de homologação, nunca Worker ou WhatsApp de produção.
+
+Revisão de homologação final: integração comercial consistente, campos numéricos validados, composição frente e forro, e simulador legado removido. Publicar apenas painel de homologação; produção permanece intocada.
+
+Publicar atualização de homologação do comparador de preços com Worker autenticado, incluindo testes locais por categorias e faces; sem ativar API de simulação, sem editar WhatsApp ou Worker de produção.
+
+Homologar tela Leads: ação de envio manual e autorizado para CRM Prospecção, checagem de vínculo e deduplicação transacional via RPC já existente. Publicar somente painel Cloudflare de homologação. Não alterar base de conhecimento nem ativar produção.
+
+Atualizar homologação: base de conhecimento editorial versionada (v2.0 em rascunho), motivo de encaminhamento na conversa e compositor humano com nome derivado do perfil logado. Envio humano deve permanecer desabilitado até ativação segura do Worker homologação.
+
+Painel Kiara homologação: mensagens humanas com identificação obrigatória do perfil via Worker, motivo de transferência e cadastro de versões Markdown da base de conhecimento, incluindo v2.0 em rascunho. Desativar envio humano até verificação do endpoint no número de teste.
+
+2026-11-03: publicar painel com VITE_KIARA_CONTROL_URL, VITE_KIARA_COACH_URL, VITE_KIARA_HUMAN_MESSAGE_URL e VITE_KIARA_PRICE_SIMULATION_URL configurados para Worker isolado; testar OPTIONS em todas as rotas. NÃO liberar envios automáticos ou WhatsApp de produção.
+
+2026-11-08: publicar correção do painel de persianas que utiliza metodologia blind_average_m2_v1, categorias comerciais e instalação manual R$80/unidade. Apenas projeto kiara-painel-homologacao. Manter aprovação humana, sem mensagens automáticas e sem modificar Worker ou WhatsApp oficial.
+
+2026-11-08: corrigir confirmação de Aprovar/Rejeitar no painel de homologação, usando confirmação visível e mensagens de erro para revisão, sem envio de WhatsApp ou alterações na produção.
